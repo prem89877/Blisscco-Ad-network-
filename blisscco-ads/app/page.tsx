@@ -1,12 +1,13 @@
 import Hero from "@/components/Hero";
-import { HowItWorks, Audiences, Developers, Waitlist } from "@/components/Sections";
+import { ValueProps, Audiences, HowItWorks, Developers, Waitlist } from "@/components/Sections";
 
 export default function Home() {
   return (
     <main id="main">
       <Hero />
-      <HowItWorks />
+      <ValueProps />
       <Audiences />
+      <HowItWorks />
       <Developers />
       <Waitlist />
     </main>

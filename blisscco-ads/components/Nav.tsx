@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 
 const LINKS = [
-  { href: "#how", label: "How it works" },
-  { href: "#platforms", label: "Platforms" },
+  { href: "#value", label: "Why Blisscco" },
   { href: "#advertisers", label: "Advertisers" },
-  { href: "#developers", label: "Developers" },
+  { href: "#publishers", label: "AI Publishers" },
+  { href: "#how", label: "How it works" },
 ];
 
 export default function Nav() {
@@ -30,15 +30,13 @@ export default function Nav() {
 
   return (
     <nav aria-label="Main">
-      {/* Desktop */}
       <div className="hidden items-center gap-7 md:flex">
         {LINKS.map((l) => (
           <a key={l.href} href={l.href} className={link}>{l.label}</a>
         ))}
-        <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Join waitlist</Button>
+        <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Get early access</Button>
       </div>
 
-      {/* Mobile */}
       <button
         ref={toggleRef}
         type="button"
@@ -60,7 +58,7 @@ export default function Nav() {
               </li>
             ))}
           </ul>
-          <Button href="#waitlist" onClick={() => setOpen(false)} className="mt-4 w-full">Join waitlist</Button>
+          <Button href="#waitlist" onClick={() => setOpen(false)} className="mt-4 w-full">Get early access</Button>
         </div>
       )}
     </nav>
