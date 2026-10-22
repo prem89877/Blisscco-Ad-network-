@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { scroll-behavior: smooth; }
+body { background: #0B1020; color: #F8FAFC; font-weight: 400; }
+:focus-visible { outline: 2px solid #20D9E6; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation: none !important; transition: none !important; }
+}
+@keyframes bid-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.bid-row { opacity: 0; animation: bid-in .5s ease forwards; }
