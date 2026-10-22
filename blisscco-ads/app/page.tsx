@@ -6,6 +6,7 @@ import {
   Benefits,
   Publishers,
   Developers,
+  Trust,
   Waitlist,
 } from "@/components/Sections";
 
@@ -19,6 +20,7 @@ export default function Home() {
       <Benefits />
       <Publishers />
       <Developers />
+      <Trust />
       <Waitlist />
     </main>
   );

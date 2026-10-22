@@ -8,6 +8,7 @@ const LINKS = [
   { href: "#advertisers", label: "Advertisers" },
   { href: "#publishers", label: "AI Publishers" },
   { href: "#how", label: "How it works" },
+  { href: "#trust", label: "Trust" },
 ];
 
 export default function Nav() {

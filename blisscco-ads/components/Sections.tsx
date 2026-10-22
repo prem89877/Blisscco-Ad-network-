@@ -152,18 +152,64 @@ export function Benefits() {
 }
 
 /* ---------- For AI publishers ---------- */
-const PUBLISHER = [
-  "Add sponsored placements without adding a paywall.",
-  "Block sensitive topics such as health or grief.",
-  "Request an ad with one API call and design how it looks in your chat.",
+const PUBLISHER_STEPS = [
+  {
+    t: "Integrate the API",
+    d: "Connect your chatbot backend to Blisscco's advertising API using credentials issued to you after authorization.",
+  },
+  {
+    t: "Request a contextually relevant ad",
+    d: "When a conversation fits an allowed topic, your product sends the topic or category and asks for a matching ad.",
+  },
+  {
+    t: "Display it with clear sponsorship labeling",
+    d: "Your product shows the ad inside your own interface, always marked as sponsored so people can tell it apart from the chatbot's answer.",
+  },
+];
+
+const PUBLISHER_CONTROLS = [
+  "You decide where and how an ad appears in your product.",
+  "Sensitive topics such as health or grief can be kept ad-free.",
+  "You design the display, as long as the sponsored label stays clear.",
 ];
 
 export function Publishers() {
   return (
-    <Section id="publishers" title="For AI publishers" intro="Add sponsored placements to your chatbot while keeping control of the experience.">
-      <Card className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
-        <Points items={PUBLISHER} />
-        <Button href="#waitlist" variant="secondary" className="w-full md:w-auto">Join as a publisher</Button>
+    <Section
+      id="publishers"
+      title="For AI publishers"
+      intro="If you build an AI chatbot, you will be able to integrate Blisscco's advertising API into your own product, while keeping control of the experience."
+    >
+      <Card className="mb-8 max-w-3xl">
+        <Badge tone="violet">Not open yet</Badge>
+        <p className="mt-3 text-mist/80">
+          The Blisscco advertising API is planned and not available yet. When it launches, access will be subject to
+          authorization and a signed agreement. Nobody can integrate it today, and nothing on this page connects to a
+          live service.
+        </p>
+      </Card>
+
+      <h3 className="font-display text-xl font-semibold">The intended workflow</h3>
+      <ol className="mt-4 grid gap-4 md:grid-cols-3">
+        {PUBLISHER_STEPS.map((s, i) => (
+          <Card as="li" key={s.t}>
+            <p className="font-mono text-sm text-aqua">Step {i + 1}</p>
+            <h4 className="mt-2 text-lg font-medium">{s.t}</h4>
+            <p className="mt-2 text-mist/70">{s.d}</p>
+          </Card>
+        ))}
+      </ol>
+
+      <Card className="mt-8 grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
+        <div>
+          <h3 className="font-display text-xl font-semibold">Planned publisher controls</h3>
+          <div className="mt-4">
+            <Points items={PUBLISHER_CONTROLS} />
+          </div>
+        </div>
+        <Button href="#waitlist" variant="secondary" className="w-full md:w-auto">
+          Check early access status
+        </Button>
       </Card>
     </Section>
   );
@@ -195,12 +241,57 @@ export function Developers() {
   );
 }
 
+/* ---------- Transparency and trust ---------- */
+const TRUST = [
+  {
+    t: "Ads are labeled as sponsored",
+    d: "Every ad must be clearly marked as sponsored, so it is never mistaken for the chatbot's own answer.",
+  },
+  {
+    t: "Matching uses topic or category",
+    d: "Ads are matched using topic or category information about the conversation, not a profile of the person.",
+  },
+  {
+    t: "No automatic access to third-party chatbots",
+    d: "Blisscco does not automatically access or modify the interface of any third-party chatbot.",
+  },
+  {
+    t: "Authorized integrations only",
+    d: "Ads are served only through integrations that a publisher has set up with authorization.",
+  },
+];
+
+export function Trust() {
+  return (
+    <Section
+      id="trust"
+      tone="raised"
+      title="Transparency and trust"
+      intro="These are the principles Blisscco is being designed around."
+    >
+      <ul className="grid gap-4 sm:grid-cols-2">
+        {TRUST.map((x) => (
+          <Card as="li" key={x.t}>
+            <h3 className="font-display text-xl font-semibold">{x.t}</h3>
+            <p className="mt-2 text-mist/70">{x.d}</p>
+          </Card>
+        ))}
+      </ul>
+      <p className="mt-6 max-w-2xl text-sm text-mist/60">
+        These are design commitments for a network that is still in development. Detailed policies will be published
+        before launch.
+      </p>
+    </Section>
+  );
+}
+
 /* ---------- Waitlist (placeholder) ---------- */
 export function Waitlist() {
   return (
     <Section id="waitlist" title="Get early access" intro="Blisscco is in development. We plan to open to a small group of advertisers and AI publishers first.">
       <Card className="max-w-xl">
-        <p className="text-mist/75">The sign-up form arrives with the next phase. Until then, check back soon.</p>
+        <Badge tone="violet">Not open yet</Badge>
+        <p className="mt-3 text-mist/75">The sign-up form arrives with the next phase. Until then, check back soon.</p>
         <Button href="#top" variant="secondary" className="mt-4">Back to top</Button>
       </Card>
     </Section>
