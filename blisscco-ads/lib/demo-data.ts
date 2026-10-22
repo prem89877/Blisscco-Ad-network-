@@ -1,4 +1,4 @@
-import type { ActivityEvent, Campaign, CampaignStatus, DailyMetric, Publisher } from "./types";
+import type { ActivityEvent, AdvertiserCampaign, Campaign, CampaignStatus, DailyMetric, Publisher } from "./types";
 
 /** All numbers here are made-up demo data. No real advertisers, platforms or revenue. */
 
@@ -97,4 +97,16 @@ export const ACTIVITY: ActivityEvent[] = [
   { id: "act_3", date: "2026-10-18", text: "Demo publisher “StudyBuddy AI” added a sample ad slot." },
   { id: "act_4", date: "2026-10-15", text: "Sample campaign “Weekend Getaway Deals” was paused." },
   { id: "act_5", date: "2026-10-12", text: "Sample campaign “Weekly Meal Boxes” was marked completed." },
+];
+
+/* ---------- advertiser dashboard ---------- */
+
+/** Sample campaigns for the Advertiser dashboard. Fictional; no real advertiser or ad delivery. */
+export const ADVERTISER_CAMPAIGNS: AdvertiserCampaign[] = [
+  { id: "demo_a1", name: "Indie Game Launch Week", category: "Gaming", budget: 4000, spend: 2480, impressions: 356000, status: "Active" },
+  { id: "demo_a2", name: "Cloud Storage Spring Offer", category: "Technology", budget: 5500, spend: 3120, impressions: 421000, status: "Active" },
+  { id: "demo_a3", name: "Exam Prep Study Planner", category: "Education", budget: 3000, spend: 1840, impressions: 268000, status: "Active" },
+  { id: "demo_a4", name: "API Testing Toolkit", category: "Developer Tools", budget: 4500, spend: 2310, impressions: 338000, status: "Active" },
+  { id: "demo_a5", name: "Esports Gear Preview", category: "Gaming", budget: 2500, spend: 980, impressions: 142000, status: "Paused" },
+  { id: "demo_a6", name: "Intro to Python Course", category: "Education", budget: 2000, spend: 0, impressions: 0, status: "Draft" },
 ];

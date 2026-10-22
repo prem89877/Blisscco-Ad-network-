@@ -37,3 +37,19 @@ export type ActivityEvent = {
   date: string; // ISO date
   text: string;
 };
+
+/** Categories an advertiser can pick in the demo "Create campaign" form. */
+export const CAMPAIGN_CATEGORIES = ["Gaming", "Technology", "Education", "Developer Tools"] as const;
+export type CampaignCategory = (typeof CAMPAIGN_CATEGORIES)[number];
+
+/** Sample campaign shown on the Advertiser dashboard. Demo data only. */
+export type AdvertiserCampaign = {
+  id: string;
+  name: string;
+  category: CampaignCategory;
+  budget: number;
+  spend: number;
+  impressions: number;
+  status: CampaignStatus;
+  createdThisSession?: boolean;
+};
