@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 
 const LINKS = [
@@ -46,6 +47,7 @@ export default function Nav() {
         {LINKS.map((l) => (
           <a key={l.href} href={l.href} className={link}>{l.label}</a>
         ))}
+        <Link href="/dashboard" className={link}>Demo dashboard</Link>
         <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Early access status</Button>
       </div>
 
@@ -72,6 +74,11 @@ export default function Nav() {
                 </a>
               </li>
             ))}
+            <li className="border-b border-line/60">
+              <Link href="/dashboard" onClick={() => setOpen(false)} className="block py-3.5 text-base text-mist">
+                Demo dashboard
+              </Link>
+            </li>
           </ul>
           <Button href="#waitlist" onClick={() => setOpen(false)} className="mt-4 w-full">Early access status</Button>
         </div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Container from "@/components/ui/Container";
 import Logo from "@/components/Logo";
 import Badge from "@/components/ui/Badge";
@@ -38,6 +39,11 @@ export default function Footer() {
                 </a>
               </li>
             ))}
+            <li>
+              <Link href="/dashboard" className="inline-block rounded py-2 text-sm text-mist/75 hover:text-aqua">
+                Demo dashboard (sample data)
+              </Link>
+            </li>
           </ul>
         </nav>
 

@@ -8,7 +8,7 @@ import RecentCampaigns from "@/components/dashboard/RecentCampaigns";
 import ActivityList from "@/components/dashboard/ActivityList";
 import Card from "@/components/ui/Card";
 import { ACTIVITY, CAMPAIGNS, campaignTotals, ctrOf, recentCampaigns } from "@/lib/demo-data";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatCtr, formatNumber } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Overview | Blisscco Dashboard" };
 
@@ -25,7 +25,7 @@ export default function OverviewPage() {
     .map((c) => ({
       label: c.name,
       value: c.impressions,
-      display: `${formatNumber(c.impressions)} · ${formatPercent(ctrOf(c.clicks, c.impressions))} CTR`,
+      display: `${formatNumber(c.impressions)} · ${formatCtr(ctrOf(c.clicks, c.impressions))} CTR`,
     }));
 
   return (

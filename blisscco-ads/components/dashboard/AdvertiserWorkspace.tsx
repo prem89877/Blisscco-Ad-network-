@@ -41,7 +41,8 @@ export default function AdvertiserWorkspace() {
 
   function closeForm() {
     setFormOpen(false);
-    document.getElementById(CREATE_BUTTON_ID)?.focus();
+    // Wait one frame so the button exists again (it is replaced by the empty state when the list is empty).
+    requestAnimationFrame(() => document.getElementById(CREATE_BUTTON_ID)?.focus());
   }
 
   function handleCreate(input: NewCampaignInput) {
@@ -59,6 +60,7 @@ export default function AdvertiserWorkspace() {
   function clearList() {
     setCampaigns([]);
     setMessage("Cleared the demo campaign list.");
+    requestAnimationFrame(() => document.getElementById(CREATE_BUTTON_ID)?.focus());
   }
 
   function restoreSamples() {
@@ -99,7 +101,7 @@ export default function AdvertiserWorkspace() {
             <Button
               id={CREATE_BUTTON_ID}
               aria-expanded={formOpen}
-              aria-controls="create-campaign-form"
+              aria-controls={formOpen ? "create-campaign-form" : undefined}
               onClick={() => setFormOpen(true)}
             >
               Create campaign

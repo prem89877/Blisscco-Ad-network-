@@ -10,7 +10,7 @@ import { currentLabel } from "@/lib/dashboard-nav";
 export default function DashboardHeader() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-ink/95 px-5 py-3 sm:px-8">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-ink/95 px-4 py-3 min-[400px]:gap-3 min-[400px]:px-5 sm:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <Link href="/" aria-label="Blisscco landing page" className="rounded lg:hidden">
           <Logo />
@@ -22,7 +22,8 @@ export default function DashboardHeader() {
       <div className="flex shrink-0 items-center gap-3">
         <Badge tone="violet">Demo data</Badge>
         <Link href="/" className="inline-flex min-h-11 items-center rounded px-1 text-sm text-mist/75 hover:text-aqua">
-          Landing page
+          <span className="min-[400px]:hidden">Home</span>
+          <span className="hidden min-[400px]:inline">Landing page</span>
         </Link>
       </div>
     </header>
