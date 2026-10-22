@@ -86,6 +86,22 @@ export function spendByTopic(list: Campaign[]): { label: string; value: number }
 
 export const STATUSES: CampaignStatus[] = ["Active", "Paused", "Draft", "Completed"];
 
+/** Distinct campaign categories (the `topic` field), sorted A to Z. Used by the Campaigns filter. */
+export const CAMPAIGN_TOPICS: string[] = [...new Set(CAMPAIGNS.map((c) => c.topic))].sort((a, b) => a.localeCompare(b));
+
+export type CampaignFilters = { query: string; category: string; status: string };
+
+/** Search by campaign name plus category and status filters. "All" means no filter on that field. */
+export function filterCampaigns(list: Campaign[], f: CampaignFilters): Campaign[] {
+  const q = f.query.trim().toLowerCase();
+  return list.filter(
+    (c) =>
+      (q === "" || c.name.toLowerCase().includes(q)) &&
+      (f.category === "All" || c.topic === f.category) &&
+      (f.status === "All" || c.status === f.status),
+  );
+}
+
 /* ---------- overview helpers ---------- */
 
 export function campaignTotals(list: Campaign[]) {

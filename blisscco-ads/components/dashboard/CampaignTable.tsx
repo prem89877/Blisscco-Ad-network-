@@ -1,7 +1,7 @@
 import DataTable, { type Column } from "@/components/dashboard/DataTable";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import { ctrOf } from "@/lib/demo-data";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { formatCtr, formatCurrency, formatNumber } from "@/lib/format";
 import type { Campaign } from "@/lib/types";
 
 const columns: Column<Campaign>[] = [
@@ -14,15 +14,12 @@ const columns: Column<Campaign>[] = [
       </span>
     ),
   },
-  { header: "Topic", cell: (c) => c.topic },
+  { header: "Category", cell: (c) => c.topic },
   { header: "Status", cell: (c) => <StatusBadge status={c.status} /> },
-  {
-    header: "Budget used",
-    numeric: true,
-    cell: (c) => `${formatCurrency(c.spend)} / ${formatCurrency(c.budget)}`,
-  },
+  { header: "Budget", numeric: true, cell: (c) => formatCurrency(c.budget) },
+  { header: "Demo spend", numeric: true, cell: (c) => formatCurrency(c.spend) },
   { header: "Impressions", numeric: true, cell: (c) => formatNumber(c.impressions) },
-  { header: "CTR", numeric: true, cell: (c) => formatPercent(ctrOf(c.clicks, c.impressions)) },
+  { header: "CTR", numeric: true, cell: (c) => formatCtr(ctrOf(c.clicks, c.impressions)) },
 ];
 
 export default function CampaignTable({ rows, caption }: { rows: Campaign[]; caption: string }) {

@@ -11,7 +11,7 @@ export default function CampaignsPage() {
   const sample = JSON.stringify({ id: c.id, name: c.name, topic: c.topic, status: c.status, budget: c.budget }, null, 2);
   return (
     <>
-      <PageHeader title="Campaigns" description="All sample campaigns. Filter by status and sort by spend, impressions or CTR." />
+      <PageHeader title="Campaigns" description="Demo campaigns only. Search by name, filter by category and status, and sort by demo spend, impressions or CTR. Budget, spend and CTR are sample numbers, not real campaign results." />
       <CampaignsExplorer />
       <section aria-labelledby="sample-object" className="mt-8">
         <h2 id="sample-object" className="mb-3 font-display text-lg font-semibold">Sample campaign object</h2>

@@ -6,6 +6,8 @@ export const formatNumber = (n: number) => whole.format(Math.round(n));
 export const formatCompact = (n: number) => compact.format(n);
 export const formatCurrency = (n: number) => usd.format(n);
 export const formatPercent = (n: number, digits = 2) => `${n.toFixed(digits)}%`;
+/** CTR display: exactly "0%" for zero or invalid values, otherwise two decimals. Never NaN or Infinity. */
+export const formatCtr = (n: number) => (Number.isFinite(n) && n > 0 ? formatPercent(n) : "0%");
 export const formatDelta = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

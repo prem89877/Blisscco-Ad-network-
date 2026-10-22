@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Analytics | Blisscco Dashboard" };
 export default function AnalyticsPage() {
   return (
     <>
-      <PageHeader title="Analytics" description="Demo trends for the whole network. Pick a date range to update the charts." />
+      <PageHeader title="Analytics" description="Demo impressions, clicks, click-through rate and spending for the whole network. Pick a date range to update the charts. These are sample numbers, not real results." />
       <AnalyticsView />
     </>
   );
