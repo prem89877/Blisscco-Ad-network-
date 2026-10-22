@@ -5,7 +5,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0B1020",
+        ink: "#0B1020",      // page background
+        surface: "#121A33",  // cards
+        line: "#243055",     // borders
         violet: "#7657FF",
         aqua: "#20D9E6",
         mist: "#F8FAFC",
