@@ -9,8 +9,8 @@ import { DASHBOARD_NAV, isActive } from "@/lib/dashboard-nav";
 export default function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-ink px-4 py-5 lg:flex">
-      <Link href="/" aria-label="Blisscco landing page" className="rounded px-2">
+    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-ink px-4 py-5 lg:flex">
+      <Link href="/" aria-label="Blisscco landing page" className="inline-block rounded px-2">
         <Logo />
       </Link>
       <nav aria-label="Dashboard" className="mt-8">

@@ -12,3 +12,8 @@ export const DASHBOARD_NAV: NavItem[] = [
 export function isActive(pathname: string, href: string): boolean {
   return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
+
+/** Label of the current dashboard page, used in the header. */
+export function currentLabel(pathname: string): string {
+  return DASHBOARD_NAV.find((i) => isActive(pathname, i.href))?.label ?? "Dashboard";
+}
