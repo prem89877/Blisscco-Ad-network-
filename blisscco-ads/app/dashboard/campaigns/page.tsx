@@ -1,0 +1,23 @@
+import type { Metadata } from "next";
+import PageHeader from "@/components/dashboard/PageHeader";
+import CampaignsExplorer from "@/components/dashboard/CampaignsExplorer";
+import CodeBlock from "@/components/ui/CodeBlock";
+import { CAMPAIGNS } from "@/lib/demo-data";
+
+export const metadata: Metadata = { title: "Campaigns | Blisscco Dashboard" };
+
+export default function CampaignsPage() {
+  const c = CAMPAIGNS[0];
+  const sample = JSON.stringify({ id: c.id, name: c.name, topic: c.topic, status: c.status, budget: c.budget }, null, 2);
+  return (
+    <>
+      <PageHeader title="Campaigns" description="All sample campaigns. Filter by status and sort by spend, impressions or CTR." />
+      <CampaignsExplorer />
+      <section aria-labelledby="sample-object" className="mt-8">
+        <h2 id="sample-object" className="mb-3 font-display text-lg font-semibold">Sample campaign object</h2>
+        <p className="mb-3 text-sm text-mist/65">How one campaign may look later. Demo only, no API exists yet.</p>
+        <CodeBlock code={sample} label="Sample campaign object" />
+      </section>
+    </>
+  );
+}

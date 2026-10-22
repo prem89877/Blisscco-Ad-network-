@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 
 const display = Space_Grotesk({ subsets: ["latin"], weight: "600", variable: "--font-display" });
 const sans = Inter({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-sans" });
@@ -24,9 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        <Header />
         {children}
-        <Footer />
       </body>
     </html>
   );
