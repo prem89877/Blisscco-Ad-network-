@@ -30,3 +30,10 @@ export type DailyMetric = {
   clicks: number;
   spend: number;
 };
+
+/** A fictional event for the "Recent activity" list. Never a real log entry. */
+export type ActivityEvent = {
+  id: string;
+  date: string; // ISO date
+  text: string;
+};

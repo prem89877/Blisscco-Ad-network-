@@ -1,4 +1,4 @@
-import type { Campaign, CampaignStatus, DailyMetric, Publisher } from "./types";
+import type { ActivityEvent, Campaign, CampaignStatus, DailyMetric, Publisher } from "./types";
 
 /** All numbers here are made-up demo data. No real advertisers, platforms or revenue. */
 
@@ -73,3 +73,28 @@ export function spendByTopic(list: Campaign[]): { label: string; value: number }
 }
 
 export const STATUSES: CampaignStatus[] = ["Active", "Paused", "Draft", "Completed"];
+
+/* ---------- overview helpers ---------- */
+
+export function campaignTotals(list: Campaign[]) {
+  return {
+    total: list.length,
+    active: list.filter((c) => c.status === "Active").length,
+    impressions: list.reduce((a, c) => a + c.impressions, 0),
+    clicks: list.reduce((a, c) => a + c.clicks, 0),
+  };
+}
+
+/** Newest start date first. */
+export function recentCampaigns(list: Campaign[], count: number): Campaign[] {
+  return [...list].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, count);
+}
+
+/** Fictional events that match the sample campaigns above. They did not really happen. */
+export const ACTIVITY: ActivityEvent[] = [
+  { id: "act_1", date: "2026-10-21", text: "Sample campaign “Language Course Trial” was saved as a draft." },
+  { id: "act_2", date: "2026-10-20", text: "Sample relevance check scored “Coding Bootcamp Intro” 88 out of 100." },
+  { id: "act_3", date: "2026-10-18", text: "Demo publisher “StudyBuddy AI” added a sample ad slot." },
+  { id: "act_4", date: "2026-10-15", text: "Sample campaign “Weekend Getaway Deals” was paused." },
+  { id: "act_5", date: "2026-10-12", text: "Sample campaign “Weekly Meal Boxes” was marked completed." },
+];
