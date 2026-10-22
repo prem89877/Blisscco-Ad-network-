@@ -1,4 +1,4 @@
-import type { ActivityEvent, AdvertiserCampaign, Campaign, CampaignStatus, DailyMetric, Publisher } from "./types";
+import type { ActivityEvent, AdvertiserCampaign, Campaign, CampaignStatus, DailyMetric, Publisher, PublisherProperty } from "./types";
 
 /** All numbers here are made-up demo data. No real advertisers, platforms or revenue. */
 
@@ -23,6 +23,18 @@ export const PUBLISHERS: Publisher[] = [
   { id: "pub_04", name: "ChefMate Chat", category: "Food", adRequests: 455000, impressions: 336000, clicks: 4860, revenue: 2210 },
   { id: "pub_05", name: "WanderBot", category: "Travel", adRequests: 390000, impressions: 262000, clicks: 3340, revenue: 1780 },
   { id: "pub_06", name: "FitCoach Chat", category: "Fitness", adRequests: 341000, impressions: 247000, clicks: 3810, revenue: 1690 },
+];
+
+/**
+ * Fictional publisher properties for the AI Publisher dashboard.
+ * None of these is a real product or a real integration. Only "Demo" rows carry sample metrics.
+ */
+export const PUBLISHER_PROPERTIES: PublisherProperty[] = [
+  { id: "prop_01", name: "Sample Study Assistant", kind: "Study assistant", status: "Demo", adRequests: 48200, impressions: 39100 },
+  { id: "prop_02", name: "Sample Coding Helper", kind: "Developer chatbot", status: "Demo", adRequests: 36500, impressions: 27800 },
+  { id: "prop_03", name: "Sample Travel Planner", kind: "Travel chatbot", status: "Pending Integration", adRequests: 0, impressions: 0 },
+  { id: "prop_04", name: "Sample Recipe Chat", kind: "Cooking assistant", status: "Pending Integration", adRequests: 0, impressions: 0 },
+  { id: "prop_05", name: "Sample Fitness Coach", kind: "Wellness chatbot", status: "Not Connected", adRequests: 0, impressions: 0 },
 ];
 
 /** 30 days ending 22 Oct 2026, generated deterministically (no Math.random) so server and client match. */

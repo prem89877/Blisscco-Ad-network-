@@ -2,68 +2,88 @@ import type { Metadata } from "next";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
 import Panel from "@/components/dashboard/Panel";
-import BarList from "@/components/dashboard/BarList";
-import DataTable, { type Column } from "@/components/dashboard/DataTable";
+import PropertyCard from "@/components/dashboard/PropertyCard";
+import IntegrationSteps from "@/components/dashboard/IntegrationSteps";
 import Badge from "@/components/ui/Badge";
-import { PUBLISHERS, ctrOf } from "@/lib/demo-data";
-import { formatCompact, formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import type { Publisher } from "@/lib/types";
+import Button from "@/components/ui/Button";
+import { PUBLISHER_PROPERTIES } from "@/lib/demo-data";
+import { formatNumber, formatPercent } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Publisher | Blisscco Dashboard" };
 
-const fill = (p: Publisher) => (p.adRequests > 0 ? (p.impressions / p.adRequests) * 100 : 0);
-
-const columns: Column<Publisher>[] = [
-  { header: "Platform", cell: (p) => p.name },
-  { header: "Category", cell: (p) => p.category },
-  { header: "Ad requests", numeric: true, cell: (p) => formatNumber(p.adRequests) },
-  { header: "Fill rate", numeric: true, cell: (p) => formatPercent(fill(p), 1) },
-  { header: "CTR", numeric: true, cell: (p) => formatPercent(ctrOf(p.clicks, p.impressions)) },
-  { header: "Earnings", numeric: true, cell: (p) => formatCurrency(p.revenue) },
+const PRIVACY_POINTS: string[] = [
+  "Every ad is shown with a clear Sponsored label.",
+  "Ads are matched to the topic of a conversation, not to a personal profile.",
+  "Publishers choose to integrate the API into their own products. Nothing is added without them.",
+  "Publishers will be able to keep sensitive topics ad-free.",
+  "No real API keys, secrets or backend requests exist in this demo.",
 ];
 
 export default function PublisherPage() {
-  const revenue = PUBLISHERS.reduce((a, p) => a + p.revenue, 0);
-  const impressions = PUBLISHERS.reduce((a, p) => a + p.impressions, 0);
-  const requests = PUBLISHERS.reduce((a, p) => a + p.adRequests, 0);
-  const clicks = PUBLISHERS.reduce((a, p) => a + p.clicks, 0);
-  const sorted = [...PUBLISHERS].sort((a, b) => b.revenue - a.revenue);
+  const properties = PUBLISHER_PROPERTIES;
+  const requests = properties.reduce((a, p) => a + p.adRequests, 0);
+  const impressions = properties.reduce((a, p) => a + p.impressions, 0);
+  const fillRate = requests > 0 ? (impressions / requests) * 100 : 0;
 
   return (
     <>
       <PageHeader
-        title="AI publisher dashboard"
-        description="Sample view for a publisher running several AI chatbot platforms. Earnings are demo numbers, not real payouts."
+        title="AI Publisher Dashboard"
+        description="Blisscco is a contextual advertising network for AI chatbot developers who choose to integrate its advertising API into their own products. This page previews how a publisher could track their properties. Everything shown is demo data."
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Earnings" value={formatCurrency(revenue)} />
-        <StatCard label="Impressions" value={formatCompact(impressions)} />
-        <StatCard label="Fill rate" value={formatPercent(requests ? (impressions / requests) * 100 : 0, 1)} hint="Requests that got an ad" />
-        <StatCard label="CTR" value={formatPercent(ctrOf(clicks, impressions))} />
+      <section aria-labelledby="summary">
+        <h2 id="summary" className="sr-only">Summary (demo data)</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Publisher properties" value={formatNumber(properties.length)} hint="Demo data" />
+          <StatCard label="Ad requests" value={formatNumber(requests)} hint="Demo data" />
+          <StatCard label="Impressions" value={formatNumber(impressions)} hint="Demo data" />
+          <StatCard label="Fill rate" value={formatPercent(fillRate, 1)} hint="Demo data" />
+        </div>
+      </section>
+
+      <section aria-labelledby="properties" className="mt-8">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <h2 id="properties" className="font-display text-lg font-semibold">Example properties</h2>
+          <Badge tone="violet">Demo data</Badge>
+        </div>
+        <p className="mb-4 max-w-2xl text-sm text-mist/65">
+          These are fictional examples. No publisher is actually integrated with Blisscco.
+        </p>
+        <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {properties.map((p) => (
+            <PropertyCard key={p.id} property={p} />
+          ))}
+        </ul>
+      </section>
+
+      <div className="mt-8">
+        <Panel
+          title="Integration Guide"
+          note="Planned process. The API and backend are not available yet."
+        >
+          <IntegrationSteps />
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Button href="/dashboard/publisher/guide" variant="secondary">
+              Open the guide (coming soon)
+            </Button>
+            <span className="text-xs text-mist/55">Opens a placeholder page inside this project.</span>
+          </div>
+        </Panel>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Panel title="Earnings by platform">
-          <BarList items={sorted.map((p) => ({ label: p.name, value: p.revenue, display: formatCurrency(p.revenue) }))} />
-        </Panel>
-        <Panel title="Publisher controls">
-          <div className="flex items-center gap-2">
-            <Badge tone="violet">Preview</Badge>
-            <span className="text-sm text-mist/70">Not live yet</span>
-          </div>
-          <ul className="mt-3 space-y-2 text-sm text-mist/80">
-            <li>Every ad is clearly labelled as sponsored.</li>
-            <li>Ads are matched to the topic of the conversation.</li>
-            <li>Planned: blocked categories and frequency limits per platform.</li>
+      <div className="mt-8">
+        <Panel title="Privacy and transparency" note="How Blisscco is designed to treat users and publishers.">
+          <ul className="space-y-2 text-sm text-mist/80">
+            {PRIVACY_POINTS.map((t) => (
+              <li key={t} className="flex gap-2">
+                <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-aqua" />
+                <span>{t}</span>
+              </li>
+            ))}
           </ul>
         </Panel>
       </div>
-
-      <section aria-labelledby="platforms" className="mt-8">
-        <h2 id="platforms" className="mb-4 font-display text-lg font-semibold">Your platforms</h2>
-        <DataTable caption="Publisher platforms" columns={columns} rows={sorted} rowKey={(p) => p.id} />
-      </section>
     </>
   );
 }

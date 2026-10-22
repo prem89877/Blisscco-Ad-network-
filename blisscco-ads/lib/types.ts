@@ -24,6 +24,19 @@ export type Publisher = {
   revenue: number;
 };
 
+/** How far a publisher property is along the (future) integration path. Demo labels only. */
+export type IntegrationStatus = "Demo" | "Pending Integration" | "Not Connected";
+
+/** A fictional AI product owned by a demo publisher. Never a real integration. */
+export type PublisherProperty = {
+  id: string;
+  name: string;
+  kind: string; // e.g. "Study assistant"
+  status: IntegrationStatus;
+  adRequests: number; // demo, 0 unless status is "Demo"
+  impressions: number; // demo, 0 unless status is "Demo"
+};
+
 export type DailyMetric = {
   date: string; // ISO date
   impressions: number;
