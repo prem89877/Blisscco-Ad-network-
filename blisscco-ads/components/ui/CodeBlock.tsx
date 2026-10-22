@@ -4,6 +4,7 @@ type CodeBlockProps = { code: string; label?: string };
 export default function CodeBlock({ code, label = "Code sample" }: CodeBlockProps) {
   return (
     <pre
+      role="region"
       tabIndex={0}
       aria-label={label}
       className="overflow-x-auto rounded-xl border border-line bg-ink p-4 font-mono text-[13px] leading-6 text-aqua sm:p-5"

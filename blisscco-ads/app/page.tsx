@@ -12,7 +12,7 @@ import {
 
 export default function Home() {
   return (
-    <main id="main">
+    <main id="main" tabIndex={-1} className="focus-visible:outline-none">
       <Hero />
       <HowItWorks />
       <Advertisers />

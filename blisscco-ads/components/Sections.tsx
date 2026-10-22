@@ -18,6 +18,37 @@ function Points({ items }: { items: string[] }) {
   );
 }
 
+type Titled = { t: string; d: string };
+
+/** Numbered step cards, reused by "How it works" and the publisher workflow. */
+function Steps({ items, heading: H = "h3" }: { items: Titled[]; heading?: "h3" | "h4" }) {
+  return (
+    <ol className="grid gap-4 md:grid-cols-3">
+      {items.map((s, i) => (
+        <Card as="li" key={s.t}>
+          <p className="font-mono text-sm text-aqua">Step {i + 1}</p>
+          <H className="mt-2 text-lg font-medium">{s.t}</H>
+          <p className="mt-2 text-mist/70">{s.d}</p>
+        </Card>
+      ))}
+    </ol>
+  );
+}
+
+/** Two-column title + description cards, reused by "Why match ads by topic" and "Transparency and trust". */
+function InfoCards({ items }: { items: Titled[] }) {
+  return (
+    <ul className="grid gap-4 sm:grid-cols-2">
+      {items.map((x) => (
+        <Card as="li" key={x.t}>
+          <h3 className="font-display text-xl font-semibold">{x.t}</h3>
+          <p className="mt-2 text-mist/70">{x.d}</p>
+        </Card>
+      ))}
+    </ul>
+  );
+}
+
 /* ---------- 1. How it works ---------- */
 const STEPS = [
   {
@@ -37,15 +68,7 @@ const STEPS = [
 export function HowItWorks() {
   return (
     <Section id="how" title="How it works" intro="Three steps from campaign to conversation.">
-      <ol className="grid gap-4 md:grid-cols-3">
-        {STEPS.map((s, i) => (
-          <Card as="li" key={s.t}>
-            <p className="font-mono text-sm text-aqua">Step {i + 1}</p>
-            <h3 className="mt-2 text-lg font-medium">{s.t}</h3>
-            <p className="mt-2 text-mist/70">{s.d}</p>
-          </Card>
-        ))}
-      </ol>
+      <Steps items={STEPS} />
       <p className="mt-6 text-sm text-mist/60">
         This describes how Blisscco is designed to work. The network is still in development.
       </p>
@@ -82,7 +105,7 @@ export function Advertisers() {
         Examples of topics we plan to support. No advertiser is running in these categories yet.
       </p>
       <div className="mt-8">
-        <Button href="#advertiser-pilot" className="w-full sm:w-auto">Express interest in a pilot</Button>
+        <Button href="#advertiser-pilot" className="w-full sm:w-auto">See pilot status</Button>
       </div>
     </Section>
   );
@@ -135,14 +158,7 @@ export function Benefits() {
       title="Why match ads by topic"
       intro="These are the benefits topic-based matching is designed to offer."
     >
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {BENEFITS.map((b) => (
-          <Card as="li" key={b.t}>
-            <h3 className="font-display text-xl font-semibold">{b.t}</h3>
-            <p className="mt-2 text-mist/70">{b.d}</p>
-          </Card>
-        ))}
-      </ul>
+      <InfoCards items={BENEFITS} />
       <p className="mt-6 max-w-2xl text-sm text-mist/60">
         Blisscco does not guarantee clicks, engagement or revenue. Results depend on the campaign, the topic and the
         publisher.
@@ -190,15 +206,9 @@ export function Publishers() {
       </Card>
 
       <h3 className="font-display text-xl font-semibold">The intended workflow</h3>
-      <ol className="mt-4 grid gap-4 md:grid-cols-3">
-        {PUBLISHER_STEPS.map((s, i) => (
-          <Card as="li" key={s.t}>
-            <p className="font-mono text-sm text-aqua">Step {i + 1}</p>
-            <h4 className="mt-2 text-lg font-medium">{s.t}</h4>
-            <p className="mt-2 text-mist/70">{s.d}</p>
-          </Card>
-        ))}
-      </ol>
+      <div className="mt-4">
+        <Steps items={PUBLISHER_STEPS} heading="h4" />
+      </div>
 
       <Card className="mt-8 grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
         <div>
@@ -269,14 +279,7 @@ export function Trust() {
       title="Transparency and trust"
       intro="These are the principles Blisscco is being designed around."
     >
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {TRUST.map((x) => (
-          <Card as="li" key={x.t}>
-            <h3 className="font-display text-xl font-semibold">{x.t}</h3>
-            <p className="mt-2 text-mist/70">{x.d}</p>
-          </Card>
-        ))}
-      </ul>
+      <InfoCards items={TRUST} />
       <p className="mt-6 max-w-2xl text-sm text-mist/60">
         These are design commitments for a network that is still in development. Detailed policies will be published
         before launch.
@@ -288,7 +291,7 @@ export function Trust() {
 /* ---------- Waitlist (placeholder) ---------- */
 export function Waitlist() {
   return (
-    <Section id="waitlist" title="Get early access" intro="Blisscco is in development. We plan to open to a small group of advertisers and AI publishers first.">
+    <Section id="waitlist" title="Early access status" intro="Blisscco is in development. We plan to open to a small group of advertisers and AI publishers first.">
       <Card className="max-w-xl">
         <Badge tone="violet">Not open yet</Badge>
         <p className="mt-3 text-mist/75">The sign-up form arrives with the next phase. Until then, check back soon.</p>

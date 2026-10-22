@@ -5,7 +5,7 @@ type Variant = "primary" | "secondary";
 const base =
   "inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-2.5 text-base font-medium transition-colors";
 const variants: Record<Variant, string> = {
-  primary: "bg-violet text-white hover:bg-[#8A70FF]",
+  primary: "bg-violet text-white hover:bg-[#6444F0]",
   secondary: "border border-aqua/60 text-aqua hover:bg-aqua/10",
 };
 

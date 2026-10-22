@@ -59,7 +59,7 @@ export default function Footer() {
 
       <Container className="mt-10 border-t border-line/60 pt-6">
         <p className="text-xs text-mist/50">
-          &copy; {new Date().getFullYear()} Blisscco. The network is in development; no services are live yet.
+          &copy; Blisscco. The network is in development; no services are live yet.
         </p>
       </Container>
     </footer>

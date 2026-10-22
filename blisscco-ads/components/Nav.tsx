@@ -15,6 +15,7 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
 
+  // Escape closes the menu and returns focus to the toggle.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -27,29 +28,42 @@ export default function Nav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // If the screen grows to desktop width, drop the open state so it is closed when shrunk again.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => {
+      if (mq.matches) setOpen(false);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   const link = "rounded px-1 py-2 text-sm font-medium text-mist/80 hover:text-aqua";
 
   return (
     <nav aria-label="Main">
-      <div className="hidden items-center gap-7 md:flex">
+      <div className="hidden items-center gap-7 lg:flex">
         {LINKS.map((l) => (
           <a key={l.href} href={l.href} className={link}>{l.label}</a>
         ))}
-        <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Get early access</Button>
+        <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Early access status</Button>
       </div>
 
       <button
         ref={toggleRef}
         type="button"
         aria-expanded={open}
-        aria-controls="mobile-menu"
+        aria-controls={open ? "mobile-menu" : undefined}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm font-medium md:hidden"
+        className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm font-medium lg:hidden"
       >
         {open ? "Close" : "Menu"}
       </button>
       {open && (
-        <div id="mobile-menu" className="absolute inset-x-0 top-full border-b border-line bg-ink px-5 pb-5 md:hidden">
+        <div
+          id="mobile-menu"
+          className="absolute inset-x-0 top-full max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-b border-line bg-ink px-5 pb-5 lg:hidden"
+        >
           <ul className="flex flex-col">
             {LINKS.map((l) => (
               <li key={l.href} className="border-b border-line/60">
@@ -59,7 +73,7 @@ export default function Nav() {
               </li>
             ))}
           </ul>
-          <Button href="#waitlist" onClick={() => setOpen(false)} className="mt-4 w-full">Get early access</Button>
+          <Button href="#waitlist" onClick={() => setOpen(false)} className="mt-4 w-full">Early access status</Button>
         </div>
       )}
     </nav>
