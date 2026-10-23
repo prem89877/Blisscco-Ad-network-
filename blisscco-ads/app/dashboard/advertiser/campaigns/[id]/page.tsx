@@ -82,6 +82,8 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
             <Row label="Ad creatives">
               {creatives ? `${creatives.approved} approved of ${creatives.total}` : "Could not be loaded"}
             </Row>
+            <Row label="Created">{formatDate(campaign.createdAt.slice(0, 10))} (UTC)</Row>
+            <Row label="Last updated">{formatDate(campaign.updatedAt.slice(0, 10))} (UTC)</Row>
             <Row label="Spend, impressions, clicks">Not tracked yet (ad serving is not live).</Row>
           </dl>
         </Panel>
