@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
+import { hasSupabaseEnv, requireSupabaseEnv } from "@/lib/supabase/env";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { getSiteUrl } from "@/lib/auth/site-url";
 import {
@@ -142,6 +142,38 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     message: `We sent a verification link to ${email}. Open it to finish creating your account, then log in.`,
     email,
   };
+}
+
+/* ---------------------- Google (OAuth) ---------------------- */
+// Flow: yahan se Supabase -> Google -> Supabase -> /auth/confirm?code=... (wahan code exchange hota hai).
+// `next` redirectTo me nahi bhejte: Supabase ki allow-list exact URL match karti hai, isliye
+// hamesha plain /auth/confirm; login ke baad default /dashboard.
+// Naya Google user bhi database trigger se role = advertiser pata hai (admin kabhi nahi).
+export async function signInWithGoogle(): Promise<void> {
+  const supabase = await getClient();
+  if (!supabase) redirect("/login?error=config");
+
+  let target: string | null = null;
+  try {
+    const siteUrl = await getSiteUrl();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${siteUrl}/auth/confirm` },
+    });
+    if (error) {
+      console.error("[auth] google oauth start failed", { code: error.code, status: error.status });
+    } else if (data.url) {
+      // Sirf apne Supabase project ka URL maano (open redirect se bachav).
+      const expected = new URL(requireSupabaseEnv().url).origin;
+      if (new URL(data.url).origin === expected) target = data.url;
+    }
+  } catch {
+    target = null;
+  }
+
+  // redirect() try/catch ke bahar
+  if (!target) redirect("/login?error=oauth_failed");
+  redirect(target);
 }
 
 /* ---------------------- Resend verification ---------------------- */

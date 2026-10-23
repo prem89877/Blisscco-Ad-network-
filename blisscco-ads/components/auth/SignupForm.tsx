@@ -7,6 +7,7 @@ import { initialAuthState } from "@/lib/auth/types";
 import Field from "@/components/auth/Field";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
+import GoogleButton from "@/components/auth/GoogleButton";
 import Button from "@/components/ui/Button";
 
 export default function SignupForm() {
@@ -78,6 +79,11 @@ export default function SignupForm() {
 
         <SubmitButton pendingText="Creating account…">Create account</SubmitButton>
       </form>
+
+      <GoogleButton />
+      <p className="mt-2 text-xs text-mist/55">
+        Signing up with Google creates an advertiser account. To join as an AI Publisher, use email sign-up above.
+      </p>
 
       <p className="mt-6 text-center text-sm text-mist/70">
         Already have an account?{" "}

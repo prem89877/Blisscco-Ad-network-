@@ -15,6 +15,7 @@ const NOTICES: Record<string, { tone: "success" | "info" | "error"; text: string
     tone: "error",
     text: "That verification link is invalid or has expired. Try logging in; if your email is not verified, we can send a new link.",
   },
+  oauth_failed: { tone: "error", text: "Google sign-in could not be started. Please try again, or log in with email." },
   config: { tone: "error", text: "Sign-in is not set up on this site yet. Please try again later." },
 };
 

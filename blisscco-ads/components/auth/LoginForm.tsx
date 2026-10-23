@@ -7,6 +7,7 @@ import { initialAuthState } from "@/lib/auth/types";
 import Field from "@/components/auth/Field";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
+import GoogleButton from "@/components/auth/GoogleButton";
 
 type Props = {
   next: string;
@@ -44,6 +45,8 @@ export default function LoginForm({ next, notice }: Props) {
         />
         <SubmitButton pendingText="Logging in…">Log in</SubmitButton>
       </form>
+
+      <GoogleButton />
 
       {state.needsVerification && (
         <form action={resendAction} className="mt-4">
