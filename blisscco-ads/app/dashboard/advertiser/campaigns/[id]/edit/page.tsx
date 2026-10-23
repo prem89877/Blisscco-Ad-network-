@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CampaignForm from "@/components/campaigns/CampaignForm";
 import Notice from "@/components/auth/Notice";
+import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import { requireRole } from "@/lib/auth/session";
 import { getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isUuid } from "@/lib/campaigns/constants";
@@ -34,7 +35,13 @@ export default async function EditCampaignPage({ params }: Props) {
             &larr; Back to campaign
           </Link>
         </p>
-        <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Edit campaign</h1>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Edit campaign</h1>
+          <CampaignStatusBadge status={campaign.status} />
+        </div>
+        <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">
+          Editing {campaign.name}. Status changes (pause or resume) are done from the campaign page.
+        </p>
       </div>
 
       {adv.status !== "active" && (

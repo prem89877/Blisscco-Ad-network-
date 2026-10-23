@@ -85,6 +85,17 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
     };
   }
 
+  // Form kholne ke baad campaign kisi aur tab/device se badal gaya? Toh chupchap overwrite nahi karte.
+  // Ye hidden field user badal bhi de toh sirf "stale" error milta hai; ownership isse tay nahi hoti.
+  const expected = formData.get("expectedUpdatedAt");
+  if (typeof expected !== "string" || expected !== current.updatedAt) {
+    return {
+      status: "error",
+      message: "This campaign was changed since you opened this form. Reload the page to see the latest version, then edit again.",
+      values,
+    };
+  }
+
   const categoryLocked = !CATEGORY_EDITABLE_STATUSES.includes(current.status);
   const parsed = parseCampaignForm(values, {
     todayUtc: utcToday(),
@@ -106,13 +117,15 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
   if (!categoryLocked && (isCategory(v.category) || v.category === current.category)) patch.category = v.category;
 
   const supabase = await createClient();
-  // .eq("status", ...) : agar beech me status badal gaya toh 0 rows milengi (lost update nahi).
+  // .eq("status") + .eq("updated_at"): agar read aur write ke beech campaign badal gaya toh 0 rows milengi
+  // (lost update nahi). .eq("advertiser_id") defense in depth hai; asli rok RLS + trigger hai.
   const { data, error } = await supabase
     .from("campaigns")
     .update(patch)
     .eq("id", id)
     .eq("advertiser_id", adv.id)
     .eq("status", current.status)
+    .eq("updated_at", current.updatedAt)
     .select("id");
 
   if (error) {

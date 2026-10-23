@@ -77,6 +77,7 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
   return (
     <form action={formAction} className="max-w-xl space-y-5" noValidate>
       {campaign && <input type="hidden" name="campaignId" value={campaign.id} />}
+      {campaign && <input type="hidden" name="expectedUpdatedAt" value={campaign.updatedAt} />}
       {state.status === "error" && state.message && <Notice tone="error">{state.message}</Notice>}
 
       <FieldShell id="name" label="Campaign name" error={err("name")} hint={`Up to ${NAME_MAX} characters.`}>
