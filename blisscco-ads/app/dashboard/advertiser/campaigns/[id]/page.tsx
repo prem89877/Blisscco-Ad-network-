@@ -9,6 +9,8 @@ import RunStateButton from "@/components/campaigns/RunStateButton";
 import { requireRole } from "@/lib/auth/session";
 import { getCreativeSummary, getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
 import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid } from "@/lib/campaigns/constants";
+import { DELIVERY_NOTE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
+import { utcToday } from "@/lib/campaigns/validation";
 import { formatDate, formatMoney } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Campaign | Blisscco Dashboard" };
@@ -16,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; updated?: string }>;
+  searchParams: Promise<{ created?: string; updated?: string; paused?: string; resumed?: string }>;
 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -44,6 +46,14 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   const locked = EDIT_LOCKED_STATUSES.includes(campaign.status);
   const canChange = adv.status === "active";
 
+  // Button sirf tab jab sach me eligible ho (server action dobara check karta hai).
+  const resumeCheck = checkResume(campaign, creatives ? creatives.approved : null, utcToday());
+  const showEdit = canChange && !locked;
+  const showPause = canChange && canPause(campaign.status);
+  const showResume = canChange && campaign.status === "paused" && resumeCheck.ok;
+  const resumeBlocked =
+    canChange && campaign.status === "paused" && !resumeCheck.ok ? RESUME_BLOCK_MESSAGES[resumeCheck.reason] : null;
+
   return (
     <>
       <div className="mb-6">
@@ -61,6 +71,13 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
 
       {sp.created === "1" && <Notice tone="success">Campaign created as a draft.</Notice>}
       {sp.updated === "1" && <Notice tone="success">Changes saved.</Notice>}
+      {/* Notice sirf tab jab status sach me wahi ho (purani URL reload par galat message na dikhe). */}
+      {sp.paused === "1" && campaign.status === "paused" && (
+        <Notice tone="success">Campaign paused. {DELIVERY_NOTE}</Notice>
+      )}
+      {sp.resumed === "1" && campaign.status === "active" && (
+        <Notice tone="success">Campaign resumed. {DELIVERY_NOTE}</Notice>
+      )}
 
       <div className="mt-6 space-y-5">
         <Panel title="Details">
@@ -88,22 +105,21 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
           </dl>
         </Panel>
 
-        {canChange && !locked && (
+        {(showEdit || showPause || showResume || resumeBlocked) && (
           <Panel title="Actions">
             <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start">
-              <Button href={`/dashboard/advertiser/campaigns/${campaign.id}/edit`} variant="secondary">Edit campaign</Button>
-              {campaign.status === "active" && <RunStateButton campaignId={campaign.id} mode="pause" />}
-              {campaign.status === "paused" && (
-                <div>
-                  <RunStateButton campaignId={campaign.id} mode="resume" />
-                  {creatives && creatives.approved === 0 && (
-                    <p className="mt-2 max-w-sm text-xs text-mist/60">
-                      Resuming needs at least one approved creative.
-                    </p>
-                  )}
-                </div>
+              {showEdit && (
+                <Button href={`/dashboard/advertiser/campaigns/${campaign.id}/edit`} variant="secondary">
+                  Edit campaign
+                </Button>
               )}
+              {showPause && <RunStateButton campaignId={campaign.id} mode="pause" />}
+              {showResume && <RunStateButton campaignId={campaign.id} mode="resume" />}
             </div>
+            {resumeBlocked && <p className="mt-3 max-w-md text-sm text-mist/70">{resumeBlocked}</p>}
+            {(showPause || showResume || resumeBlocked) && (
+              <p className="mt-3 max-w-md text-xs text-mist/55">{DELIVERY_NOTE}</p>
+            )}
           </Panel>
         )}
 

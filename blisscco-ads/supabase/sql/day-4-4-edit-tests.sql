@@ -6,6 +6,18 @@
 -- Har TEST block ALAG se chalao. Har block begin...rollback me hai, kuch save nahi hota.
 -- "ERROR" kai tests me EXPECTED hai (neeche likha hai). Sirf test project par chalao.
 -- Maan ke chalte hain ki 'TEST Campaign A/B' draft status me hain (day-3-6 SETUP).
+--
+-- ERROR: 22P02 invalid input syntax for type uuid: ""  aaye toh matlab TEST Advertiser B /
+-- TEST Campaign B row nahi mili (SETUP chala nahi, ya CLEANUP chal chuka hai). Pehle neeche wali
+-- CHECK query chalao; B ki rows na hon toh day-3-6 ke 2 test users (Dashboard se) banao aur
+-- uska SETUP block chalao. (E2 aur E3 ab saaf message dete hain: "SETUP missing ...")
+--
+-- CHECK (Expect: 2 rows, A aur B, dono me advertiser + campaign dikhe, status draft/active)
+--   select u.email, a.company_name, a.status as adv_status, c.name as campaign, c.status as camp_status
+--   from auth.users u
+--   left join public.advertisers a on a.profile_id = u.id
+--   left join public.campaigns c on c.advertiser_id = a.id
+--   where u.email in ('blisscco-test-a@example.com', 'blisscco-test-b@example.com');
 -- =====================================================================
 
 
@@ -26,6 +38,11 @@ rollback;
 -- Expect: 0 rows (UPDATE 0)
 begin;
 select set_config('test.b_campaign', (select c.id::text from public.campaigns c where c.name = 'TEST Campaign B'), true);
+do $$ begin
+  if nullif(current_setting('test.b_campaign', true), '') is null then
+    raise exception 'SETUP missing: TEST Campaign B not found. Run the day-3-6 SETUP block first.';
+  end if;
+end $$;
 select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set name = 'HACKED', description = 'HACKED'
@@ -38,6 +55,11 @@ rollback;
 -- Expect: ERROR permission denied for table campaigns (advertiser_id update grant me nahi)
 begin;
 select set_config('test.b_adv', (select a.id::text from public.advertisers a where a.company_name = 'TEST Advertiser B'), true);
+do $$ begin
+  if nullif(current_setting('test.b_adv', true), '') is null then
+    raise exception 'SETUP missing: TEST Advertiser B not found. Run the day-3-6 SETUP block first.';
+  end if;
+end $$;
 select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set advertiser_id = current_setting('test.b_adv')::uuid where name = 'TEST Campaign A';

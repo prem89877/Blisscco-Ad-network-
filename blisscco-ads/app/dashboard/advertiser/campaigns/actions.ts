@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
+import { getCreativeSummary, getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isCategory, isUuid } from "@/lib/campaigns/constants";
 import { parseCampaignForm, readFormValues, utcToday } from "@/lib/campaigns/validation";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
+import { PAUSE_BLOCK_MESSAGE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import type { CampaignFormState, RunStateResult } from "@/lib/campaigns/types";
 
 const LIST_PATH = "/dashboard/advertiser/campaigns";
@@ -145,20 +146,30 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
   redirect(`${LIST_PATH}/${id}?updated=1`);
 }
 
-async function changeRunState(
-  formData: FormData,
-  from: "active" | "paused",
-  to: "active" | "paused",
-  okMessage: string,
-  staleMessage: string,
-): Promise<RunStateResult> {
+async function changeRunState(formData: FormData, to: "paused" | "active"): Promise<RunStateResult> {
+  // Expired session => requireRole /login par redirect karta hai. Role/account status server par check hota hai.
   const adv = await requireActiveAdvertiser();
   if ("error" in adv) return { status: "error", message: adv.error };
 
   const id = readCampaignId(formData);
   if (!id) return { status: "error", message: "Campaign not found." };
 
+  // Button/form ki state par bharosa nahi: campaign server par dobara padhte hain (sirf apne advertiser ka).
+  const current = await getMyCampaign(adv.id, id);
+  if (!current) return { status: "error", message: "Campaign not found." };
+
+  const from = to === "paused" ? "active" : "paused";
+  if (to === "paused") {
+    if (!canPause(current.status)) return { status: "error", message: PAUSE_BLOCK_MESSAGE };
+  } else {
+    const creatives = await getCreativeSummary(current.id);
+    const check = checkResume(current, creatives ? creatives.approved : null, utcToday());
+    if (!check.ok) return { status: "error", message: RESUME_BLOCK_MESSAGES[check.reason] };
+  }
+
   const supabase = await createClient();
+  // .eq("status", from): beech me status badal gaya toh 0 rows (galat transition nahi hota).
+  // Final guard database trigger + RLS hai (resume par approved creative aur end_date wahan bhi check hote hain).
   const { data, error } = await supabase
     .from("campaigns")
     .update({ status: to })
@@ -171,29 +182,21 @@ async function changeRunState(
     logDbError(`set ${to}`, error);
     return { status: "error", message: mapDbError(error) };
   }
-  if (!data || data.length === 0) return { status: "error", message: staleMessage };
+  if (!data || data.length === 0) {
+    return { status: "error", message: to === "paused" ? PAUSE_BLOCK_MESSAGE : RESUME_BLOCK_MESSAGES.not_paused };
+  }
 
   revalidatePath(LIST_PATH);
   revalidatePath(`${LIST_PATH}/${id}`);
-  return { status: "success", message: okMessage };
+  // Redirect: page naye status ke saath dobara load hota hai aur success notice page par dikhta hai
+  // (button badalne par button ke andar ka message gayab ho jata, isliye).
+  redirect(`${LIST_PATH}/${id}?${to === "paused" ? "paused" : "resumed"}=1`);
 }
 
 export async function pauseCampaign(_prev: RunStateResult, formData: FormData): Promise<RunStateResult> {
-  return changeRunState(
-    formData,
-    "active",
-    "paused",
-    "Campaign paused.",
-    "Only active campaigns can be paused. Refresh the page to see the latest status.",
-  );
+  return changeRunState(formData, "paused");
 }
 
 export async function resumeCampaign(_prev: RunStateResult, formData: FormData): Promise<RunStateResult> {
-  return changeRunState(
-    formData,
-    "paused",
-    "active",
-    "Campaign resumed.",
-    "Only paused campaigns can be resumed. Refresh the page to see the latest status.",
-  );
+  return changeRunState(formData, "active");
 }
