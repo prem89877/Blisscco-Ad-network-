@@ -4,17 +4,20 @@
 -- expected result na dekha ho.
 --
 -- Kaise chalana hai
---  1. Supabase > Authentication > Users > "Add user" se 3 test users banao
+--  1. Supabase > Authentication > Users > "Add user" se 5 test users banao
 --     (auto confirm ON, koi bhi password):
 --        blisscco-test-a@example.com       (Advertiser A)
 --        blisscco-test-b@example.com       (Advertiser B)
---        blisscco-test-admin@example.com   (admin; sirf Test 15 ke liye)
+--        blisscco-test-c@example.com       (Publisher C)
+--        blisscco-test-d@example.com       (Publisher D)
+--        blisscco-test-admin@example.com   (admin; sirf Test 13 ke liye)
 --  2. SQL Editor me EK baar SETUP block chalao.
 --  3. Phir har TEST block ALAG se chalao (editor saaf karke ek block paste karo).
 --     Har test begin...rollback me hai, kuch save nahi hota.
 --     "ERROR" aana kai tests me EXPECTED hai.
---  4. Aakhir me CLEANUP block chalao, phir 3 test users Dashboard se delete karo.
+--  4. Aakhir me CLEANUP block chalao, phir 5 test users Dashboard se delete karo.
 --  Sirf test project/test data par chalao, real users par nahi.
+--  WARNING: poori file ek saath RUN mat karna. CLEANUP block delete karta hai (sirf exact TEST names).
 -- =====================================================================
 
 
@@ -38,6 +41,15 @@ insert into public.ad_creatives (campaign_id, headline, body, destination_url)
 select id, 'TEST creative A', 'Test body', 'https://example.com' from public.campaigns where name = 'TEST Campaign A';
 insert into public.ad_creatives (campaign_id, headline, body, destination_url)
 select id, 'TEST creative B', 'Test body', 'https://example.com' from public.campaigns where name = 'TEST Campaign B';
+
+-- Publisher users: role SQL Editor se 'publisher' karo (signup metadata Dashboard "Add user" me nahi hoti)
+update public.profiles set role = 'publisher'
+where id in (select id from auth.users where email in ('blisscco-test-c@example.com', 'blisscco-test-d@example.com'));
+
+insert into public.publishers (profile_id, name, status)
+select id, 'TEST Publisher C', 'active' from auth.users where email = 'blisscco-test-c@example.com';
+insert into public.publishers (profile_id, name, status)
+select id, 'TEST Publisher D', 'active' from auth.users where email = 'blisscco-test-d@example.com';
 
 -- Admin user banao (sirf SQL Editor se hota hai, API se nahi)
 update public.profiles set role = 'admin'
@@ -216,8 +228,153 @@ update public.ad_creatives set destination_url = 'https://example.com/changed' w
 rollback;
 
 
+-- ===================== TEST 15: Publisher C ko sirf apna data dikhe =====================
+-- Expect: profile 1 row, publisher 'TEST Publisher C'. Advertiser/campaign/creative ki 0 rows.
+-- (TEST Publisher D kahin nahi dikhna chahiye.)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select 'profile' as what, id::text as value from public.profiles
+union all select 'publisher', name from public.publishers
+union all select 'advertiser', company_name from public.advertisers
+union all select 'campaign', name from public.campaigns
+union all select 'creative', headline from public.ad_creatives;
+rollback;
+
+
+-- ===================== TEST 16: Publisher C, D ka publisher row nahi badal sakta =====================
+-- Expect: 0 rows
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+update public.publishers set name = 'HACKED' where name = 'TEST Publisher D' returning id;
+rollback;
+
+-- Expect: 1 row (apna naam badal sakta hai)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+update public.publishers set name = 'TEST Publisher C renamed' where name = 'TEST Publisher C' returning name;
+rollback;
+
+
+-- ===================== TEST 17: Publisher khud status 'active/suspended' nahi kar sakta =====================
+-- Expect: ERROR permission denied for table publishers (status column)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+update public.publishers set status = 'suspended' where name = 'TEST Publisher C';
+rollback;
+
+
+-- ===================== TEST 18: Publisher C, D ke profile par publisher row nahi bana sakta =====================
+-- Expect: ERROR new row violates row-level security policy for table "publishers"
+begin;
+select set_config('test.d_profile', (select id::text from auth.users where email = 'blisscco-test-d@example.com'), true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into public.publishers (profile_id, name) values (current_setting('test.d_profile')::uuid, 'x');
+rollback;
+
+
+-- ===================== TEST 19: Role mix nahi hota (publisher advertiser nahi ban sakta, ulta bhi) =====================
+-- Expect: ERROR ... violates foreign key constraint "advertisers_profile_fk"
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into public.advertisers (profile_id, company_name) values (auth.uid(), 'x');
+rollback;
+
+-- Expect: ERROR ... violates foreign key constraint "publishers_profile_fk" (A ka role advertiser hai)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into public.publishers (profile_id, name) values (auth.uid(), 'x');
+rollback;
+
+
+-- ===================== TEST 20: Privileged role/status badalne ki koshish =====================
+-- Expect: ERROR permission denied for table profiles (publisher khud admin banne ki koshish)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+update public.profiles set role = 'admin' where id = auth.uid();
+rollback;
+
+-- Expect: ERROR permission denied for table profiles (suspended hone ke baad khud ko wapas active na kar sake)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+update public.profiles set status = 'active' where id = auth.uid();
+rollback;
+
+-- Expect: ERROR permission denied for table profiles (naya admin profile insert karna)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into public.profiles (id, role) values (gen_random_uuid(), 'admin');
+rollback;
+
+-- Expect: ERROR Admin only (publisher admin function nahi chala sakta)
+begin;
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-c@example.com'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select public.admin_set_publisher_status((select id from public.publishers where name = 'TEST Publisher D'), 'suspended');
+rollback;
+
+
+-- ===================== TEST 21: Anonymous private function/schema nahi chala sakta =====================
+-- Expect: ERROR permission denied for function admin_review_campaign
+begin;
+set local role anon;
+select public.admin_review_campaign(gen_random_uuid(), 'approve');
+rollback;
+
+-- Expect: ERROR permission denied for schema private
+begin;
+set local role anon;
+select private.is_admin();
+rollback;
+
+
+-- ===================== STRUCTURE CHECKS (postgres role, sirf padhta hai) =====================
+-- S1. RLS: Expect 5 rows, rls_on = true sab par
+select c.relname as table_name, c.relrowsecurity as rls_on
+from pg_class c
+where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p')
+order by c.relname;
+
+-- S2. Expect: 0 rows (public me koi table bina RLS ke nahi)
+select c.relname as table_without_rls
+from pg_class c
+where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity;
+
+-- S3. Privileges: Expect anon_any = false sab par; auth_delete = false sab par
+select t.name,
+       has_table_privilege('anon', 'public.' || t.name, 'select,insert,update,delete,truncate,references,trigger') as anon_any,
+       has_table_privilege('authenticated', 'public.' || t.name, 'delete,truncate') as auth_delete_or_truncate
+from (values ('profiles'), ('advertisers'), ('publishers'), ('campaigns'), ('ad_creatives')) as t(name);
+
+-- S4. Anon ke liye executable functions. Expect: sirf public.health_ping() (agar Part 7 chalaya)
+select p.oid::regprocedure as anon_can_execute
+from pg_proc p
+where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
+  and has_function_privilege('anon', p.oid, 'execute');
+
+-- S5. Foreign keys + delete rule. Expect: sab 'ON DELETE RESTRICT' (profiles->auth.users cascade chhodkar,
+--     ad_creatives.reviewed_by SET NULL)
+select conrelid::regclass as table_name, conname, pg_get_constraintdef(oid) as definition
+from pg_constraint
+where contype = 'f' and connamespace = 'public'::regnamespace
+order by 1, 2;
+
+-- S6. Indexes
+select tablename, indexname from pg_indexes where schemaname = 'public' order by 1, 2;
+
+
 -- ===================== CLEANUP (postgres role) =====================
-delete from public.ad_creatives where headline like 'TEST creative%';
-delete from public.campaigns    where name like 'TEST Campaign%';
-delete from public.advertisers  where company_name like 'TEST Advertiser%';
--- Phir Authentication > Users se 3 test users delete karo.
+delete from public.ad_creatives where headline in ('TEST creative A', 'TEST creative B');
+delete from public.campaigns    where name in ('TEST Campaign A', 'TEST Campaign B');
+delete from public.advertisers  where company_name in ('TEST Advertiser A', 'TEST Advertiser B');
+delete from public.publishers   where name in ('TEST Publisher C', 'TEST Publisher D');
+-- Phir Authentication > Users se 5 test users delete karo.

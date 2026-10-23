@@ -27,4 +27,4 @@
 5. Secret key (sb_secret_ / service_role) Vercel ya GitHub me mat daalo.
 
 ## Optional check
-`/api/supabase-health` kholo: `{"configured":true,"reachable":true}` matlab Supabase tak request gayi.
+`/api/supabase-health` kholo: `{"status":"ok"}` matlab database tak request gayi (pehle `supabase/sql/day-3-7-health-check.sql` chalao). `{"status":"unavailable"}` (HTTP 503) matlab env ya SQL check karo; kaaran sirf Vercel logs me dikhta hai.

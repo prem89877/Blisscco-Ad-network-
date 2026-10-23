@@ -8,6 +8,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { PUBLISHER_PROPERTIES } from "@/lib/demo-data";
 import { formatNumber, formatPercent } from "@/lib/format";
+import { requireRole } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Publisher | Blisscco Dashboard" };
 
@@ -19,7 +20,8 @@ const PRIVACY_POINTS: string[] = [
   "No real API keys, secrets or backend requests exist in this demo.",
 ];
 
-export default function PublisherPage() {
+export default async function PublisherPage() {
+  await requireRole(["publisher", "admin"]);
   const properties = PUBLISHER_PROPERTIES;
   const requests = properties.reduce((a, p) => a + p.adRequests, 0);
   const impressions = properties.reduce((a, p) => a + p.impressions, 0);

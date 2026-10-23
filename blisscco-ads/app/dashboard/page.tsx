@@ -9,6 +9,7 @@ import ActivityList from "@/components/dashboard/ActivityList";
 import Card from "@/components/ui/Card";
 import { ACTIVITY, CAMPAIGNS, campaignTotals, ctrOf, recentCampaigns } from "@/lib/demo-data";
 import { formatCtr, formatNumber } from "@/lib/format";
+import { requireAccount } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Overview | Blisscco Dashboard" };
 
@@ -17,7 +18,8 @@ const LINKS = [
   { href: "/dashboard/publisher", title: "Publisher dashboard", text: "See sample ad slots and fill rate for demo AI platforms." },
 ];
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  await requireAccount();
   const totals = campaignTotals(CAMPAIGNS);
   const performance = [...CAMPAIGNS]
     .filter((c) => c.impressions > 0)

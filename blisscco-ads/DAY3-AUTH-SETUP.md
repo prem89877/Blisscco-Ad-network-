@@ -46,7 +46,7 @@ STATUS: code likha gaya hai, par abhi kisi asli environment me run/test NAHI hua
 
 ## 4. Android testing checklist (Vercel deploy par)
 Test ke liye apna email use karo.
-1. `/api/supabase-health` => `{"configured":true,"reachable":true,...}`
+1. `/api/supabase-health` => `{"status":"ok"}` (pehle `day-3-7-health-check.sql` chalana zaroori)
 2. Private/incognito tab me `/dashboard` kholo => `/login?next=/dashboard` par pahunchna chahiye.
 3. `/login?next=https://evil.com` kholo, login karo => `/dashboard` par hi aana chahiye (evil.com par nahi).
 4. `/signup`: chhota password (3 akshar) => error dikhe. Alag passwords => "Passwords do not match".

@@ -3,10 +3,12 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import CampaignsExplorer from "@/components/dashboard/CampaignsExplorer";
 import CodeBlock from "@/components/ui/CodeBlock";
 import { CAMPAIGNS } from "@/lib/demo-data";
+import { requireAccount } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Campaigns | Blisscco Dashboard" };
 
-export default function CampaignsPage() {
+export default async function CampaignsPage() {
+  await requireAccount();
   const c = CAMPAIGNS[0];
   const sample = JSON.stringify({ id: c.id, name: c.name, topic: c.topic, status: c.status, budget: c.budget }, null, 2);
   return (

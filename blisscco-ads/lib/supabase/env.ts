@@ -5,6 +5,21 @@
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
+// Purani (legacy) keys JWT hoti hain: payload ke andar role = "anon" ya "service_role".
+// Sirf naam dhoondhna kaafi nahi, isliye payload decode karke role dekhte hain.
+function isServiceRoleJwt(value: string): boolean {
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload: unknown = JSON.parse(atob(padded));
+    return typeof payload === "object" && payload !== null && (payload as { role?: unknown }).role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
 export function hasSupabaseEnv(): boolean {
   return Boolean(url && key);
 }
@@ -27,7 +42,7 @@ export function requireSupabaseEnv(): { url: string; key: string } {
   }
 
   // Safety: secret/service_role key galti se public variable me na chali jaye.
-  if (key.startsWith("sb_secret_") || key.includes("service_role")) {
+  if (key.startsWith("sb_secret_") || key.includes("service_role") || isServiceRoleJwt(key)) {
     throw new Error(
       "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY me secret key lag rahi hai! " +
         "Wahan sirf sb_publishable_... key daalo aur secret key Supabase me rotate kar do."

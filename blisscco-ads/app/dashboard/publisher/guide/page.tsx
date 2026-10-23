@@ -5,10 +5,12 @@ import Panel from "@/components/dashboard/Panel";
 import IntegrationSteps from "@/components/dashboard/IntegrationSteps";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import { requireAccount } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Integration Guide | Blisscco Dashboard" };
 
-export default function PublisherGuidePage() {
+export default async function PublisherGuidePage() {
+  await requireAccount();
   return (
     <>
       <p className="mb-3 text-sm">
