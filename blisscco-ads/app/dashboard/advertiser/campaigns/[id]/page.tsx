@@ -7,7 +7,7 @@ import Notice from "@/components/auth/Notice";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import RunStateButton from "@/components/campaigns/RunStateButton";
 import { requireRole } from "@/lib/auth/session";
-import { getCreativeSummary, getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
+import { getCreativeSummary, getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
 import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid } from "@/lib/campaigns/constants";
 import { DELIVERY_NOTE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import { utcToday } from "@/lib/campaigns/validation";
@@ -25,7 +25,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
       <dt className="w-44 shrink-0 text-sm text-mist/60">{label}</dt>
-      <dd className="text-sm text-mist">{children}</dd>
+      <dd className="min-w-0 break-words text-sm text-mist">{children}</dd>
     </div>
   );
 }
@@ -39,7 +39,9 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   const adv = await getMyAdvertiser();
   if (!adv) notFound();
   // Na mila / kisi aur ka: dono me same notFound (existence leak nahi).
-  const campaign = await getMyCampaign(adv.id, id);
+  const { campaign, failed } = await loadMyCampaign(adv.id, id);
+  // Database error => error boundary (Try again). Sirf sach me na milne par notFound.
+  if (failed) throw new Error("Campaign could not be loaded");
   if (!campaign) notFound();
 
   const creatives = await getCreativeSummary(campaign.id);
@@ -63,7 +65,7 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
           </Link>
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{campaign.name}</h1>
+          <h1 className="min-w-0 break-words font-display text-2xl font-semibold tracking-tight sm:text-3xl">{campaign.name}</h1>
           <CampaignStatusBadge status={campaign.status} />
         </div>
         <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">{STATUS_HELP[campaign.status]}</p>

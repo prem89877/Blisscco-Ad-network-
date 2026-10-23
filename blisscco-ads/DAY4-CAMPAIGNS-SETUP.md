@@ -1,3 +1,5 @@
+> UPDATE: final steps, saare tests, commit aur Vercel checklist ke liye `DAY4-FINAL-REVIEW.md` dekho (ye file sirf shuruaati hissa hai).
+
 # Day 4: Real campaign management (setup + testing)
 
 ## Kya naya hai

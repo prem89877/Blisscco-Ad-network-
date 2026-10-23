@@ -5,7 +5,7 @@ import CampaignForm from "@/components/campaigns/CampaignForm";
 import Notice from "@/components/auth/Notice";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import { requireRole } from "@/lib/auth/session";
-import { getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
+import { getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isUuid } from "@/lib/campaigns/constants";
 import { updateCampaign } from "../../actions";
 
@@ -21,7 +21,8 @@ export default async function EditCampaignPage({ params }: Props) {
 
   const adv = await getMyAdvertiser();
   if (!adv) notFound();
-  const campaign = await getMyCampaign(adv.id, id);
+  const { campaign, failed } = await loadMyCampaign(adv.id, id);
+  if (failed) throw new Error("Campaign could not be loaded");
   if (!campaign) notFound();
 
   const back = `/dashboard/advertiser/campaigns/${campaign.id}`;
@@ -39,7 +40,7 @@ export default async function EditCampaignPage({ params }: Props) {
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Edit campaign</h1>
           <CampaignStatusBadge status={campaign.status} />
         </div>
-        <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">
+        <p className="mt-2 max-w-2xl break-words text-sm text-mist/70 sm:text-base">
           Editing {campaign.name}. Status changes (pause or resume) are done from the campaign page.
         </p>
       </div>

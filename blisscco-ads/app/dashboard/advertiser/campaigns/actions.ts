@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { getCreativeSummary, getMyAdvertiser, getMyCampaign } from "@/lib/campaigns/queries";
+import { getCreativeSummary, getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isCategory, isUuid } from "@/lib/campaigns/constants";
 import { parseCampaignForm, readFormValues, utcToday } from "@/lib/campaigns/validation";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
@@ -76,7 +76,9 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
   const id = readCampaignId(formData);
   if (!id) return { status: "error", message: "Campaign not found.", values };
 
-  const current = await getMyCampaign(adv.id, id);
+  const loaded = await loadMyCampaign(adv.id, id);
+  if (loaded.failed) return { status: "error", message: "Something went wrong. Please try again.", values };
+  const current = loaded.campaign;
   if (!current) return { status: "error", message: "Campaign not found.", values };
   if (EDIT_LOCKED_STATUSES.includes(current.status)) {
     return {
@@ -155,7 +157,9 @@ async function changeRunState(formData: FormData, to: "paused" | "active"): Prom
   if (!id) return { status: "error", message: "Campaign not found." };
 
   // Button/form ki state par bharosa nahi: campaign server par dobara padhte hain (sirf apne advertiser ka).
-  const current = await getMyCampaign(adv.id, id);
+  const loaded = await loadMyCampaign(adv.id, id);
+  if (loaded.failed) return { status: "error", message: "Something went wrong. Please try again." };
+  const current = loaded.campaign;
   if (!current) return { status: "error", message: "Campaign not found." };
 
   const from = to === "paused" ? "active" : "paused";

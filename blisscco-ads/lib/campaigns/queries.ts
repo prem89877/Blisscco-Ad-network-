@@ -61,8 +61,14 @@ export async function listMyCampaigns(
   }
 }
 
-export async function getMyCampaign(advertiserId: string, campaignId: string): Promise<Campaign | null> {
-  if (!isUuid(campaignId)) return null;
+export type LoadCampaignResult = { campaign: Campaign | null; failed: boolean };
+
+/**
+ * Ek campaign (sirf is advertiser ka). failed = database error (campaign nahi mila se alag):
+ * pages failed par error boundary dikhate hain, "not found" nahi.
+ */
+export async function loadMyCampaign(advertiserId: string, campaignId: string): Promise<LoadCampaignResult> {
+  if (!isUuid(campaignId)) return { campaign: null, failed: false };
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -71,10 +77,11 @@ export async function getMyCampaign(advertiserId: string, campaignId: string): P
       .eq("id", campaignId)
       .eq("advertiser_id", advertiserId)
       .maybeSingle();
-    if (error || !data) return null;
-    return toCampaign(data);
+    if (error) return { campaign: null, failed: true };
+    if (!data) return { campaign: null, failed: false };
+    return { campaign: toCampaign(data), failed: false };
   } catch {
-    return null;
+    return { campaign: null, failed: true };
   }
 }
 

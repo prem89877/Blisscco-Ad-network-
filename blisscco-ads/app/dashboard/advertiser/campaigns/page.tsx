@@ -23,7 +23,7 @@ const columns: Column<Campaign>[] = [
   {
     header: "Campaign",
     cell: (c) => (
-      <Link href={`${LIST_PATH}/${c.id}`} className="rounded text-aqua underline-offset-2 hover:underline">
+      <Link href={`${LIST_PATH}/${c.id}`} className="break-words rounded text-aqua underline-offset-2 hover:underline">
         {c.name}
       </Link>
     ),
