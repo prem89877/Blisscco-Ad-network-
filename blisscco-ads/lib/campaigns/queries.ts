@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isUuid } from "./constants";
+import { EMPTY_FILTERS, escapeLike, type CampaignFilters } from "./filters";
 import { toCampaign, type Campaign } from "./types";
 
 // Sirf server par chalta hai (next/headers). Har query me advertiser_id ka filter EXPLICIT hai:
@@ -32,20 +33,31 @@ export const getMyAdvertiser = cache(async (): Promise<MyAdvertiser | null> => {
   }
 });
 
-export async function listMyCampaigns(advertiserId: string): Promise<{ campaigns: Campaign[]; failed: boolean }> {
+export const LIST_LIMIT = 100;
+
+export type CampaignListResult = { campaigns: Campaign[]; failed: boolean; total: number };
+
+/**
+ * Sirf is advertiser ke campaigns. Search/status/category filter DATABASE query me lagte hain
+ * (sab campaigns laakar frontend me chhaantna nahi). RLS alag se rokti hai.
+ */
+export async function listMyCampaigns(
+  advertiserId: string,
+  filters: CampaignFilters = EMPTY_FILTERS,
+): Promise<CampaignListResult> {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select(COLUMNS)
-      .eq("advertiser_id", advertiserId)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error || !data) return { campaigns: [], failed: true };
+    let query = supabase.from("campaigns").select(COLUMNS, { count: "exact" }).eq("advertiser_id", advertiserId);
+    if (filters.status) query = query.eq("status", filters.status);
+    if (filters.category) query = query.eq("category", filters.category);
+    if (filters.q) query = query.ilike("name", `%${escapeLike(filters.q)}%`);
+
+    const { data, error, count } = await query.order("created_at", { ascending: false }).limit(LIST_LIMIT);
+    if (error || !data) return { campaigns: [], failed: true, total: 0 };
     const campaigns = (data as unknown[]).map(toCampaign).filter((c): c is Campaign => c !== null);
-    return { campaigns, failed: false };
+    return { campaigns, failed: false, total: typeof count === "number" ? count : campaigns.length };
   } catch {
-    return { campaigns: [], failed: true };
+    return { campaigns: [], failed: true, total: 0 };
   }
 }
 
