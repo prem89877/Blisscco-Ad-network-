@@ -1,50 +1,30 @@
-# Day 3: Supabase connect (sirf connection, koi table/auth nahi)
+# Day 3: Supabase integration (auth / DB queries abhi nahi)
 
-## A. Supabase project banana (Android Chrome)
-1. Chrome me supabase.com kholo > Sign in (GitHub se login sabse aasan).
-2. Menu me "Desktop site" on kar lo, dashboard phone par aasan dikhta hai.
-3. New project > Organization chuno > Name: `blisscco-ads`.
-4. Database password strong rakho aur kahin safe save karo (ye app me nahi lagega).
-5. Region apne users ke sabse paas wala chuno (India ke liye Mumbai agar dikhe).
-6. Create project dabao, 1-2 minute ruko.
+## Packages
+`@supabase/supabase-js` + `@supabase/ssr` (package.json me already add). Vercel build par `npm install` khud chalega. Terminal ho toh:
+`npm install @supabase/supabase-js @supabase/ssr`
 
-## B. URL aur publishable key kahan milegi
-- Project > upar "Connect" button > App Frameworks > Next.js. Wahan dono values dikhti hain.
-- Ya: Project Settings > API Keys.
-  - Project URL: `https://xxxx.supabase.co`
-  - **Publishable key**: `sb_publishable_...` (agar nahi dikhe toh "Create new API Keys" dabao)
-  - **Secret key**: `sb_secret_...` (isse kabhi public mat karo)
-
-## C. Environment variables
-| Naam | Value | Public? |
+## Browser vs Server
+| File | Kahan chalta hai | Use |
 |---|---|---|
-| NEXT_PUBLIC_SUPABASE_URL | Project URL | Haan |
-| NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | sb_publishable_... | Haan |
-| SUPABASE_SECRET_KEY | sb_secret_... | NAHI, sirf server (abhi optional) |
+| lib/supabase/client.ts | Browser (client components, "use client") | createClient() |
+| lib/supabase/server.ts | Server (server components, route handlers, server actions) | await createClient() |
+| lib/supabase/env.ts | Dono | env check + errors |
+| app/api/supabase-health/route.ts | Server | optional config check |
 
-## D. Vercel me daalna
-1. Vercel > project > Settings > Environment Variables.
-2. Upar ke teen (ya sirf pehle do) add karo, Production + Preview + Development teeno select.
-3. Save > Deployments > latest > Redeploy (env change ke baad redeploy zaroori hai).
+- Dono clients sirf PUBLISHABLE key use karte hain. Secret key is stage me kahin use nahi hoti.
+- Browser client library khud ek hi instance reuse karti hai, extra client mat banao.
+- Naya client har request par server.ts se hi lo (server par share/global mat karo).
 
-## E. Local (Android par)
-Laptop/terminal nahi hai, isliye `.env.local` ki zarurat nahi. Vercel hi tumhara test environment hai. `.env.example` sirf naam yaad rakhne ke liye hai (isme asli key nahi).
+## Android setup
+1. Supabase > Project > "Connect" (ya Settings > API Keys) se Project URL aur sb_publishable_ key copy karo.
+2. Vercel > project > Settings > Environment Variables:
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+   Production + Preview + Development select karke Save.
+3. Deployments > Redeploy (env change ke baad zaroori).
+4. Missing/galat value hogi toh Supabase use karte hi clear error aayega.
+5. Secret key (sb_secret_ / service_role) Vercel ya GitHub me mat daalo.
 
-## F. Secret ko GitHub se bachana
-- `.gitignore` me `.env*.local` pehle se hai.
-- Asli keys kisi file me mat likho, sirf Vercel me.
-- Secret key ke naam me `NEXT_PUBLIC_` kabhi mat lagao.
-- `lib/supabase/admin.ts` me `server-only` hai, client code me import karoge toh build fail hoga.
-- Galti se key GitHub par chali jaye toh Supabase me turant naya key banao aur purani delete karo.
-
-## G. Check kaise karein
-Deploy ke baad `https://TUMHARI-SITE/api/supabase-health` kholo.
-`{"configured":true,"reachable":true,...}` aaye toh connection sahi hai.
-
-## H. Files
-Naya: `.env.example`, `lib/supabase/{env,client,server,admin}.ts`, `app/api/supabase-health/route.ts`, `DAY3-SUPABASE-SETUP.md`
-Badla: `package.json` (3 packages: @supabase/ssr, @supabase/supabase-js, server-only)
-Koi purana page nahi chhua. Vercel build pe `npm install` khud chalega.
-
-## I. SQL file naming (aage ke din ke liye)
-Simple naam: `day-3-authentication.sql`, `day-3-profile.sql`. Abhi koi SQL nahi bana.
+## Optional check
+`/api/supabase-health` kholo: `{"configured":true,"reachable":true}` matlab Supabase tak request gayi.
