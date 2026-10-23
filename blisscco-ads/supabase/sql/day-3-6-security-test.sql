@@ -22,15 +22,18 @@
 
 
 -- ===================== SETUP (ek baar, postgres role) =====================
--- Expect: 3 rows (profiles) role = advertiser, advertiser, advertiser
+-- Expect: 5 rows (profiles), sab role = advertiser (abhi). Day 4 migration ke baad har advertiser ki row auto bhi ban chuki hoti hai.
 select u.email, p.role, p.status
 from public.profiles p join auth.users u on u.id = p.id
 where u.email like 'blisscco-test-%';
 
+-- Day 4 ke baad advertisers row signup par khud ban jati hai, isliye insert ya update dono chalte hain (on conflict).
 insert into public.advertisers (profile_id, company_name, status)
-select id, 'TEST Advertiser A', 'active' from auth.users where email = 'blisscco-test-a@example.com';
+select id, 'TEST Advertiser A', 'active' from auth.users where email = 'blisscco-test-a@example.com'
+on conflict (profile_id) do update set company_name = excluded.company_name, status = 'active';
 insert into public.advertisers (profile_id, company_name, status)
-select id, 'TEST Advertiser B', 'active' from auth.users where email = 'blisscco-test-b@example.com';
+select id, 'TEST Advertiser B', 'active' from auth.users where email = 'blisscco-test-b@example.com'
+on conflict (profile_id) do update set company_name = excluded.company_name, status = 'active';
 
 insert into public.campaigns (advertiser_id, name, category, total_budget, start_date)
 select id, 'TEST Campaign A', 'beauty', 100, current_date from public.advertisers where company_name = 'TEST Advertiser A';
@@ -41,6 +44,11 @@ insert into public.ad_creatives (campaign_id, headline, body, destination_url)
 select id, 'TEST creative A', 'Test body', 'https://example.com' from public.campaigns where name = 'TEST Campaign A';
 insert into public.ad_creatives (campaign_id, headline, body, destination_url)
 select id, 'TEST creative B', 'Test body', 'https://example.com' from public.campaigns where name = 'TEST Campaign B';
+
+-- Publisher/admin test users: signup par auto-bani advertisers row pehle hatao (warna role change FK se rukta hai)
+delete from public.advertisers
+where profile_id in (select id from auth.users where email in
+  ('blisscco-test-c@example.com', 'blisscco-test-d@example.com', 'blisscco-test-admin@example.com'));
 
 -- Publisher users: role SQL Editor se 'publisher' karo (signup metadata Dashboard "Add user" me nahi hoti)
 update public.profiles set role = 'publisher'

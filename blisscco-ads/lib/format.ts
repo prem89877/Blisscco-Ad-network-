@@ -5,6 +5,9 @@ const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD",
 export const formatNumber = (n: number) => whole.format(Math.round(n));
 export const formatCompact = (n: number) => compact.format(n);
 export const formatCurrency = (n: number) => usd.format(n);
+const usdExact = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Real campaign budgets: hamesha 2 decimals ($2,500.50). */
+export const formatMoney = (n: number) => usdExact.format(n);
 export const formatPercent = (n: number, digits = 2) => `${n.toFixed(digits)}%`;
 /** CTR display: exactly "0%" for zero or invalid values, otherwise two decimals. Never NaN or Infinity. */
 export const formatCtr = (n: number) => (Number.isFinite(n) && n > 0 ? formatPercent(n) : "0%");
@@ -15,4 +18,10 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 export function formatDay(iso: string): string {
   const [, m, d] = iso.split("-");
   return `${Number(d)} ${MONTHS[Number(m) - 1]}`;
+}
+
+/** "2026-10-22" -> "22 Oct 2026" (Date parsing nahi, isliye server/browser same dikhta hai). */
+export function formatDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
 }
