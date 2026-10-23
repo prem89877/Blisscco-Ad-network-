@@ -48,6 +48,7 @@ export default function Nav() {
           <a key={l.href} href={l.href} className={link}>{l.label}</a>
         ))}
         <Link href="/dashboard" className={link}>Demo dashboard</Link>
+        <Link href="/login" className={link}>Log in</Link>
         <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Early access status</Button>
       </div>
 
@@ -77,6 +78,11 @@ export default function Nav() {
             <li className="border-b border-line/60">
               <Link href="/dashboard" onClick={() => setOpen(false)} className="block py-3.5 text-base text-mist">
                 Demo dashboard
+              </Link>
+            </li>
+            <li className="border-b border-line/60">
+              <Link href="/login" onClick={() => setOpen(false)} className="block py-3.5 text-base text-mist">
+                Log in
               </Link>
             </li>
           </ul>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { requireUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Dashboard | Blisscco",
@@ -9,12 +10,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+// Har request par server user verify karta hai (middleware ke upar doosri, asli rok).
+export const dynamic = "force-dynamic";
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireUser();
+
   return (
     <div className="min-h-dvh lg:flex">
       <Sidebar />
       <div className="min-w-0 flex-1">
-        <DashboardHeader />
+        <DashboardHeader email={user.email ?? ""} />
         <main
           id="main"
           tabIndex={-1}
