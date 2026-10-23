@@ -8,7 +8,7 @@ import { toCampaign, type Campaign } from "./types";
 // RLS pehle se rokti hai, par admin ko sab campaigns dikhte hain, isliye defense in depth.
 
 const COLUMNS =
-  "id, advertiser_id, name, category, status, currency_code, total_budget, daily_budget, start_date, end_date, created_at, updated_at";
+  "id, advertiser_id, name, description, category, status, currency_code, total_budget, daily_budget, start_date, end_date, created_at, updated_at";
 
 export type MyAdvertiser = { id: string; status: "pending" | "active" | "suspended"; companyName: string };
 

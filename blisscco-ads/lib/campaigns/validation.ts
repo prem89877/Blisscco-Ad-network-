@@ -1,10 +1,11 @@
-import { MAX_BUDGET, NAME_MAX, NAME_MIN, isCategory } from "./constants";
+import { DESC_MAX, MAX_BUDGET, NAME_MAX, NAME_MIN, isCategory } from "./constants";
 import type { CampaignFieldName, FormValues } from "./types";
 
 // Server-side validation (asli check yahi hai). Browser ki checking sirf suvidha ke liye.
 
 export type ParsedCampaign = {
   name: string;
+  description: string | null;
   category: string;
   totalBudget: number;
   dailyBudget: number | null;
@@ -25,14 +26,16 @@ export type ParseOptions = {
 
 const FIELD_MAX = 200;
 
-function readText(fd: FormData, key: string): string {
+function readText(fd: FormData, key: string, max: number = FIELD_MAX): string {
   const v = fd.get(key);
-  return typeof v === "string" ? v.slice(0, FIELD_MAX) : "";
+  return typeof v === "string" ? v.slice(0, max) : "";
 }
 
 export function readFormValues(fd: FormData): FormValues {
   return {
     name: readText(fd, "name"),
+    // +1: limit se lamba text ko silently kaatne ki jagah error dikhana hai.
+    description: readText(fd, "description", DESC_MAX + 1),
     category: readText(fd, "category"),
     totalBudget: readText(fd, "totalBudget"),
     dailyBudget: readText(fd, "dailyBudget"),
@@ -79,6 +82,12 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
   else if (name.length < NAME_MIN) errors.name = `Use at least ${NAME_MIN} characters.`;
   else if (name.length > NAME_MAX) errors.name = `Use ${NAME_MAX} characters or fewer.`;
 
+  // Description optional. \r\n -> \n, NUL byte hata do (Postgres text me NUL nahi leta), khali = null.
+  const descText = values.description.replace(/\r\n?/g, "\n").replace(/\u0000/g, "").trim();
+  let description: string | null = null;
+  if (descText.length > DESC_MAX) errors.description = `Use ${DESC_MAX} characters or fewer.`;
+  else if (descText.length > 0) description = descText;
+
   let category = values.category;
   if (opts.existing?.categoryLocked) {
     category = opts.existing.category; // locked: form ki value ignore
@@ -122,5 +131,5 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
   }
 
   if (Object.keys(errors).length > 0 || total === null) return { ok: false, errors };
-  return { ok: true, value: { name, category, totalBudget: total, dailyBudget: daily, startDate, endDate } };
+  return { ok: true, value: { name, description, category, totalBudget: total, dailyBudget: daily, startDate, endDate } };
 }

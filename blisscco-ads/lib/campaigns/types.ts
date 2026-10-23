@@ -4,6 +4,7 @@ export type Campaign = {
   id: string;
   advertiserId: string;
   name: string;
+  description: string | null;
   category: string;
   status: CampaignDbStatus;
   totalBudget: number;
@@ -17,6 +18,7 @@ export type Campaign = {
 /** Form ki raw (text) values. Error aane par wapas bhejte hain taaki user ka likha hua gayab na ho. */
 export type FormValues = {
   name: string;
+  description: string;
   category: string;
   totalBudget: string;
   dailyBudget: string;
@@ -63,6 +65,7 @@ export function toCampaign(row: unknown): Campaign | null {
     id,
     advertiserId,
     name,
+    description: str(r.description),
     category,
     status,
     totalBudget,

@@ -65,6 +65,7 @@ export const CATEGORY_EDITABLE_STATUSES: readonly CampaignDbStatus[] = ["draft",
 
 export const NAME_MIN = 3;
 export const NAME_MAX = 150;
+export const DESC_MAX = 1000;
 // numeric(12,2) ki sima ~10 billion; app me practical limit.
 export const MAX_BUDGET = 10_000_000;
 

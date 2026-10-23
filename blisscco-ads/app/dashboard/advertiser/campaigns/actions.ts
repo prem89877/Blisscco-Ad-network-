@@ -45,6 +45,7 @@ export async function createCampaign(_prev: CampaignFormState, formData: FormDat
     .insert({
       advertiser_id: adv.id,
       name: v.name,
+      description: v.description,
       category: v.category,
       total_budget: v.totalBudget,
       daily_budget: v.dailyBudget,
@@ -96,6 +97,7 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
 
   const patch: Record<string, unknown> = {
     name: v.name,
+    description: v.description,
     total_budget: v.totalBudget,
     daily_budget: v.dailyBudget,
     start_date: v.startDate,

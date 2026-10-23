@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
-import { CATEGORY_OPTIONS, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
+import { CATEGORY_OPTIONS, DESC_MAX, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
 import { initialFormState, type Campaign, type CampaignFieldName, type CampaignFormState, type FormValues } from "@/lib/campaigns/types";
 
 type Props = {
@@ -23,6 +23,7 @@ const inputBase =
 function defaultsFrom(campaign?: Campaign): FormValues {
   return {
     name: campaign?.name ?? "",
+    description: campaign?.description ?? "",
     category: campaign?.category ?? "",
     totalBudget: campaign ? campaign.totalBudget.toFixed(2) : "",
     dailyBudget: campaign?.dailyBudget != null ? campaign.dailyBudget.toFixed(2) : "",
@@ -90,6 +91,26 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
             aria-invalid={invalid || undefined}
             aria-describedby={d}
             className={`${inputBase} ${border("name")}`}
+          />
+        )}
+      </FieldShell>
+
+      <FieldShell
+        id="description"
+        label="Description (optional)"
+        error={err("description")}
+        hint={`What this campaign promotes. Up to ${DESC_MAX} characters.`}
+      >
+        {(d, invalid) => (
+          <textarea
+            id="description"
+            name="description"
+            rows={4}
+            maxLength={DESC_MAX}
+            defaultValue={v.description}
+            aria-invalid={invalid || undefined}
+            aria-describedby={d}
+            className={`${inputBase} ${border("description")} resize-y`}
           />
         )}
       </FieldShell>

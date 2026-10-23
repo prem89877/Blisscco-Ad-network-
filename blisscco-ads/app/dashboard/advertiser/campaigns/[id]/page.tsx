@@ -65,6 +65,13 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
       <div className="mt-6 space-y-5">
         <Panel title="Details">
           <dl className="space-y-3">
+            <Row label="Description">
+              {campaign.description ? (
+                <span className="block whitespace-pre-line break-words">{campaign.description}</span>
+              ) : (
+                "No description"
+              )}
+            </Row>
             <Row label="Category">{categoryLabel(campaign.category)}</Row>
             <Row label="Total budget">{formatMoney(campaign.totalBudget)}</Row>
             <Row label="Daily budget">
