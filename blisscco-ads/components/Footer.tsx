@@ -14,7 +14,6 @@ const NAV = [
 /** Placeholders are plain text, not links, because these pages do not exist yet. */
 const PENDING = [
   { label: "Contact", note: "Contact details will be added before launch." },
-  { label: "Privacy Policy", note: "Will be published before launch." },
   { label: "Terms", note: "Will be published before launch." },
 ];
 
@@ -50,6 +49,11 @@ export default function Footer() {
         <div>
           <h2 className="font-display text-base font-semibold">Contact and legal</h2>
           <ul className="mt-3 space-y-3">
+            <li className="text-sm">
+              <Link href="/privacy" className="inline-block rounded py-1 text-mist/90 hover:text-aqua">
+                Privacy Policy
+              </Link>
+            </li>
             {PENDING.map((p) => (
               <li key={p.label} className="text-sm">
                 <div className="flex flex-wrap items-center gap-2">
