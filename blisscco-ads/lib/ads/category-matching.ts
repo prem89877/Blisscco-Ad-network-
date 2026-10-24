@@ -126,6 +126,12 @@ export type MatchContext = {
   unitCostUsd: number;
   /** Publisher ke pichhle dikhaye creative ids (optional). Alternative ho toh inhe chhod kar. */
   excludeCreativeIds?: readonly string[];
+  /**
+   * "enforce" (default) = total/daily budget check lagta hai (spentTotal / spentToday par bharosa karke).
+   * "skip" = budget check BILKUL nahi lagta. Tab use karo jab kharch ka koi bharosemand record nahi hai
+   * (abhi campaign_spend_daily me koi likhta nahi, Day 6 tak). Taaki hum jhooth na bolen ki limit lag rahi hai.
+   */
+  budgetCheck?: "enforce" | "skip";
 };
 
 export type RejectionReason =
@@ -137,6 +143,7 @@ export type IneligibleReason =
   | "malformed_candidate"
   | "category_mismatch"
   | "creative_not_approved"
+  | "creative_incomplete"
   | "campaign_not_active"
   | "advertiser_not_active"
   | "advertiser_profile_not_active"
@@ -218,10 +225,25 @@ function isWellFormed(c: AdCandidate): boolean {
   );
 }
 
+/**
+ * Creative poora hai ya nahi (database ke CHECK constraints jaisa: ad_creatives headline 1-90, body 1-300,
+ * cta_text null ya 1-30, destination_url https:// bina space, max 2048). Database me ye pehle se lagu hain,
+ * par server-side snapshot par bharosa nahi karte: adhoora creative kabhi publisher tak nahi jaana chahiye.
+ */
+function isCompleteCreative(ad: MatchedAd): boolean {
+  const textOk = (v: unknown, max: number): boolean =>
+    typeof v === "string" && v.trim().length >= 1 && v.trim().length <= max;
+  if (!textOk(ad.headline, 90) || !textOk(ad.body, 300)) return false;
+  if (!(ad.ctaText === null || textOk(ad.ctaText, 30))) return false;
+  const url = ad.destinationUrl;
+  return typeof url === "string" && url.length <= 2048 && /^https:\/\/[^\s]+$/i.test(url);
+}
+
 function isValidContext(ctx: MatchContext): boolean {
   if (typeof ctx !== "object" || ctx === null) return false;
   if (!isRealDate(ctx.today)) return false;
   if (typeof ctx.unitCostUsd !== "number" || !Number.isFinite(ctx.unitCostUsd) || ctx.unitCostUsd <= 0) return false;
+  if (ctx.budgetCheck !== undefined && ctx.budgetCheck !== "enforce" && ctx.budgetCheck !== "skip") return false;
   if (ctx.excludeCreativeIds !== undefined) {
     if (!Array.isArray(ctx.excludeCreativeIds)) return false;
     if (!ctx.excludeCreativeIds.every((id) => typeof id === "string")) return false;
@@ -242,11 +264,14 @@ export function candidateIneligibility(
   if (!isWellFormed(candidate)) return "malformed_candidate";
   if (candidate.category !== category) return "category_mismatch";
   if (candidate.creativeStatus !== "approved") return "creative_not_approved";
+  if (!isCompleteCreative(candidate.ad)) return "creative_incomplete";
   if (candidate.campaignStatus !== "active") return "campaign_not_active";
   if (candidate.advertiserStatus !== "active") return "advertiser_not_active";
   if (candidate.advertiserProfileStatus !== "active") return "advertiser_profile_not_active";
   if (candidate.startDate > ctx.today) return "not_started"; // YYYY-MM-DD string compare = date compare
   if (candidate.endDate !== null && candidate.endDate < ctx.today) return "ended";
+
+  if (ctx.budgetCheck === "skip") return null; // budget enforce nahi ho raha (kharch ka reliable data nahi)
 
   const unit = unitCostMicros(ctx.unitCostUsd);
   if (toMicros(candidate.spentTotal) + unit > toMicros(candidate.totalBudget)) return "total_budget_exhausted";
