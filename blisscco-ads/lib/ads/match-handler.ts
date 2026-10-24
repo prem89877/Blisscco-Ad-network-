@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
+import { buildAdResponse, type MatchResponseBody } from "@/lib/ads/contract";
 import { serveAdForPublisher } from "@/lib/ads/service";
 import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 
@@ -10,6 +11,7 @@ import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 //   1. content-type ki strict jaanch (isJsonContentType)
 //   2. options.extraHeaders: har jawab me jodne ke liye (v1 yahan version header lagata hai). JSON body kabhi nahi badalti.
 // CORS jaan-boojh kar NAHI hai: key browser me nahi jaani chahiye.
+// Har jawab ka shape lib/ads/contract.ts ke types se bandhta hai (contract: DAY6-ADS-MATCH-CONTRACT.md).
 // Is file me logging nahi hai (key, hash, topic, body kuch log nahi hota). Errors ka code serve-db.ts me log hota hai.
 
 export type MatchHandlerOptions = {
@@ -66,7 +68,7 @@ async function readBodyLimited(request: Request, maxBytes: number): Promise<stri
 
 export async function handleMatchPost(request: Request, options: MatchHandlerOptions = {}): Promise<Response> {
   const extra = options.extraHeaders ?? {};
-  const json = (body: Record<string, unknown>, status: number, headers?: Record<string, string>) =>
+  const json = (body: MatchResponseBody, status: number, headers?: Record<string, string>) =>
     NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", ...extra, ...headers } });
 
   // 1. Key ka format (database tak jaane se pehle). Galat/missing = hamesha ek jaisa 401.
@@ -106,19 +108,6 @@ export async function handleMatchPost(request: Request, options: MatchHandlerOpt
     case "unavailable":
       return json({ fill: false, error: "unavailable" }, 503);
     case "ad":
-      return json(
-        {
-          fill: true,
-          sponsored: true,
-          ad: {
-            id: result.ad.id,
-            headline: result.ad.headline,
-            body: result.ad.body,
-            cta_text: result.ad.ctaText,
-            destination_url: result.ad.destinationUrl,
-          },
-        },
-        200,
-      );
+      return json(buildAdResponse(result.ad), 200);
   }
 }
