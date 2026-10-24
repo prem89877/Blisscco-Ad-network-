@@ -21,17 +21,19 @@ export default async function PublisherGuidePage() {
 
       <PageHeader
         title="Integration Guide"
-        description="Placeholder page. The full guide will be published when the Blisscco advertising API and secure backend are ready."
+        description="Placeholder page. The full guide will be published when the Blisscco advertising API is ready to open to publishers."
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Status">
           <div className="flex items-center gap-2">
-            <Badge tone="neutral">Coming soon</Badge>
+            <Badge tone="neutral">Not open yet</Badge>
           </div>
           <p className="mt-3 text-sm text-mist/75">
-            There is no live API, no API key issuing and no backend in this project yet. Nothing on this page
-            connects to a server.
+            The advertising API is still being built and is not open to publishers. API keys are not self-service:
+            Blisscco issues them by hand, and no key can be created from this page. Nothing on this page connects to
+            a server. Ads can only appear inside a product whose owner has integrated and authorised the Blisscco
+            API; Blisscco has no integration with ChatGPT or any other third-party chatbot.
           </p>
         </Panel>
 

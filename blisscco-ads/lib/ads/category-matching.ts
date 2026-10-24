@@ -227,8 +227,9 @@ function isWellFormed(c: AdCandidate): boolean {
 
 /**
  * Creative poora hai ya nahi (database ke CHECK constraints jaisa: ad_creatives headline 1-90, body 1-300,
- * cta_text null ya 1-30, destination_url https:// bina space, max 2048). Database me ye pehle se lagu hain,
- * par server-side snapshot par bharosa nahi karte: adhoora creative kabhi publisher tak nahi jaana chahiye.
+ * cta_text null ya 1-30, destination_url https:// bina space, max 2048). Database me ye pehle se lagu hain
+ * (userinfo wali rok day-5-11 migration se aati hai), par server-side snapshot par bharosa nahi karte:
+ * adhoora ya shaky creative kabhi publisher tak nahi jaana chahiye.
  */
 function isCompleteCreative(ad: MatchedAd): boolean {
   const textOk = (v: unknown, max: number): boolean =>
@@ -236,7 +237,10 @@ function isCompleteCreative(ad: MatchedAd): boolean {
   if (!textOk(ad.headline, 90) || !textOk(ad.body, 300)) return false;
   if (!(ad.ctaText === null || textOk(ad.ctaText, 30))) return false;
   const url = ad.destinationUrl;
-  return typeof url === "string" && url.length <= 2048 && /^https:\/\/[^\s]+$/i.test(url);
+  if (typeof url !== "string" || url.length > 2048 || !/^https:\/\/[^\s]+$/i.test(url)) return false;
+  // "https://trusted.com@evil.com" jaise URL (userinfo) phishing me kaam aate hain: browser asli host evil.com ko jaata hai.
+  // "@" path/query me theek hai (https://example.com/a@b); sirf host se pehle wala "@" reject hota hai.
+  return !/^https:\/\/[^/?#]*@/i.test(url);
 }
 
 function isValidContext(ctx: MatchContext): boolean {

@@ -2,7 +2,7 @@ type Step = { title: string; text: string };
 
 export const INTEGRATION_STEPS: Step[] = [
   { title: "Register a publisher", text: "Create a publisher account and describe the AI product you want to monetise." },
-  { title: "Obtain an API key", text: "Keys will be issued by a future secure backend. Nothing is generated in this demo." },
+  { title: "Obtain an API key", text: "Keys are not self-service yet. Blisscco issues them by hand, and nothing is generated in this demo." },
   { title: "Integrate the API", text: "Call the Blisscco advertising API from your own application, on your own server." },
   { title: "Test ad requests", text: "Send test requests and check the responses before going live." },
   { title: "Display ads with a Sponsored label", text: "Show every returned ad with a clear Sponsored label, separate from the AI's own answer." },
