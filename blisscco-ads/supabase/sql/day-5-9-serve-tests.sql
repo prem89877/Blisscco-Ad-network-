@@ -3,6 +3,10 @@
 -- Ye tests tab tak "pass" nahi maane jaate jab tak tumne khud run karke expected result na dekha ho.
 -- (Maine ye SQL kisi database par NAHI chalaya: sandbox me Postgres nahi hai.)
 --
+-- FIX: S7-S13 me creative id pehle (postgres ke roop me) test.cid me rakhi jaati hai, kyunki service_role
+-- ko tables par seedha access nahi hona chahiye. Function ko sirf current_setting('test.cid') milta hai.
+-- S14/S15 me "ERROR permission denied" EXPECTED hai (wahi pass hai).
+--
 -- Pehle: day-5-1 se day-5-6 aur day-5-8 chali hon, aur day-3-6 ka SETUP block chala ho
 -- (TEST Publisher C, TEST Campaign A, TEST creative A, users blisscco-test-a/c).
 -- Har TEST block ALAG se chalao (editor saaf karke ek block paste karo).
@@ -92,8 +96,9 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 set local role service_role;
-select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming')::text, true);
+select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'gaming')::text, true);
 reset role;
 select current_setting('test.r')::jsonb ->> 'outcome' as outcome,
        (select count(*) from public.ad_serve_log where creative_id = (select id from public.ad_creatives where headline = 'TEST creative A')) as log_rows,
@@ -109,9 +114,10 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 update public.campaigns set status = 'paused' where name = 'TEST Campaign A';
 set local role service_role;
-select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming')::text, true);
+select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'gaming')::text, true);
 reset role;
 select current_setting('test.r')::jsonb ->> 'outcome' as outcome, (select count(*) from public.ad_serve_log where creative_id = (select id from public.ad_creatives where headline = 'TEST creative A')) as log_rows;
 rollback;
@@ -124,9 +130,10 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 update public.ad_creatives set status = 'pending_review' where headline = 'TEST creative A';
 set local role service_role;
-select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming')::text, true);
+select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'gaming')::text, true);
 reset role;
 select current_setting('test.r')::jsonb ->> 'outcome' as outcome, (select count(*) from public.ad_serve_log where creative_id = (select id from public.ad_creatives where headline = 'TEST creative A')) as log_rows;
 rollback;
@@ -139,8 +146,9 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 set local role service_role;
-select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'technology')::text, true);
+select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'technology')::text, true);
 reset role;
 select current_setting('test.r')::jsonb ->> 'outcome' as outcome, (select count(*) from public.ad_serve_log where creative_id = (select id from public.ad_creatives where headline = 'TEST creative A')) as log_rows;
 rollback;
@@ -153,13 +161,14 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 update public.campaigns set start_date = current_date - 10, end_date = current_date - 1 where name = 'TEST Campaign A';
 set local role service_role;
-select set_config('test.expired', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming')::text, true);
+select set_config('test.expired', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'gaming')::text, true);
 reset role;
 update public.campaigns set start_date = current_date + 1, end_date = current_date + 5 where name = 'TEST Campaign A';
 set local role service_role;
-select set_config('test.future', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming')::text, true);
+select set_config('test.future', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'gaming')::text, true);
 reset role;
 select current_setting('test.expired')::jsonb ->> 'outcome' as expired,
        current_setting('test.future')::jsonb ->> 'outcome' as future,
@@ -174,9 +183,10 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 update public.advertisers set status = 'suspended' where company_name = 'TEST Advertiser A';
 set local role service_role;
-select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming')::text, true);
+select set_config('test.r', public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'gaming')::text, true);
 reset role;
 select current_setting('test.r')::jsonb ->> 'outcome' as outcome, (select count(*) from public.ad_serve_log where creative_id = (select id from public.ad_creatives where headline = 'TEST creative A')) as log_rows;
 rollback;
@@ -189,9 +199,10 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active', start_date = current_date - 5, end_date = null where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
+select set_config('test.cid', (select id::text from public.ad_creatives where headline = 'TEST creative A'), true);
 set local role service_role;
-select public.record_ad_serve(repeat('0', 64), (select id from public.ad_creatives where headline = 'TEST creative A'), 'gaming') ->> 'outcome' as a,
-       public.record_ad_serve(current_setting('test.hash'), (select id from public.ad_creatives where headline = 'TEST creative A'), 'health') ->> 'outcome' as b,
+select public.record_ad_serve(repeat('0', 64), current_setting('test.cid')::uuid, 'gaming') ->> 'outcome' as a,
+       public.record_ad_serve(current_setting('test.hash'), current_setting('test.cid')::uuid, 'health') ->> 'outcome' as b,
        public.record_ad_serve(current_setting('test.hash'), null, 'gaming') ->> 'outcome' as c;
 rollback;
 
