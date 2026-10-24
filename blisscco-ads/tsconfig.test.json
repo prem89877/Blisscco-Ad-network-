@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "noEmit": false,
+    "incremental": false,
+    "outDir": ".test-build",
+    "rootDir": ".",
+    "plugins": [],
+    "types": ["node"],
+    "noUncheckedSideEffectImports": false
+  },
+  "include": [
+    "lib/ads/**/*.ts",
+    "lib/campaigns/constants.ts",
+    "app/api/ads/match/route.ts",
+    "tests/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".test-build"]
+}
