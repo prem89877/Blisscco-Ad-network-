@@ -18,7 +18,7 @@ export type CategorySlug = CampaignCategory;
 /** Har canonical slug ke liye allowed aliases. Record hone se naya slug jodte hi compiler yahan entry maangega. */
 // Alias ka format normalized hona chahiye: lowercase, a-z0-9 aur "_" (max 3 shabd). Test ye check karta hai.
 export const CATEGORY_ALIASES: Readonly<Record<CategorySlug, readonly string[]>> = {
-  developer_tools: ["dev_tools", "devtools", "developer_tool"],
+  developer_tools: ["dev_tools", "devtools", "developer_tool", "coding_tools"],
   education: ["edtech", "e_learning", "elearning"],
   finance: ["fintech"],
   fitness: ["workouts", "exercise"],

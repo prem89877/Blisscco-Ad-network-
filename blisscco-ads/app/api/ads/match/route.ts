@@ -11,7 +11,7 @@ import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 // Publisher ko sirf ad ke public fields milte hain; advertiser/budget/campaign data kabhi nahi.
 // Flow (lib/ads/service.ts): key authorize + rate limit -> category match -> campaign selection -> serve record -> jawab.
 // Private campaign queries sirf server par chalti hain (service-role, database functions ke peeche).
-// Production se pehle edge/IP rate limiting aur baaki items: DAY6-SERVE-INTEGRATION.md.
+// Production se pehle edge/IP rate limiting aur baaki items: DAY5-SERVE-INTEGRATION.md.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

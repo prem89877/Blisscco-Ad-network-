@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { CategorySlug } from "./taxonomy";
 
 // Serve ke liye database pul (server-side). Service-role key SIRF createAdminClient() ke andar hai.
-// Yahan sirf 2 rpc chalte hain (day-6-1): authorize_publisher_key aur record_ad_serve.
+// Yahan sirf 2 rpc chalte hain (day-5-8): authorize_publisher_key aur record_ad_serve.
 // Log me sirf error code jaata hai (message/details me data ho sakta hai). Key, hash, topic, ad text kabhi log nahi hota.
 
 function isRecord(v: unknown): v is Record<string, unknown> {

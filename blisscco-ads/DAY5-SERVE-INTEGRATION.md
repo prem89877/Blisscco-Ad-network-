@@ -1,15 +1,15 @@
-# Day 6: category matching + campaign selection ab route se jude (secure server-side serve)
+# Day 5 (Part 4): category matching + campaign selection ab route se jude (secure server-side serve)
 
 ## 1. Kya chala aur kya NAHI (sach-sach)
 
 Is sandbox me chala (asli result):
 - Strict TypeScript compile (`tsconfig.test.json`, next/supabase ke chhote stubs ke saath): 0 errors.
-- `npm test` jaisa poora suite: **315 tests, 315 passed, 0 failed** (pehle 288; route tests naye flow ke hisaab se likhe gaye, nayi `serve.test.ts` me 23 tests).
+- `npm test` jaisa poora suite: **393 tests, 393 passed, 0 failed** (pehle 288). Route tests naye flow ke hisaab se likhe gaye, `serve.test.ts` me 23 tests, aur Part 5 ka `matching-requirements.test.ts` (DAY5-TEST-SUITE.md).
 - Mutation check: "record rejected par bhi ad do" aur "unauthorized par aage badho" todne par tests/compile fail hue.
   Teesra todna (category check hatana) fail nahi hua: wo jaan-boojh kar behaviour-equal hai, kyunki selection layer wahi check dobara karti hai.
 
 NAHI chala:
-- **`day-6-1-serve-functions.sql` aur `day-6-2-serve-tests.sql` kisi database par nahi chale** (sandbox me Postgres nahi). Jab tak tum S1 se S15 chalakar expected result na dekho, ye functions tested nahi maano.
+- **`day-5-8-serve-functions.sql` aur `day-5-9-serve-tests.sql` kisi database par nahi chale** (sandbox me Postgres nahi). Jab tak tum S1 se S15 chalakar expected result na dekho, ye functions tested nahi maano.
 - `npm install`, `next build`, Vercel deploy, asli API call asli key ke saath.
 
 ## 2. Flow
@@ -29,7 +29,7 @@ Jawab (shape pehle jaisa): `200 {fill:true, sponsored:true, ad:{id, headline, bo
 
 ## 3. Behaviour jo badla (dhyan se)
 
-- Aliases ab chalte hain (`games`, `video_games`, `tech`...). Pehle sirf exact slug.
+- Aliases ab chalte hain (`games`, `video_games`, `tech`, naya `coding_tools` -> `developer_tools`...). Pehle sirf exact slug.
 - Rotation ab deterministic hai (pehle `random()`): kam serve hua campaign -> kam serve hua creative -> id.
 - Candidate load fail hone par 200 no-fill aata hai (selection layer ka safe design), 503 nahi. Isliye monitoring zaroori hai (section 6).
 - Purana `match_contextual_ad` (day-5-4) aur `lib/ads/match.ts` ab route se use nahi hote par hataye nahi. Rollback: `app/api/ads/match/route.ts` purani file se badal do.
@@ -37,15 +37,15 @@ Jawab (shape pehle jaisa): `200 {fill:true, sponsored:true, ad:{id, headline, bo
 
 ## 4. DEPLOY ORDER
 
-1. Supabase SQL Editor: `day-6-1-serve-functions.sql` ek baar chalao. Neeche ke 2 Check queries: 2 rows (`security_definer = true`), grantee sirf `service_role` aur `postgres`.
-2. `day-6-2-serve-tests.sql`: day-3-6 ka SETUP block pehle chala ho. Har S-block alag. S14/S15 me ERROR expected hai.
+1. Supabase SQL Editor: `day-5-8-serve-functions.sql` ek baar chalao. Neeche ke 2 Check queries: 2 rows (`security_definer = true`), grantee sirf `service_role` aur `postgres`.
+2. `day-5-9-serve-tests.sql`: day-3-6 ka SETUP block pehle chala ho. Har S-block alag. S14/S15 me ERROR expected hai.
 3. Tab code push karo. (Code pehle push hua toh route 503 `unavailable` dega jab tak SQL na chale: safe fail, ad nahi jaata.)
 4. Vercel me kuch naya nahi: `SUPABASE_SECRET_KEY` pehle se set hai.
 
 ## 5. Files
 
-Naye: `supabase/sql/day-6-1-serve-functions.sql`, `supabase/sql/day-6-2-serve-tests.sql`, `lib/ads/serve.ts`, `lib/ads/serve-db.ts`, `lib/ads/service.ts`, `tests/ads/serve.test.ts`, `DAY6-SERVE-INTEGRATION.md`.
-Badli: `app/api/ads/match/route.ts`, `tests/ads/request-and-route.test.ts` (sirf route section), `lib/supabase/admin.ts` (sirf comment).
+Naye: `supabase/sql/day-5-8-serve-functions.sql`, `supabase/sql/day-5-9-serve-tests.sql`, `lib/ads/serve.ts`, `lib/ads/serve-db.ts`, `lib/ads/service.ts`, `tests/ads/serve.test.ts`, `DAY5-SERVE-INTEGRATION.md`.
+Badli: `app/api/ads/match/route.ts`, `tests/ads/request-and-route.test.ts` (sirf route section), `lib/supabase/admin.ts` (sirf comment), `lib/ads/taxonomy.ts` (sirf ek alias).
 
 ## 6. Production se pehle BAAKI security kaam
 

@@ -1,5 +1,5 @@
 -- =====================================================================
--- BLISSCCO | Day 6 | Part 1 : serve ke 2 chhote functions (TypeScript selection layer ke liye)
+-- BLISSCCO | Day 5 | Part 8 : serve ke 2 chhote functions (TypeScript selection layer ke liye)
 -- Pehle day-5-1 se day-5-6 chali honi chahiye. Dobara chalane par safe hai
 -- (create or replace; koi table/column/data nahi badalta).
 --
