@@ -14,10 +14,10 @@ export const metadata: Metadata = { title: "Publisher | Blisscco Dashboard" };
 
 const PRIVACY_POINTS: string[] = [
   "Every ad is shown with a clear Sponsored label.",
-  "Ads are matched to the topic of a conversation, not to a personal profile.",
+  "Ads are matched to a topic category chosen by the publisher's server, not to a personal profile. Conversation text is not sent to Blisscco.",
   "Publishers choose to integrate the API into their own products. Nothing is added without them.",
-  "Publishers will be able to keep sensitive topics ad-free.",
-  "No real API keys, secrets or backend requests exist in this demo.",
+  "Sensitive topics such as health, religion and politics never return an ad, and publishers can skip the request entirely.",
+  "The figures on this page are demo data. No API keys are created, shown or stored in this dashboard.",
 ];
 
 export default async function PublisherPage() {
@@ -62,14 +62,14 @@ export default async function PublisherPage() {
       <div className="mt-8">
         <Panel
           title="Integration Guide"
-          note="Planned process. The API and backend are not available yet."
+          note="Access to the API is limited and manual, and it is not ready for production use."
         >
           <IntegrationSteps />
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button href="/dashboard/publisher/guide" variant="secondary">
-              Open the guide (coming soon)
+              Open the integration guide
             </Button>
-            <span className="text-xs text-mist/55">Opens a placeholder page inside this project.</span>
+            <span className="text-xs text-mist/55">Covers requests, errors, the Sponsored label and known limitations.</span>
           </div>
         </Panel>
       </div>

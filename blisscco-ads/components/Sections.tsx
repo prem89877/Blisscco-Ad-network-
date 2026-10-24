@@ -175,7 +175,7 @@ const PUBLISHER_STEPS = [
   },
   {
     t: "Request a contextually relevant ad",
-    d: "When a conversation fits an allowed topic, your product sends the topic or category and asks for a matching ad.",
+    d: "When a conversation fits an allowed topic, your server sends a topic slug, never the conversation, and asks for a matching ad.",
   },
   {
     t: "Display it with clear sponsorship labeling",
@@ -199,8 +199,9 @@ export function Publishers() {
       <Card className="mb-8 max-w-3xl">
         <Badge tone="violet">Not open yet</Badge>
         <p className="mt-3 text-mist/80">
-          The Blisscco advertising API is planned and not available yet. When it launches, access will be subject to
-          authorization and a signed agreement. Nobody can integrate it today, and nothing on this page connects to a
+          The Blisscco advertising API exists in a limited, pre-launch form and is not open to the public. There is no
+          self-service sign-up or key creation: keys are issued by hand, and it is not ready for production use. When
+          it opens, access will be subject to authorization and a signed agreement. Nothing on this page connects to a
           live service.
         </p>
       </Card>
@@ -226,17 +227,27 @@ export function Publishers() {
 }
 
 /* ---------- Developers ---------- */
-const SAMPLE = `POST /v1/ads/match
-Authorization: Bearer blc_live_xxxxxxxx
+const SAMPLE = `POST /api/v1/ads/match
+Authorization: Bearer YOUR_PUBLISHER_API_KEY
+Content-Type: application/json
 
-{
-  "placement_id": "plc_chat_main",
-  "topic": "waterproof jackets for travel",
-  "locale": "en-IN"
-}
+{ "topic": "gaming" }
 
 200 OK
-{ "campaign_id": "cmp_example", "label": "Sponsored" }`;
+{
+  "fill": true,
+  "sponsored": true,
+  "ad": {
+    "id": "...",
+    "headline": "...",
+    "body": "...",
+    "cta_text": "...",
+    "destination_url": "https://..."
+  }
+}
+
+200 OK (no eligible ad)
+{ "fill": false }`;
 
 export function Developers() {
   return (
@@ -244,9 +255,9 @@ export function Developers() {
       id="developers"
       tone="raised"
       title="One request, one ad"
-      intro="This is the planned API shape. It is still in design and may change."
+      intro="This is the current request shape of the limited, pre-launch API. Call it from your server only, never from a browser. It may still change."
     >
-      <CodeBlock code={SAMPLE} label="Planned ad match request and response" />
+      <CodeBlock code={SAMPLE} label="Ad match request and responses" />
     </Section>
   );
 }
