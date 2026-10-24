@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
-import { matchAd } from "@/lib/ads/match";
+import { serveAdForPublisher } from "@/lib/ads/service";
 import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 
 // POST /api/ads/match
@@ -9,6 +9,9 @@ import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 //   { "topic": "gaming", "exclude_ad_ids": ["<pichhle dikhaye ad ids, optional>"] }
 // CORS jaan-boojh kar NAHI hai: key browser me nahi jaani chahiye.
 // Publisher ko sirf ad ke public fields milte hain; advertiser/budget/campaign data kabhi nahi.
+// Flow (lib/ads/service.ts): key authorize + rate limit -> category match -> campaign selection -> serve record -> jawab.
+// Private campaign queries sirf server par chalti hain (service-role, database functions ke peeche).
+// Production se pehle edge/IP rate limiting aur baaki items: DAY6-SERVE-INTEGRATION.md.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,19 +73,19 @@ export async function POST(request: Request) {
   const parsed = parseMatchRequest(raw);
   if (!parsed.ok) return json({ error: "invalid_request", reason: parsed.reason }, 400);
 
-  // 3. Database: auth + rate limit + matching (ek call)
-  const result = await matchAd(hashApiKey(key), parsed.value.topic, parsed.value.excludeAdIds);
+  // 3. Service: authorize + rate limit + category match + selection + serve record
+  const result = await serveAdForPublisher(hashApiKey(key), parsed.value);
 
-  switch (result.outcome) {
+  switch (result.kind) {
     case "unauthorized":
       return json({ error: "unauthorized" }, 401, { "WWW-Authenticate": 'Bearer realm="blisscco-ads"' });
     case "rate_limited":
       return json({ error: "rate_limited" }, 429, { "Retry-After": "60" });
     case "no_fill":
       return json({ fill: false }, 200);
-    case "error":
+    case "unavailable":
       return json({ fill: false, error: "unavailable" }, 503);
-    case "ok":
+    case "ad":
       return json(
         {
           fill: true,

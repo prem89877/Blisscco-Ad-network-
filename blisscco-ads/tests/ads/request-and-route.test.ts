@@ -203,6 +203,58 @@ describe("matchAd (fake database)", () => {
 });
 
 // ---------------- route handler ----------------
+// Route ab serve flow chalata hai (lib/ads/service.ts): authorize_publisher_key -> load_ad_candidates -> record_ad_serve.
+// Fake database rpc ke NAAM se jawab deta hai.
+const PUBLISHER_ID = "99999999-9999-4999-8999-999999999999";
+const CAMPAIGN_ID = "33333333-3333-4333-8333-333333333333";
+
+const AUTH_OK = { outcome: "ok", publisher_id: PUBLISHER_ID, publisher_status: "active", unit_cost_usd: 0.002 };
+
+function candidateRow(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    creative_id: UUID_1,
+    headline: "H",
+    body: "B",
+    cta_text: null,
+    destination_url: "https://example.com/x",
+    creative_status: "approved",
+    campaign_id: CAMPAIGN_ID,
+    campaign_status: "active",
+    category: "gaming",
+    start_date: "2020-01-01",
+    end_date: null,
+    total_budget: 100,
+    daily_budget: null,
+    spent_total: 0,
+    spent_today: 0,
+    advertiser_status: "active",
+    advertiser_profile_status: "active",
+    campaign_serves_today: 0,
+    creative_serves_today: 0,
+    ...over,
+  };
+}
+
+type Reply = FakeRpcResponse | (() => never);
+let replies: Record<string, Reply> = {};
+
+function setDb(over: Record<string, Reply> = {}) {
+  replies = {
+    authorize_publisher_key: { data: AUTH_OK, error: null },
+    load_ad_candidates: { data: [candidateRow()], error: null },
+    record_ad_serve: { data: { outcome: "ok" }, error: null },
+    ...over,
+  };
+  globals.__TEST_SUPABASE__ = {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ name, args });
+      const reply = replies[name];
+      if (!reply) throw new Error(`test: unexpected rpc ${name}`);
+      return typeof reply === "function" ? reply() : reply;
+    },
+  };
+}
+
 function post(body: string, headers: Record<string, string> = {}): Request {
   return new Request("https://blisscco.test/api/ads/match", {
     method: "POST",
@@ -215,11 +267,13 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
   return (await res.json()) as Record<string, unknown>;
 }
 
-describe("POST /api/ads/match (route logic, fake database)", () => {
-  const okAd = { id: UUID_1, headline: "H", body: "B", cta_text: null, destination_url: "https://example.com/x" };
+const rpcNames = () => rpcCalls.map((c) => c.name);
 
-  it("200 fill:true with only public ad fields; DB gets the key HASH, not the key", async () => {
-    nextRpc = { data: { outcome: "ok", ad: { ...okAd, campaign_id: "secret-campaign", budget: 99 } }, error: null };
+describe("POST /api/ads/match (route logic, fake database)", () => {
+  beforeEach(() => setDb());
+
+  it("200 fill:true with only public ad fields; DB gets the key HASH, never the key", async () => {
+    setDb({ load_ad_candidates: { data: [candidateRow({ advertiser_name: "Secret Co", budget: 99 })], error: null } });
     const res = await routeModule.POST(post(JSON.stringify({ topic: "gaming", exclude_ad_ids: [UUID_2] })));
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("cache-control"), "no-store");
@@ -229,19 +283,60 @@ describe("POST /api/ads/match (route logic, fake database)", () => {
       sponsored: true,
       ad: { id: UUID_1, headline: "H", body: "B", cta_text: null, destination_url: "https://example.com/x" },
     });
-    assert.ok(!JSON.stringify(body).includes("secret-campaign"));
-    assert.equal(rpcCalls.length, 1);
+    const text = JSON.stringify(body);
+    for (const secret of ["Secret Co", CAMPAIGN_ID, "campaign", "budget", PUBLISHER_ID]) {
+      assert.ok(!text.includes(secret), secret);
+    }
+    assert.deepEqual(rpcNames(), ["authorize_publisher_key", "load_ad_candidates", "record_ad_serve"]);
     assert.equal(rpcCalls[0].args.p_key_hash, hashApiKey(KEY));
-    assert.equal(rpcCalls[0].args.p_topic, "gaming");
-    assert.deepEqual(rpcCalls[0].args.p_exclude_ids, [UUID_2]);
+    assert.deepEqual(rpcCalls[1].args, { p_category: "gaming", p_today: rpcCalls[1].args.p_today });
+    assert.deepEqual(rpcCalls[2].args, { p_key_hash: hashApiKey(KEY), p_creative_id: UUID_1, p_topic: "gaming" });
     assert.ok(!JSON.stringify(rpcCalls).includes(KEY));
   });
 
-  it("200 fill:false when the database says no_fill (also for sensitive topic 'health')", async () => {
-    nextRpc = { data: { outcome: "no_fill" }, error: null };
-    const res = await routeModule.POST(post('{"topic":"health"}'));
+  it("an alias signal ('games') is resolved to the canonical category before any query", async () => {
+    const res = await routeModule.POST(post('{"topic":"games"}'));
+    assert.equal(res.status, 200);
+    assert.equal((await readJson(res)).fill, true);
+    assert.equal(rpcCalls[1].args.p_category, "gaming");
+    assert.equal(rpcCalls[2].args.p_topic, "gaming");
+  });
+
+  it("200 fill:false for sensitive/unsupported topics; candidates are never loaded", async () => {
+    for (const topic of ["health", "politics", "beauty", "not_a_category"]) {
+      rpcCalls = [];
+      const res = await routeModule.POST(post(JSON.stringify({ topic })));
+      assert.equal(res.status, 200, topic);
+      assert.deepEqual(await readJson(res), { fill: false }, topic);
+      assert.deepEqual(rpcNames(), ["authorize_publisher_key"], topic);
+    }
+  });
+
+  it("200 fill:false when there is no eligible candidate; nothing is recorded", async () => {
+    setDb({ load_ad_candidates: { data: [candidateRow({ creative_status: "pending_review" })], error: null } });
+    const res = await routeModule.POST(post('{"topic":"gaming"}'));
     assert.equal(res.status, 200);
     assert.deepEqual(await readJson(res), { fill: false });
+    assert.ok(!rpcNames().includes("record_ad_serve"));
+  });
+
+  it("200 fill:false (no ad shown) when the database rejects the serve record", async () => {
+    setDb({ record_ad_serve: { data: { outcome: "rejected" }, error: null } });
+    const res = await routeModule.POST(post('{"topic":"gaming"}'));
+    assert.equal(res.status, 200);
+    assert.deepEqual(await readJson(res), { fill: false });
+  });
+
+  it("exclude_ad_ids are honoured when an alternative exists", async () => {
+    setDb({
+      load_ad_candidates: {
+        data: [candidateRow(), candidateRow({ creative_id: UUID_2, headline: "Other" })],
+        error: null,
+      },
+    });
+    const res = await routeModule.POST(post(JSON.stringify({ topic: "gaming", exclude_ad_ids: [UUID_1] })));
+    const body = await readJson(res);
+    assert.equal((body.ad as Record<string, unknown>).id, UUID_2);
   });
 
   it("401 without key, with malformed key; database is never called", async () => {
@@ -259,19 +354,21 @@ describe("POST /api/ads/match (route logic, fake database)", () => {
     assert.equal(rpcCalls.length, 0);
   });
 
-  it("401 when the database says unauthorized (revoked/unknown key)", async () => {
-    nextRpc = { data: { outcome: "unauthorized" }, error: null };
+  it("401 when the database says unauthorized (revoked/unknown key); no campaign query runs", async () => {
+    setDb({ authorize_publisher_key: { data: { outcome: "unauthorized" }, error: null } });
     const res = await routeModule.POST(post('{"topic":"gaming"}'));
     assert.equal(res.status, 401);
     assert.deepEqual(await readJson(res), { error: "unauthorized" });
+    assert.deepEqual(rpcNames(), ["authorize_publisher_key"]);
   });
 
-  it("429 with Retry-After when rate limited", async () => {
-    nextRpc = { data: { outcome: "rate_limited" }, error: null };
+  it("429 with Retry-After when rate limited; no campaign query runs", async () => {
+    setDb({ authorize_publisher_key: { data: { outcome: "rate_limited" }, error: null } });
     const res = await routeModule.POST(post('{"topic":"gaming"}'));
     assert.equal(res.status, 429);
     assert.equal(res.headers.get("retry-after"), "60");
     assert.deepEqual(await readJson(res), { error: "rate_limited" });
+    assert.deepEqual(rpcNames(), ["authorize_publisher_key"]);
   });
 
   it("415 for wrong content-type", async () => {
@@ -300,14 +397,26 @@ describe("POST /api/ads/match (route logic, fake database)", () => {
     assert.equal(rpcCalls.length, 0);
   });
 
-  it("503 fill:false when the database fails or returns garbage", async () => {
-    nextRpc = { data: null, error: { code: "XX000" } };
-    const r1 = await routeModule.POST(post('{"topic":"gaming"}'));
-    assert.equal(r1.status, 503);
-    assert.deepEqual(await readJson(r1), { fill: false, error: "unavailable" });
-    nextRpc = { data: { outcome: "ok", ad: { id: 1 } }, error: null };
-    const r2 = await routeModule.POST(post('{"topic":"gaming"}'));
-    assert.equal(r2.status, 503);
+  it("503 fill:false when any database step fails or returns garbage; no internals leak", async () => {
+    const cases: Array<Record<string, Reply>> = [
+      { authorize_publisher_key: { data: null, error: { code: "XX000" } } },
+      { authorize_publisher_key: { data: { outcome: "ok", publisher_id: "nope" }, error: null } },
+      { load_ad_candidates: { data: null, error: { code: "42501" } } },
+      { record_ad_serve: { data: null, error: { code: "XX000" } } },
+      { record_ad_serve: { data: { outcome: "surprise" }, error: null } },
+    ];
+    for (const over of cases) {
+      setDb(over);
+      rpcCalls = [];
+      const res = await routeModule.POST(post('{"topic":"gaming"}'));
+      const loadFailed = "load_ad_candidates" in over;
+      // Candidate load fail = safe no-fill (200); baaki sab 503
+      assert.equal(res.status, loadFailed ? 200 : 503, JSON.stringify(Object.keys(over)));
+      const body = await readJson(res);
+      assert.equal(body.fill, false);
+      assert.ok(!JSON.stringify(body).includes("42501"));
+      assert.ok(!JSON.stringify(body).includes("XX000"));
+    }
   });
 
   it("only POST is exported (browser GET gets 405 from Next)", () => {
