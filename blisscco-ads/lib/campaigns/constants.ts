@@ -1,4 +1,5 @@
 // Campaign ke fixed values. Database me category ek slug hai (^[a-z0-9_]{1,50}$), display naam alag.
+// Day 5: yahi list database table ad_categories (day-5-1) me bhi hai. Nayi category jodo toh DONO jagah.
 export const CATEGORY_OPTIONS = [
   { value: "developer_tools", label: "Developer tools" },
   { value: "education", label: "Education" },
@@ -6,6 +7,7 @@ export const CATEGORY_OPTIONS = [
   { value: "fitness", label: "Fitness" },
   { value: "food", label: "Food" },
   { value: "gaming", label: "Gaming" },
+  { value: "lifestyle", label: "Lifestyle" },
   { value: "technology", label: "Technology" },
   { value: "travel", label: "Travel" },
 ] as const;
