@@ -8,7 +8,7 @@
 -- S14/S15 me "ERROR permission denied" EXPECTED hai (wahi pass hai).
 --
 -- Pehle: day-5-1 se day-5-6 aur day-5-8 chali hon, aur day-3-6 ka SETUP block chala ho
--- (TEST Publisher C, TEST Campaign A, TEST creative A, users blisscco-test-a/c).
+-- (TEST Publisher C, TEST Campaign A, TEST creative A, users janvi01506 (Advertiser A) / delieveryboy09 (Publisher C)).
 -- Har TEST block ALAG se chalao (editor saaf karke ek block paste karo).
 -- Har block begin...rollback me hai, kuch save nahi hota. "ERROR" kai tests me EXPECTED hai.
 -- Sirf test project par chalao. Poori file ek saath RUN mat karna.

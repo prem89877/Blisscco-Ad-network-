@@ -2,7 +2,7 @@
 -- BLISSCCO | Day 4 | Part 5 : Pause / Resume ke tests (SQL Editor)
 --
 -- Pehle: day-4-1 chali ho, aur day-3-6 ka SETUP block chala ho
--- (users blisscco-test-a / b, 'TEST Advertiser A/B', 'TEST Campaign A/B', 'TEST creative A').
+-- (users janvi01506 (Advertiser A) / sanjaytalekar740 (Advertiser B), 'TEST Advertiser A/B', 'TEST Campaign A/B', 'TEST creative A').
 -- Har TEST block ALAG se chalao. Har block begin...rollback me hai, kuch save nahi hota.
 -- "ERROR" kai tests me EXPECTED hai. Sirf test project par chalao.
 -- Resume ke mukhya tests day-4-2 ke Test 7, 8, 9, 10 me pehle se hain
@@ -14,7 +14,7 @@
 -- Expect: 1 row, status = paused
 begin;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'paused' where name = 'TEST Campaign A' returning name, status;
 rollback;
@@ -24,7 +24,7 @@ rollback;
 -- Expect: 1 row (count = 1), status = paused. Creative bhi bacha rehta hai (count = 1)
 begin;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'paused' where name = 'TEST Campaign A';
 select (select count(*) from public.campaigns where name = 'TEST Campaign A') as campaigns_left,
@@ -42,7 +42,7 @@ do $$ begin
     raise exception 'SETUP missing: TEST Campaign A not found. Run the day-3-6 SETUP block first.';
   end if;
 end $$;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-b@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'sanjaytalekar740@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'paused' where id = current_setting('test.a_campaign')::uuid returning id;
 rollback;
@@ -51,7 +51,7 @@ rollback;
 -- ===================== R4 (forbidden): draft campaign seedha pause nahi hota =====================
 -- Expect: ERROR Campaign status change draft -> paused is not allowed
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'paused' where name = 'TEST Campaign A';
 rollback;
@@ -60,7 +60,7 @@ rollback;
 -- ===================== R5 (forbidden): draft campaign seedha active nahi hota =====================
 -- Expect: ERROR Campaign status change draft -> active is not allowed
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
 rollback;
@@ -70,7 +70,7 @@ rollback;
 -- Expect: ERROR Campaign status change completed -> active is not allowed
 begin;
 update public.campaigns set status = 'completed' where name = 'TEST Campaign A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
 rollback;
@@ -80,7 +80,7 @@ rollback;
 -- Expect: ERROR Campaign status change active -> archived is not allowed
 begin;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'archived' where name = 'TEST Campaign A';
 rollback;
@@ -91,7 +91,7 @@ rollback;
 begin;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
 update public.advertisers set status = 'suspended' where company_name = 'TEST Advertiser A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'paused' where name = 'TEST Campaign A' returning id;
 rollback;

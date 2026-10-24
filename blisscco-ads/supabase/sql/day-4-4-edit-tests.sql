@@ -2,7 +2,7 @@
 -- BLISSCCO | Day 4 | Part 4 : Edit Campaign ke tests (SQL Editor)
 --
 -- Pehle: day-4-1 aur day-4-3 chale hon, aur day-3-6 ka SETUP block chala ho
--- (users blisscco-test-a / b, 'TEST Advertiser A/B', 'TEST Campaign A/B').
+-- (users janvi01506 (Advertiser A) / sanjaytalekar740 (Advertiser B), 'TEST Advertiser A/B', 'TEST Campaign A/B').
 -- Har TEST block ALAG se chalao. Har block begin...rollback me hai, kuch save nahi hota.
 -- "ERROR" kai tests me EXPECTED hai (neeche likha hai). Sirf test project par chalao.
 -- Maan ke chalte hain ki 'TEST Campaign A/B' draft status me hain (day-3-6 SETUP).
@@ -17,14 +17,14 @@
 --   from auth.users u
 --   left join public.advertisers a on a.profile_id = u.id
 --   left join public.campaigns c on c.advertiser_id = a.id
---   where u.email in ('blisscco-test-a@example.com', 'blisscco-test-b@example.com');
+--   where u.email in ('janvi01506@gmail.com', 'sanjaytalekar740@gmail.com');
 -- =====================================================================
 
 
 -- ===================== E1: A apne draft campaign ke saare fields edit kar sakta hai =====================
 -- Expect: 1 row, naya naam/description/category/budget/dates
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns
    set name = 'TEST A edited', description = 'Edited description', category = 'finance',
@@ -43,7 +43,7 @@ do $$ begin
     raise exception 'SETUP missing: TEST Campaign B not found. Run the day-3-6 SETUP block first.';
   end if;
 end $$;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set name = 'HACKED', description = 'HACKED'
  where id = current_setting('test.b_campaign')::uuid
@@ -60,7 +60,7 @@ do $$ begin
     raise exception 'SETUP missing: TEST Advertiser B not found. Run the day-3-6 SETUP block first.';
   end if;
 end $$;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set advertiser_id = current_setting('test.b_adv')::uuid where name = 'TEST Campaign A';
 rollback;
@@ -69,7 +69,7 @@ rollback;
 -- ===================== E4: currency aur id badli nahi ja sakti =====================
 -- Expect: ERROR permission denied for table campaigns
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set currency_code = 'INR' where name = 'TEST Campaign A';
 rollback;
@@ -78,7 +78,7 @@ rollback;
 -- ===================== E5: status se bypass nahi: draft -> active seedha nahi =====================
 -- Expect: ERROR Campaign status change draft -> active is not allowed
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set status = 'active' where name = 'TEST Campaign A';
 rollback;
@@ -88,7 +88,7 @@ rollback;
 -- Expect: ERROR Campaign is locked while status is pending_review
 begin;
 update public.campaigns set status = 'pending_review' where name = 'TEST Campaign A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set name = 'TEST locked rename' where name = 'TEST Campaign A';
 rollback;
@@ -98,7 +98,7 @@ rollback;
 -- Expect: ERROR Campaign is locked while status is pending_review
 begin;
 update public.campaigns set status = 'pending_review' where name = 'TEST Campaign A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set description = 'locked change' where name = 'TEST Campaign A';
 rollback;
@@ -107,28 +107,28 @@ rollback;
 -- ===================== E8: galat values DB bhi rokta hai (server validation ke peeche doosri deewar) =====================
 -- E8a Expect: ERROR violates check constraint "campaigns_total_budget_check"
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set total_budget = -5 where name = 'TEST Campaign A';
 rollback;
 
 -- E8b Expect: ERROR violates check constraint "campaigns_daily_budget_check" (daily > total)
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set total_budget = 100, daily_budget = 500 where name = 'TEST Campaign A';
 rollback;
 
 -- E8c Expect: ERROR violates check constraint "campaigns_schedule_check" (end < start)
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set start_date = current_date + 10, end_date = current_date + 1 where name = 'TEST Campaign A';
 rollback;
 
 -- E8d Expect: ERROR violates check constraint "campaigns_description_check" (khali/1000+ chars)
 begin;
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set description = repeat('x', 1001) where name = 'TEST Campaign A';
 rollback;
@@ -138,7 +138,7 @@ rollback;
 -- Expect: 0 rows (UPDATE 0)
 begin;
 update public.advertisers set status = 'suspended' where company_name = 'TEST Advertiser A';
-select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'blisscco-test-a@example.com'), 'role', 'authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', (select id from auth.users where email = 'janvi01506@gmail.com'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 update public.campaigns set name = 'TEST suspended edit' where name = 'TEST Campaign A' returning id;
 rollback;

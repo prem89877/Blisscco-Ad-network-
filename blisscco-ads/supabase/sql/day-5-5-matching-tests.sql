@@ -3,7 +3,7 @@
 -- Ye tests tab tak "pass" nahi maane jaate jab tak tumne khud run karke expected result na dekha ho.
 --
 -- Pehle: day-5-1 se day-5-4 chali hon, aur day-3-6 ka SETUP block chala ho
--- (TEST Publisher C, TEST Campaign A/B, TEST creative A/B, users blisscco-test-a/b/c).
+-- (TEST Publisher C, TEST Campaign A/B, TEST creative A/B, users janvi01506 (A) / sanjaytalekar740 (B) / delieveryboy09 (Publisher C)).
 -- Har TEST block ALAG se chalao (editor saaf karke ek block paste karo).
 -- Har block begin...rollback me hai, kuch save nahi hota. "ERROR" kai tests me EXPECTED hai.
 -- Sirf test project par chalao. Poori file ek saath RUN mat karna.
@@ -133,7 +133,7 @@ select set_config('test.key', private.issue_publisher_key((select id from public
 select set_config('test.hash', encode(sha256(convert_to(current_setting('test.key'), 'UTF8')), 'hex'), true);
 update public.campaigns set category = 'gaming', status = 'active' where name = 'TEST Campaign A';
 update public.ad_creatives set status = 'approved', reviewed_at = now() where headline = 'TEST creative A';
-update public.profiles set status = 'suspended' where id = (select id from auth.users where email = 'blisscco-test-a@example.com');
+update public.profiles set status = 'suspended' where id = (select id from auth.users where email = 'janvi01506@gmail.com');
 set local role service_role;
 select public.match_contextual_ad(current_setting('test.hash'), 'gaming', '{}') as result;
 rollback;

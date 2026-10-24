@@ -71,4 +71,4 @@ delete from public.advertisers where company_name in ('TEST Advertiser A', 'TEST
 delete from public.publishers  where name in ('TEST Publisher C', 'TEST Publisher D');
 
 commit;
--- Phir Authentication > Users se 5 test users (blisscco-test-a/b/c/d/admin@example.com) delete karo.
+-- Phir Authentication > Users se 5 users (janvi01506, sanjaytalekar740, delieveryboy09, muskelon2266, premtalekar09 @gmail.com) delete karo.

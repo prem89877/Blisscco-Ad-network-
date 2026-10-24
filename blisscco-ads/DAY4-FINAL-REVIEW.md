@@ -51,7 +51,7 @@ SQL tests: `day-4-2`, `day-4-4`, `day-4-5` tumne Supabase me chalaye, sab succes
 ## 5. FULL TESTING (kuch change na karna ho toh bhi ye karo)
 
 ### 5a. SQL tests (Supabase SQL Editor, test project par)
-Tayyari: Dashboard > Authentication > Users > Add user (auto confirm ON): blisscco-test-a@example.com aur blisscco-test-b@example.com
+Tayyari: Dashboard > Authentication > Users > Add user (auto confirm ON): janvi01506@gmail.com aur sanjaytalekar740@gmail.com
 (+ day-3-6 ke baaki users agar day-3-6 ke saare tests chalane hain). Phir `day-3-6-security-test.sql` ka sirf SETUP block chalao.
 Har TEST block ALAG se chalao. Sab begin...rollback me hain.
 - [ ] day-4-2-campaign-tests.sql: Test 1 to 13 (expected har block ke upar likha hai)
