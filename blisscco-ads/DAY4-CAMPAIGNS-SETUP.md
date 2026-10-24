@@ -40,4 +40,5 @@ App (Android Chrome, advertiser account se):
 
 ## Verified vs manual
 - Verified (is environment me): files ka TypeScript syntax parse hota hai.
-- NAHI chala: `npm install`, type-check, `next build`, SQL aur app tests (internet/Supabase access nahi). Vercel build aur upar ka checklist aapko chalana hai.
+- Tested (tumhari report): SQL tests `day-4-2`, `day-4-4`, `day-4-5` Supabase me chalaye, sab successfully pass.
+- NAHI chala: `npm install`, type-check, `next build`, app/browser tests (internet nahi). Vercel build aur upar ka checklist aapko chalana hai.

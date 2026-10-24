@@ -10,10 +10,12 @@ Is environment me chala (asli result):
   (extra field `prompt`/`messages` reject, `__proto__` reject, galat topic, 21 exclude ids, galat key format,
   http/javascript URL reject, extra fields drop).
 
+Tumne (user ne) Supabase me chalaya: `day-5-5-matching-tests.sql` ke M1 se M27, sab successfully (tumhari report; maine khud SQL nahi chalaya).
+
 NAHI chala (environment me internet aur Postgres nahi):
-- `npm install`, `next build`, koi bhi SQL (Supabase), koi bhi app/API/browser test.
-- SQL syntax khud tumhare Supabase SQL Editor me pehli baar chalega. Jab tak tum chalake expected result na dekh lo,
-  inhe "pass" mat maanna. Koi error aaye toh SQL file ka naam + error text bhejna.
+- `npm install`, `next build`, asli API call asli key ke saath, browser/mobile test.
+- Day 5 ki SQL files (day-5-1 se day-5-4) sandbox me nahi chali; unka asli saboot tumhara M1-M27 run hai.
+- Koi error aaye toh SQL file ka naam + error text bhejna.
 
 ## 2. Ye kaise kaam karta hai
 

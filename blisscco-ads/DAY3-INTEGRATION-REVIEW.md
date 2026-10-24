@@ -11,7 +11,7 @@ Scope: sirf review + hardening. Campaign creation, ad matching, impression track
 | Browser/client component me server-only ya secret import | Verified: koi nahi (grep). `lib/supabase/admin.ts` kahin use nahi hota |
 | Naye/badle TS files ka SYNTAX | Verified (TypeScript parser se) |
 | `npm install`, type-check, `next build`, lint | NAHI chala: is environment me internet band hai, packages install nahi ho sakte. Vercel build hi asli check hai |
-| SQL (parts 1-7) aur RLS tests | NAHI chala: Supabase tak access nahi. Tum SQL Editor me chalao |
+| SQL tests (`day-3-6`, `day-4-2`, `day-4-4`, `day-4-5`, `day-5-5` M1-M27) | Tested: tumne Supabase me chalaye, sab successfully (tumhari report). Maine sandbox me SQL nahi chalaya |
 | Login/signup/logout/session, mobile layout | NAHI chala: browser me tumhe test karna hai |
 
 ## B. Findings aur changes

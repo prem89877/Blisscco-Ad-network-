@@ -1,7 +1,7 @@
 # Day 3: Security (RLS) review guide
 
-Status: SQL likha gaya hai, par abhi run ya test NAHI hua. Security tab tak "verified" nahi jab tak
-`day-3-6-security-test.sql` ke saare tests ka result expected aaye.
+Status: `day-3-6-security-test.sql` tumne Supabase me chalaya aur successfully pass hua (tumhari report; maine khud SQL nahi chalaya).
+Baaki bhi tumne chalaye, sab successfully: `day-4-2`, `day-4-4`, `day-4-5`, `day-5-5` (M1-M27).
 
 ## Chalane se pehle review (Android)
 1. `supabase/sql/day-3-5-security.sql` poori padho (GitHub/Spck me). Dhyan do: `grant` lines, `with check`, `using` lines.

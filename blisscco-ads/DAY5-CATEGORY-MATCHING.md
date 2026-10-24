@@ -13,7 +13,7 @@ Is sandbox me chala (asli result):
 
 NAHI chala (sandbox me internet, Postgres, Next.js, Supabase nahi hai):
 - `npm install`, `next build`, Vercel deploy.
-- `supabase/sql/day-5-5-matching-tests.sql` ke M1 se M27 (SQL tests): inhe tum Supabase SQL Editor me ek-ek karke chalao. Jab tak expected result khud na dekho, **pass mat maano**.
+- SQL tests M1 se M27 sandbox me nahi chale (Postgres nahi). **Tumne ye Supabase me successfully chalaye** (tumhari report), isliye ye tested hain.
 - Asli API call asli publisher key ke saath, aur mobile/browser testing.
 - Route ke tests nakli database par hain: wo route ka logic prove karte hain, database function ka nahi.
 

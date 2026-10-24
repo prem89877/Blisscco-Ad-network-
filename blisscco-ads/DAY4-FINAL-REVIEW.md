@@ -16,8 +16,10 @@ Chala (is environment me, asli result):
 
 NAHI chala (environment me internet nahi, npm install timeout ho gaya, exit 124):
 - `npm install`, `npm run lint` (= tsc --noEmit), `next build`.
-- Koi bhi SQL test (Supabase access nahi), koi bhi app/browser test, mobile screen test.
+- Koi bhi app/browser test, mobile screen test.
 => In sab ko Vercel build aur neeche ke checklist se tumhe chalana hai. Jab tak tum chalake dekh na lo, inhe "pass" mat maanna.
+
+SQL tests: `day-4-2`, `day-4-4`, `day-4-5` tumne Supabase me chalaye, sab successfully (tumhari report; maine khud SQL nahi chalaya).
 
 ## 2. Security review ke nateeje
 - Server authorization: har page `requireRole(["advertiser"])`, har action `requireActiveAdvertiser()` (role + advertiser row + status DB se).
