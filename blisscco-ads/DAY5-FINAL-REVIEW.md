@@ -76,7 +76,7 @@ Ye maine **nahi** badla: purana `match_contextual_ad` + `lib/ads/match.ts` (rout
 3. Live security check (sirf padhta hai):
 
         -- Expect: 0 rows (in tables par anon/authenticated/service_role ko koi grant nahi)
-        select grantee, table_name, privilege_type from information_schema.role_table_privileges
+        select grantee, table_name, privilege_type from information_schema.table_privileges
         where table_schema = 'public'
           and table_name in ('ad_serve_log','creative_serve_daily','campaign_spend_daily','api_rate_limits','publisher_api_keys','ad_platform_settings')
           and grantee in ('anon','authenticated','service_role');

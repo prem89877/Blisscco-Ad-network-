@@ -199,7 +199,7 @@ rollback;
 
 -- ===================== V (live check, sirf padhta hai, kuch nahi badalta) =====================
 -- V1. Expect: 0 rows (keys table par anon/authenticated/service_role ko koi grant nahi)
-select grantee, privilege_type from information_schema.role_table_privileges
+select grantee, privilege_type from information_schema.table_privileges
 where table_schema = 'public' and table_name = 'publisher_api_keys'
   and grantee in ('anon', 'authenticated', 'service_role');
 
