@@ -9,7 +9,7 @@ import type { MatchRequest } from "./types";
 //
 // spendTracking = "unavailable": campaign_spend_daily me abhi koi kharch nahi likhta (impression tracking baaki hai),
 // isliye budget check NAHI lagta aur hum use "enforced" bol kar jhooth nahi bolte. Impression tracking
-// aane par (DAY6-SERVE-AND-SPEND-PLAN.md) ise "reliable" karna aur record_ad_serve me budget check jodna.
+// aane par (alag Day 6 kaam; DAY6-API-V1.md ka "Known gaps" dekho) ise "reliable" karna aur record_ad_serve me budget check jodna.
 
 const productionDeps: ServeDeps = {
   authorize: authorizePublisher,

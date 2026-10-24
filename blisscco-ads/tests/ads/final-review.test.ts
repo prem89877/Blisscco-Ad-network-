@@ -165,7 +165,9 @@ describe("final review: secrets never reach the browser", () => {
   });
 
   it("the public ad route does not set CORS headers (key must stay on the publisher's server)", () => {
-    assert.ok(!/access-control-allow/i.test(read("app/api/ads/match/route.ts")));
+    for (const f of ["app/api/ads/match/route.ts", "app/api/v1/ads/match/route.ts", "lib/ads/match-handler.ts"]) {
+      assert.ok(!/access-control-allow/i.test(read(f)), f);
+    }
   });
 });
 
