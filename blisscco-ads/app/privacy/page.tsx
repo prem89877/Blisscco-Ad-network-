@@ -22,8 +22,8 @@ const SECTIONS: Section[] = [
     title: "Where Blisscco stands today",
     body: (
       <p>
-        Blisscco is an online ad network for AI chatbot platforms that is still in development. No ads are being
-        served yet, and the dashboard on this site shows sample data only. This policy covers what the website
+        Blisscco is an online ad network for AI chatbot platforms that is in early access. Ads are served only to
+        publishers our team has approved, and the dashboard on this site shows your own account data. This policy covers what the website
         collects today: account and sign-in information.
       </p>
     ),
@@ -153,9 +153,9 @@ export default function PrivacyPage() {
           <p className="mt-2 text-sm text-mist/60">Last updated: {LAST_UPDATED}</p>
 
           <div className="mt-8 space-y-8">
-            {SECTIONS.map((s) => (
-              <section key={s.title} aria-labelledby={`h-${s.title}`}>
-                <h2 id={`h-${s.title}`} className="font-display text-lg font-semibold">
+            {SECTIONS.map((s, i) => (
+              <section key={s.title} aria-labelledby={`legal-h-${i}`}>
+                <h2 id={`legal-h-${i}`} className="font-display text-lg font-semibold">
                   {s.title}
                 </h2>
                 <div className="mt-2 space-y-3 text-sm leading-relaxed text-mist/75">{s.body}</div>

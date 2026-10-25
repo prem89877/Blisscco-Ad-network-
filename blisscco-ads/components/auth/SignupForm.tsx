@@ -51,7 +51,7 @@ export default function SignupForm() {
           autoComplete="new-password"
           minLength={8}
           maxLength={72}
-          hint="8 to 72 characters."
+          hint="8 to 72 characters. Accents and emoji count as more than one."
           error={state.fieldErrors?.password}
         />
         <Field

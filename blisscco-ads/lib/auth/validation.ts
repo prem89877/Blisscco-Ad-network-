@@ -22,7 +22,7 @@ export function validateEmail(email: string): string | undefined {
 export function validateNewPassword(password: string): string | undefined {
   if (password.length < PASSWORD_MIN) return `Use at least ${PASSWORD_MIN} characters.`;
   if (new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES) {
-    return `Use at most ${PASSWORD_MAX_BYTES} characters.`;
+    return `Use at most ${PASSWORD_MAX_BYTES} bytes. Letters with accents and emoji take more than one byte, so try a shorter password.`;
   }
   return undefined;
 }

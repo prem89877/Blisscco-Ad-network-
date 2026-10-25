@@ -30,8 +30,9 @@ const SECTIONS: Section[] = [
     title: "Service status",
     body: (
       <p>
-        Blisscco is an online ad network for AI chatbot platforms that is still in development. No ads are served
-        yet, no payments are taken, and the dashboard shows sample data only. Features may change, pause or be
+        Blisscco is an online ad network for AI chatbot platforms that is in early access. Ads can be requested
+        only by publishers our team has approved, no payments are taken, and impressions, clicks and results are not
+        tracked yet. The dashboard shows your own account data. Features may change, pause or be
         removed as we build. Nothing on this site is a promise that a particular service will launch or be
         available at a given time.
       </p>
@@ -153,9 +154,9 @@ export default function TermsPage() {
           <p className="mt-2 text-sm text-mist/60">Last updated: {LAST_UPDATED}</p>
 
           <div className="mt-8 space-y-8">
-            {SECTIONS.map((s) => (
-              <section key={s.title} aria-labelledby={`h-${s.title}`}>
-                <h2 id={`h-${s.title}`} className="font-display text-lg font-semibold">
+            {SECTIONS.map((s, i) => (
+              <section key={s.title} aria-labelledby={`legal-h-${i}`}>
+                <h2 id={`legal-h-${i}`} className="font-display text-lg font-semibold">
                   {s.title}
                 </h2>
                 <div className="mt-2 space-y-3 text-sm leading-relaxed text-mist/75">{s.body}</div>

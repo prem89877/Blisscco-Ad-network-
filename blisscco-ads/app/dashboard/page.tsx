@@ -3,8 +3,9 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import Button from "@/components/ui/Button";
 import { requireAccount } from "@/lib/auth/session";
-import { getMyAdvertiser } from "@/lib/campaigns/queries";
+import { getMyAdvertiser, listMyCampaigns } from "@/lib/campaigns/queries";
 import { getMyPublisher } from "@/lib/publisher/queries";
+import { listPublisherKeys } from "@/lib/publisher/keys-db";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Overview | Blisscco Dashboard" };
@@ -50,6 +51,12 @@ export default async function OverviewPage() {
 
   if (account.role === "advertiser") {
     const adv = await getMyAdvertiser();
+    // Steps asli data se: campaign hai? review me gaya? live hai? (load fail ho toh "not done" hi dikhta hai, galat tick nahi)
+    const list = adv ? await listMyCampaigns(adv.id) : null;
+    const statuses = list && !list.failed ? list.campaigns.map((c) => c.status) : [];
+    const hasCampaign = statuses.length > 0;
+    const sentForReview = statuses.some((s) => s === "pending_review" || s === "active" || s === "paused" || s === "completed");
+    const isLive = statuses.includes("active");
     return (
       <>
         <PageHeader demo={false} title="Overview" description="Your next steps to run ads on Blisscco." />
@@ -58,9 +65,9 @@ export default async function OverviewPage() {
             steps={[
               { text: "Save your business details", done: adv !== null },
               { text: "Wait for our team to approve your account", done: adv?.status === "active" },
-              { text: "Create a campaign", done: false },
-              { text: "Add an ad and send it for review", done: false },
-              { text: "Our team approves it and it goes live", done: false },
+              { text: "Create a campaign", done: hasCampaign },
+              { text: "Add an ad and send the campaign for review", done: sentForReview },
+              { text: "Our team approves it and it goes live", done: isLive },
             ]}
           />
           <div className="mt-5">
@@ -73,6 +80,8 @@ export default async function OverviewPage() {
 
   if (account.role === "publisher") {
     const pub = await getMyPublisher();
+    const keys = pub && pub.status === "active" ? await listPublisherKeys(pub.id) : null;
+    const hasKey = keys !== null && keys.length > 0;
     return (
       <>
         <PageHeader demo={false} title="Overview" description="Your next steps to show ads in your chatbot." />
@@ -81,7 +90,7 @@ export default async function OverviewPage() {
             steps={[
               { text: "Save your platform details", done: pub !== null },
               { text: "Wait for our team to approve your account", done: pub?.status === "active" },
-              { text: "Create an API key (shown once)", done: false },
+              { text: "Create an API key (shown once)", done: hasKey },
               { text: "Call the ads API from your server and show the ad with a Sponsored label", done: false },
             ]}
           />

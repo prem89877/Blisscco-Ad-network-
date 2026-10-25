@@ -68,7 +68,10 @@ export function isRealDate(iso: string): boolean {
 
 /** "2500" ya "2,500.50" -> number. Sirf 2 decimal tak, koi symbol ya minus nahi. */
 function parseMoney(raw: string): number | null {
-  const s = raw.trim().replace(/,/g, "");
+  const trimmed = raw.trim();
+  // Comma sirf hazaar ke group ke liye ("2,500"); "2,5,0,0" jaisa galat likha hua sahi number nahi banna chahiye.
+  if (trimmed.includes(",") && !/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(trimmed)) return null;
+  const s = trimmed.replace(/,/g, "");
   if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;

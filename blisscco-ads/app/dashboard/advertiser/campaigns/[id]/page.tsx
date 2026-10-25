@@ -111,6 +111,12 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
       )}
       {sp.creative === "added" && <Notice tone="success">Ad added as a draft. Send it for review when it is ready.</Notice>}
       {sp.creative === "submit" && <Notice tone="success">Ad sent for review.</Notice>}
+      {sp.creative === "withdraw" && <Notice tone="success">Ad taken back to draft.</Notice>}
+      {sp.creative === "reopen" && <Notice tone="success">Ad moved back to draft.</Notice>}
+      {sp.creative === "archive" && <Notice tone="success">Ad archived.</Notice>}
+      {(sp.review === "withdraw" || sp.review === "reopen") && campaign.status === "draft" && (
+        <Notice tone="success">Campaign is back in draft. You can edit it now.</Notice>
+      )}
       {sp.review === "submit" && campaign.status === "pending_review" && (
         <Notice tone="success">Campaign sent for review. We will approve or reject it soon.</Notice>
       )}
