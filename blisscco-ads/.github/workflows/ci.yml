@@ -1,0 +1,32 @@
+name: CI
+
+# Har push par: type check, tests, build. Bina laptop ke GitHub khud chalata hai.
+# Pehli baar chalne par "package-lock" naam ka file Artifacts me milta hai: use download karke repo me daal do.
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm test
+      - name: ESLint (warning only for now)
+        run: npm run lint:eslint
+        continue-on-error: true
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_dummy
+          SUPABASE_SECRET_KEY: sb_secret_dummy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
