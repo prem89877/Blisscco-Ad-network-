@@ -26,7 +26,7 @@ function RevokeButton({ keyId }: { keyId: string }) {
         <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} border-red-400/60 text-red-300 hover:bg-red-500/10`}>
           {pending ? "Revoking…" : "Yes, revoke"}
         </button>
-        <button type="button" disabled={pending} onClick={() => setConfirming(false)} className={`${btn} border-line text-mist/80`}>
+        <button type="button" autoFocus disabled={pending} onClick={() => setConfirming(false)} className={`${btn} border-line text-mist/80`}>
           Cancel
         </button>
       </div>
@@ -48,15 +48,19 @@ function KeyStatus({ k, now }: { k: PublisherKey; now: Date }) {
 /** Publisher ki keys: nayi banao (ek baar dikhti hai), list dekho, band karo. */
 export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherKey[]; nowIso: string }) {
   const [state, formAction, pending] = useActionState(createKey, initialKeyState);
-  const [copied, setCopied] = useState(false);
+  // Kaunsi key copy hui (text se), taaki nayi key banne par "Copied" apne aap hat jaye.
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copyFailedKey, setCopyFailedKey] = useState<string | null>(null);
   const now = new Date(nowIso);
 
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
+      setCopiedKey(text);
+      setCopyFailedKey(null);
     } catch {
-      setCopied(false);
+      setCopiedKey(null);
+      setCopyFailedKey(text);
     }
   }
 
@@ -68,9 +72,14 @@ export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherK
           <code className="mt-3 block break-all rounded-lg bg-ink px-3 py-3 text-sm text-mist">{state.newKey}</code>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button type="button" onClick={() => copy(state.newKey ?? "")} className={`${btn} border-aqua/60 text-aqua hover:bg-aqua/10`}>
-              {copied ? "Copied" : "Copy key"}
+              {copiedKey === state.newKey ? "Copied" : "Copy key"}
             </button>
             <span className="text-xs text-mist/60">Keep it on your server only. Never put it in a website or app that users can open.</span>
+            {copyFailedKey === state.newKey && (
+              <span role="alert" className="w-full text-sm text-red-300">
+                Could not copy automatically. Select the key above and copy it by hand. It will not be shown again.
+              </span>
+            )}
           </div>
         </div>
       )}

@@ -39,7 +39,7 @@ export default function Footer() {
             ))}
             <li>
               <Link href="/dashboard" className="inline-block rounded py-2 text-sm text-mist/75 hover:text-aqua">
-                Demo dashboard (sample data)
+                Dashboard (log in required)
               </Link>
             </li>
           </ul>

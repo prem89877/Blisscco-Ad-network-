@@ -49,6 +49,7 @@ export default function AdminDecisionButton({ kind, id, decision, label, tone = 
             rows={2}
             maxLength={REJECT_REASON_MAX}
             required
+            autoFocus
             className="w-full rounded-lg border border-line bg-ink px-3 py-2 text-sm text-mist"
           />
         </div>

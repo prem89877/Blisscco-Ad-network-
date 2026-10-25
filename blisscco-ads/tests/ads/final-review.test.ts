@@ -184,9 +184,10 @@ describe("final review: no overclaiming about third-party chatbots or readiness"
     }
   });
 
-  it("the publisher guide says keys are manual and that no third-party integration exists", () => {
+  it("the publisher guide says keys are created on the Publisher page after approval and that no third-party integration exists", () => {
     const guide = read("app/dashboard/publisher/guide/page.tsx").replace(/\s+/g, " ");
-    assert.match(guide, /not self-service/);
+    assert.match(guide, /create your own keys on the Publisher page/);
+    assert.ok(!/not self-service/.test(guide), "old false claim removed");
     assert.match(guide, /no integration with ChatGPT or any other third-party chatbot/);
     assert.ok(!/There is no live API/.test(guide), "stale claim removed");
   });

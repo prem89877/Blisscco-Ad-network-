@@ -76,6 +76,7 @@ export function PublisherSetupForm() {
           name="category"
           defaultValue={state.values?.category ?? ""}
           aria-invalid={categoryError ? true : undefined}
+          aria-describedby={categoryError ? "pub-category-error" : undefined}
           className="min-h-11 w-full rounded-lg border border-line bg-ink px-3.5 py-2 text-base text-mist"
         >
           <option value="">Not sure / mixed</option>
@@ -85,7 +86,11 @@ export function PublisherSetupForm() {
             </option>
           ))}
         </select>
-        {categoryError && <p className="mt-1.5 text-sm text-red-300">{categoryError}</p>}
+        {categoryError && (
+          <p id="pub-category-error" className="mt-1.5 text-sm text-red-300">
+            {categoryError}
+          </p>
+        )}
       </div>
       {state.status === "error" && state.message && <Notice tone="error">{state.message}</Notice>}
       <SubmitButton pendingText="Saving…">Save and continue</SubmitButton>

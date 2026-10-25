@@ -99,7 +99,7 @@ export default async function OverviewPage() {
     pendingCount("ad_creatives", "pending_review"),
     pendingCount("campaigns", "pending_review"),
   ]);
-  const show = (n: number | null) => (n === null ? "?" : String(n));
+  const show = (n: number | null) => (n === null ? "could not be loaded" : String(n));
   return (
     <>
       <PageHeader demo={false} title="Overview" description="What is waiting for your review." />

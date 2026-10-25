@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signUp } from "@/app/auth/actions";
 import { initialAuthState } from "@/lib/auth/types";
@@ -12,6 +12,8 @@ import Button from "@/components/ui/Button";
 
 export default function SignupForm() {
   const [state, formAction] = useActionState(signUp, initialAuthState);
+  // Controlled: form error ke baad React form reset karta hai, par chuna hua account type bana rehna chahiye.
+  const [accountType, setAccountType] = useState<"advertiser" | "publisher">("advertiser");
 
   if (state.status === "success") {
     return (
@@ -67,11 +69,25 @@ export default function SignupForm() {
           <legend className="mb-1.5 text-sm font-medium text-mist">I am joining as</legend>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-sm has-[:checked]:border-aqua has-[:checked]:bg-aqua/10">
-              <input type="radio" name="accountType" value="advertiser" defaultChecked className="accent-[#20D9E6]" />
+              <input
+                type="radio"
+                name="accountType"
+                value="advertiser"
+                checked={accountType === "advertiser"}
+                onChange={() => setAccountType("advertiser")}
+                className="accent-[#20D9E6]"
+              />
               Advertiser
             </label>
             <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-sm has-[:checked]:border-aqua has-[:checked]:bg-aqua/10">
-              <input type="radio" name="accountType" value="publisher" className="accent-[#20D9E6]" />
+              <input
+                type="radio"
+                name="accountType"
+                value="publisher"
+                checked={accountType === "publisher"}
+                onChange={() => setAccountType("publisher")}
+                className="accent-[#20D9E6]"
+              />
               AI Publisher
             </label>
           </div>

@@ -71,8 +71,10 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
   const border = (f: CampaignFieldName) => (err(f) ? "border-red-400" : "border-line");
 
   // Purane data ki category list me na ho toh bhi select me dikhe (badalna zaroori nahi).
+  // Locked category: disabled field form me jaata hi nahi, isliye error ke baad value khali ho jati thi. Asli value dikhao.
+  const shownCategory = categoryLocked && campaign ? campaign.category : v.category;
   const extraCategory =
-    v.category !== "" && !CATEGORY_OPTIONS.some((o) => o.value === v.category) ? v.category : null;
+    shownCategory !== "" && !CATEGORY_OPTIONS.some((o) => o.value === shownCategory) ? shownCategory : null;
 
   return (
     <form action={formAction} className="max-w-xl space-y-5" noValidate>
@@ -128,7 +130,7 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
             name="category"
             required
             disabled={categoryLocked}
-            defaultValue={v.category}
+            defaultValue={shownCategory}
             aria-invalid={invalid || undefined}
             aria-describedby={d}
             className={`${inputBase} ${border("category")}`}

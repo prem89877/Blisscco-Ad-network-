@@ -5,7 +5,7 @@ import Link from "next/link";
 // Koi bhi anjaani dikkat: user ko saaf message + dobara koshish. Technical detail kabhi nahi dikhti.
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main id="main" className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-start justify-center px-6 py-16">
+    <div role="alert" className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-start justify-center py-16">
       <h1 className="font-display text-3xl font-semibold">Something went wrong</h1>
       <p className="mt-3 text-mist/75">Please try again. If it keeps happening, come back in a few minutes.</p>
       <div className="mt-6 flex flex-wrap gap-3">
@@ -20,6 +20,6 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
           Home page
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

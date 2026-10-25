@@ -98,12 +98,16 @@ const ERRORS: Array<{ status: string; body: string; meaning: string; action: str
 ];
 
 export default async function PublisherGuidePage() {
-  await requireAccount();
+  const account = await requireAccount();
+  // Sirf publisher /dashboard/publisher khol sakta hai; baaki roles ko wahan se Overview par bhej diya jata hai.
+  const isPublisher = account.role === "publisher";
+  const backHref = isPublisher ? "/dashboard/publisher" : "/dashboard";
+  const backLabel = isPublisher ? "Back to publisher dashboard" : "Back to overview";
   return (
     <>
       <p className="mb-3 text-sm">
-        <Link href="/dashboard/publisher" className="text-aqua hover:underline">
-          &larr; Back to publisher dashboard
+        <Link href={backHref} className="rounded text-aqua underline-offset-2 hover:underline">
+          &larr; {backLabel}
         </Link>
       </p>
 
@@ -119,11 +123,11 @@ export default async function PublisherGuidePage() {
             <Badge tone="violet">Not ready for production use</Badge>
           </div>
           <p className="mt-3 text-sm text-mist/75">
-            The API exists, but access is limited and handled by hand. API keys are not self-service: Blisscco issues
-            them manually, and no key can be created from this page. Nothing on this page connects to a server. Ads can
-            only appear inside a product whose owner has integrated and authorised the Blisscco API. Blisscco has
-            no integration with ChatGPT or any other third-party chatbot. The limitations at the end of this guide still
-            apply, so do not roll this out to real users yet.
+            The API exists, but access is limited and accounts are approved by hand. Once your publisher account is
+            approved, you create your own keys on the Publisher page (not on this page). Nothing on this page connects to
+            a server. Ads can only appear inside a product whose owner has integrated and authorised the Blisscco API.
+            Blisscco has no integration with ChatGPT or any other third-party chatbot. The limitations at the end of this
+            guide still apply, so do not roll this out to real users yet.
           </p>
         </Panel>
 
@@ -217,6 +221,7 @@ export default async function PublisherGuidePage() {
         <Panel title="5. Errors and retries">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[34rem] text-left text-sm">
+              <caption className="sr-only">API status codes, what they mean and what to do</caption>
               <thead>
                 <tr className="border-b border-line text-xs uppercase tracking-wide text-mist/55">
                   <th scope="col" className="py-2 pr-3 font-medium">Status</th>
@@ -315,7 +320,7 @@ export default async function PublisherGuidePage() {
       </div>
 
       <div className="mt-6">
-        <Button href="/dashboard/publisher" variant="secondary">Back to publisher dashboard</Button>
+        <Button href={backHref} variant="secondary">{backLabel}</Button>
       </div>
     </>
   );

@@ -64,7 +64,6 @@ export default function Field({
           <button
             type="button"
             onClick={() => setShow((v) => !v)}
-            aria-pressed={show}
             aria-label={show ? "Hide password" : "Show password"}
             className="absolute inset-y-0 right-0 inline-flex min-w-14 items-center justify-center rounded-r-lg px-3 text-sm text-mist/70 hover:text-aqua"
           >

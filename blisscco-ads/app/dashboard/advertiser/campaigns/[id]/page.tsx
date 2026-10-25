@@ -186,7 +186,7 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
 
         {canAddCreative && (
           <Panel title="Add an ad">
-            <CreativeForm campaignId={campaign.id} />
+            <CreativeForm key={creativeList ? creativeList.length : "unknown"} campaignId={campaign.id} />
           </Panel>
         )}
 

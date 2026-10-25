@@ -1,8 +1,8 @@
 import Badge from "@/components/ui/Badge";
 
-type Props = { title: string; description: string; /** false = asli data wala page (Demo badge nahi). Default true. */ demo?: boolean };
+type Props = { title: string; description: string; /** true = sirf nakli/sample data wale page par "Demo data" badge. Default false (asli page). */ demo?: boolean };
 
-export default function PageHeader({ title, description, demo = true }: Props) {
+export default function PageHeader({ title, description, demo = false }: Props) {
   return (
     <div className="mb-6">
       <div className="flex flex-wrap items-center gap-3">

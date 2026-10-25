@@ -1,10 +1,10 @@
 type Step = { title: string; text: string };
 
 export const INTEGRATION_STEPS: Step[] = [
-  { title: "Register a publisher", text: "Create a publisher account and ask Blisscco for access. Access is by manual authorization." },
-  { title: "Obtain an API key", text: "Keys are not self-service. Blisscco creates them by hand for authorized publishers; nothing is generated in this dashboard." },
+  { title: "Register a publisher", text: "Sign up as an AI Publisher and save your platform details. Our team approves accounts by hand." },
+  { title: "Get an API key", text: "After your account is approved, create a key on the Publisher page. It is shown only once, so copy it straight into your server settings." },
   { title: "Integrate on your server", text: "Call POST /api/v1/ads/match from your own backend with the key in a server environment variable. Never in browser code." },
-  { title: "Test with a test publisher", text: "Use a test key first and check an ad, a no-fill, 401, 429 and 503 handling before any real users see ads." },
+  { title: "Test with a test publisher", text: "Use a separate test key first and check an ad, a no-fill, 401, 429 and 503 handling before any real users see ads." },
   { title: "Display ads with a Sponsored label", text: "Show every returned ad with a clear Sponsored label, separate from the AI's own answer." },
   { title: "Carry on without an ad", text: "On no-fill, a timeout or any error, show nothing and let the chatbot answer as normal." },
 ];
