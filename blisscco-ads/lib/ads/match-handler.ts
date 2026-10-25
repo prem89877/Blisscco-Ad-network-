@@ -72,12 +72,32 @@ async function readBodyLimited(request: Request, maxBytes: number): Promise<stri
   return new TextDecoder().decode(merged);
 }
 
+/**
+ * Public entry. Kuch bhi anjaana toot jaye toh bhi publisher ko saaf JSON 503 milta hai (Next.js ka default 500 page nahi),
+ * aur wo bhi no-store ke saath. Is file me logging nahi hoti (test se bandhi hai); asli errors serve-db.ts / serve.ts me log hote hain.
+ */
 export async function handleMatchPost(request: Request, options: MatchHandlerOptions = {}): Promise<Response> {
+  try {
+    return await processMatch(request, options);
+  } catch {
+    return NextResponse.json(
+      { fill: false, error: "unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store", Vary: "Authorization", ...(options.extraHeaders ?? {}) } },
+    );
+  }
+}
+
+async function processMatch(request: Request, options: MatchHandlerOptions): Promise<Response> {
   const extra = options.extraHeaders ?? {};
   const guard = options.ipGuard ?? defaultIpGuard;
   const ip = clientIpFromHeaders(request.headers);
   const json = (body: MatchResponseBody, status: number, headers?: Record<string, string>) =>
-    NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", ...extra, ...headers } });
+    NextResponse.json(body, {
+      status,
+      // no-store: jawab kabhi cache nahi hota. Vary: Authorization: agar koi beech ka proxy galti se cache kare bhi,
+      // toh ek publisher ka jawab doosre ki key par kabhi nahi jayega (defence in depth).
+      headers: { "Cache-Control": "no-store", Vary: "Authorization", ...extra, ...headers },
+    });
 
   // 0. Is IP se bahut galat keys aa chuki hain? Database tak mat jao.
   if (guard.isBlocked(ip, Date.now())) return json({ error: "rate_limited" }, 429, { "Retry-After": "60" });
