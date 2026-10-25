@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // SIRF server ke liye. Secret key RLS bypass karti hai.
 // "server-only" ki wajah se ise client component me import karoge toh build fail hoga.
@@ -10,7 +10,7 @@ const DB_TIMEOUT_MS = 8000;
 
 // Ek server instance me client ek hi baar banta hai (pehle har rpc par naya banta tha: ek request me 3 baar).
 // Client me koi user/session state nahi (persistSession: false), isliye alag requests ke beech share karna surakshit hai.
-let cached: { url: string; secretKey: string; client: ReturnType<typeof createClient> } | null = null;
+let cached: { url: string; secretKey: string; client: SupabaseClient } | null = null;
 
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
