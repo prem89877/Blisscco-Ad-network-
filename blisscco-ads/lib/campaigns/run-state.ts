@@ -2,7 +2,7 @@ import type { CampaignDbStatus } from "./constants";
 
 // Pause / Resume ke niyam (pure functions: server action aur page dono yahi use karte hain).
 // Asli rok database trigger (day-4-1 guard) hai; yahan sirf friendly check aur button dikhane ka faisla.
-// Dhyan: ye sirf campaign STATUS badalta hai. Ad serving abhi bani nahi, isliye asli delivery par asar nahi.
+// Pause hone par ads dikhna band ho jaata hai (matching sirf active campaigns chunti hai).
 
 export function canPause(status: CampaignDbStatus): boolean {
   return status === "active";
@@ -34,4 +34,4 @@ export const RESUME_BLOCK_MESSAGES: Record<ResumeBlockReason, string> = {
 
 export const PAUSE_BLOCK_MESSAGE = "Only active campaigns can be paused. Refresh the page to see the latest status.";
 
-export const DELIVERY_NOTE = "Ad serving is not live yet, so this only changes the campaign status.";
+export const DELIVERY_NOTE = "Paused campaigns stop showing ads. Active campaigns can show ads until the budget or end date is reached.";

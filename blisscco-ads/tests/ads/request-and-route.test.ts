@@ -409,9 +409,8 @@ describe("POST /api/ads/match (route logic, fake database)", () => {
       setDb(over);
       rpcCalls = [];
       const res = await routeModule.POST(post('{"topic":"gaming"}'));
-      const loadFailed = "load_ad_candidates" in over;
-      // Candidate load fail = safe no-fill (200); baaki sab 503
-      assert.equal(res.status, loadFailed ? 200 : 503, JSON.stringify(Object.keys(over)));
+      // Day 7: candidate load fail bhi ab 503 (outage aur "koi ad nahi" me farak dikhna chahiye)
+      assert.equal(res.status, 503, JSON.stringify(Object.keys(over)));
       const body = await readJson(res);
       assert.equal(body.fill, false);
       assert.ok(!JSON.stringify(body).includes("42501"));

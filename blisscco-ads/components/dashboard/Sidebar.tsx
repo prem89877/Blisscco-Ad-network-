@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
-import { DASHBOARD_NAV, isActive } from "@/lib/dashboard-nav";
+import { isActive, type NavItem } from "@/lib/dashboard-nav";
 
 /** Fixed sidebar for desktop (lg and up). Phones use MobileNav instead. */
-export default function Sidebar() {
+export default function Sidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-ink px-4 py-5 lg:flex">
@@ -15,7 +15,7 @@ export default function Sidebar() {
       </Link>
       <nav aria-label="Dashboard" className="mt-8">
         <ul className="space-y-1">
-          {DASHBOARD_NAV.map((item) => {
+          {items.map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <li key={item.href}>
@@ -33,7 +33,7 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
-      <p className="mt-auto px-2 text-xs text-mist/50">Demo dashboard. All data is sample data.</p>
+      <p className="mt-auto px-2 text-xs text-mist/50">Blisscco ad network (early access).</p>
     </aside>
   );
 }

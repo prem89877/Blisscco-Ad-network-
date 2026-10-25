@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DASHBOARD_NAV, isActive } from "@/lib/dashboard-nav";
+import { isActive, type NavItem } from "@/lib/dashboard-nav";
 
 /** Bottom tab bar for phones and tablets (below lg). Easy to reach with a thumb. */
-export default function MobileNav() {
+export default function MobileNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   return (
     <nav
       aria-label="Dashboard"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-ink pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
-      <ul className="grid grid-cols-5">
-        {DASHBOARD_NAV.map((item) => {
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}>
+        {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <li key={item.href} className="min-w-0">

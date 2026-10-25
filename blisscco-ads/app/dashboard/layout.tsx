@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import { requireUser } from "@/lib/auth/session";
+import { getCurrentAccount, requireUser } from "@/lib/auth/session";
+import { navForRole } from "@/lib/dashboard-nav";
 
 export const metadata: Metadata = {
   title: "Dashboard | Blisscco",
-  description: "Blisscco demo dashboard with sample data.",
+  description: "Blisscco dashboard.",
   robots: { index: false, follow: false },
 };
 
@@ -15,10 +16,12 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const account = await getCurrentAccount();
+  const items = navForRole(account?.role ?? null);
 
   return (
     <div className="min-h-dvh lg:flex">
-      <Sidebar />
+      <Sidebar items={items} />
       <div className="min-w-0 flex-1">
         <DashboardHeader email={user.email ?? ""} />
         <main
@@ -29,7 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </main>
       </div>
-      <MobileNav />
+      <MobileNav items={items} />
     </div>
   );
 }

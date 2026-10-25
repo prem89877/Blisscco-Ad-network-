@@ -78,10 +78,12 @@ Legacy par koi `Deprecation`/`Link` header nahi jodi (tumhari haan se). Jab migr
 
 ## 6. Known gaps (abhi bhi baaki)
 
-1. **Budget enforce nahi hota** (`spendTracking = "unavailable"`; `record_ad_serve` me budget check nahi). Impression tracking ke baad alag kaam.
+1. **(Day 7: THEEK HUA)** Budget ab enforce hota hai (`day-7-1` SQL: `record_ad_serve` campaign lock karke total/daily budget jaanchta hai). Charge abhi "serve" par lagta hai; impression/click tracking alag kaam hai.
    Is endpoint se "serve" ginti hoti hai, impression/click nahi: billing mat karo.
 2. **Edge/IP rate limit** abhi nahi: limit key ke baad lagti hai, sahi-format galat keys har baar database tak jaati hain (upar step 4).
-3. `maxDuration` aur Supabase call timeouts tay nahi.
-4. Candidate load fail hone par 200 no-fill aata hai (silent). Monitoring chahiye (503/no-fill spike), bina body/key/topic log kiye.
+3. **(Day 7: THEEK HUA)** Routes par `maxDuration = 15` aur database calls par 8 second ka time-out.
+4. **(Day 7: THEEK HUA)** Candidate load fail hone par ab 503 `{"fill":false,"error":"unavailable"}` aata hai. 200 `{"fill":false}` ka matlab sirf "koi ad nahi".
 5. Select aur record ke beech race, `ad_serve_log`/`api_rate_limits` ka retention job, publisher key self-service UI, creative review UI: Day 5 review ki list jaisa.
 6. Purana `match_contextual_ad` + `lib/ads/match.ts` ab bhi code me hain (route se use nahi hote). v1 unse nahi judta.
+
+> **OWNER NOTE:** Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.

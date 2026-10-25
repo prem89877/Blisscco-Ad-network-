@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isUuid } from "./constants";
 import { EMPTY_FILTERS, escapeLike, type CampaignFilters } from "./filters";
 import { toCampaign, type Campaign } from "./types";
+import { toCreative, type Creative } from "./creative-validation";
 
 // Sirf server par chalta hai (next/headers). Har query me advertiser_id ka filter EXPLICIT hai:
 // RLS pehle se rokti hai, par admin ko sab campaigns dikhte hain, isliye defense in depth.
@@ -94,6 +95,63 @@ export async function getCreativeSummary(campaignId: string): Promise<{ total: n
     if (error || !data) return null;
     const rows = data as { status?: unknown }[];
     return { total: rows.length, approved: rows.filter((r) => r.status === "approved").length };
+  } catch {
+    return null;
+  }
+}
+
+/** Is campaign ke saare creatives (archived chhod kar), naye pehle. RLS: sirf apne campaign ke. */
+export async function listCampaignCreatives(campaignId: string): Promise<Creative[] | null> {
+  if (!isUuid(campaignId)) return null;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("ad_creatives")
+      .select("id, campaign_id, headline, body, cta_text, destination_url, status, rejection_reason")
+      .eq("campaign_id", campaignId)
+      .neq("status", "archived")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error || !data) return null;
+    return (data as unknown[]).map(toCreative).filter((c): c is Creative => c !== null);
+  } catch {
+    return null;
+  }
+}
+
+/** Kitne creatives review me hain ya approved hain (campaign review ke liye bhejne se pehle zaroori). */
+export async function countReviewableCreatives(campaignId: string): Promise<number | null> {
+  if (!isUuid(campaignId)) return null;
+  try {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from("ad_creatives")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId)
+      .in("status", ["pending_review", "approved"]);
+    if (error || typeof count !== "number") return null;
+    return count;
+  } catch {
+    return null;
+  }
+}
+
+export type CampaignSpend = { spentTotal: number; spentToday: number; servesTotal: number };
+
+/** Kharch aur serve ginti (database function get_my_campaign_spend; sirf apne campaign ka). */
+export async function getCampaignSpend(campaignId: string): Promise<CampaignSpend | null> {
+  if (!isUuid(campaignId)) return null;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_my_campaign_spend", { p_campaign_id: campaignId });
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    const r = data[0] as Record<string, unknown>;
+    const n = (v: unknown): number => (typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN);
+    const spentTotal = n(r.spent_total);
+    const spentToday = n(r.spent_today);
+    const servesTotal = n(r.serves_total);
+    if (![spentTotal, spentToday, servesTotal].every(Number.isFinite)) return null;
+    return { spentTotal, spentToday, servesTotal };
   } catch {
     return null;
   }

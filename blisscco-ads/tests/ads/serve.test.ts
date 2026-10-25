@@ -185,9 +185,9 @@ describe("serveAd", () => {
     assert.deepEqual(await serveAd(HASH, req("gaming"), deps), { kind: "unavailable" });
   });
 
-  it("candidate load failure => safe no-fill, nothing recorded", async () => {
+  it("candidate load failure => unavailable (503), nothing recorded, ad never returned", async () => {
     const { deps, trace } = makeDeps({ loadThrows: true });
-    assert.deepEqual(await serveAd(HASH, req("gaming"), deps), { kind: "no_fill" });
+    assert.deepEqual(await serveAd(HASH, req("gaming"), deps), { kind: "unavailable" });
     assert.equal(trace.record.length, 0);
   });
 

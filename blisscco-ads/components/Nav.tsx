@@ -49,7 +49,7 @@ export default function Nav() {
         ))}
         <Link href="/dashboard" className={link}>Demo dashboard</Link>
         <Link href="/login" className={link}>Log in</Link>
-        <Button href="#waitlist" className="!min-h-10 !py-2 text-sm">Early access status</Button>
+        <Button href="/signup" className="!min-h-10 !py-2 text-sm">Sign up</Button>
       </div>
 
       <button
@@ -86,7 +86,7 @@ export default function Nav() {
               </Link>
             </li>
           </ul>
-          <Button href="#waitlist" onClick={() => setOpen(false)} className="mt-4 w-full">Early access status</Button>
+          <Button href="/signup" onClick={() => setOpen(false)} className="mt-4 w-full">Sign up</Button>
         </div>
       )}
     </nav>

@@ -9,15 +9,33 @@
     "outDir": ".test-build",
     "rootDir": ".",
     "plugins": [],
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "noUncheckedSideEffectImports": false
   },
   "include": [
     "lib/ads/**/*.ts",
     "lib/campaigns/constants.ts",
+    "lib/campaigns/validation.ts",
+    "lib/campaigns/filters.ts",
+    "lib/campaigns/run-state.ts",
+    "lib/campaigns/review.ts",
+    "lib/campaigns/creative-validation.ts",
+    "lib/campaigns/types.ts",
+    "lib/accounts/validation.ts",
+    "lib/admin/decisions.ts",
+    "lib/auth/redirect.ts",
+    "lib/auth/validation.ts",
+    "lib/dashboard-nav.ts",
+    "lib/site.ts",
+    "lib/publisher/keys.ts",
     "app/api/ads/match/route.ts",
     "app/api/v1/ads/match/route.ts",
     "tests/**/*.ts"
   ],
-  "exclude": ["node_modules", ".test-build"]
+  "exclude": [
+    "node_modules",
+    ".test-build"
+  ]
 }

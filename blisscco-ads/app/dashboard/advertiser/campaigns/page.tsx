@@ -6,6 +6,7 @@ import DataTable, { type Column } from "@/components/dashboard/DataTable";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import CampaignFilters from "@/components/campaigns/CampaignFilters";
 import Notice from "@/components/auth/Notice";
+import { AdvertiserSetupForm } from "@/components/dashboard/AccountSetupForm";
 import { requireRole } from "@/lib/auth/session";
 import { getMyAdvertiser, listMyCampaigns } from "@/lib/campaigns/queries";
 import { categoryLabel } from "@/lib/campaigns/constants";
@@ -50,7 +51,7 @@ export default async function CampaignsListPage({ searchParams }: Props) {
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">My campaigns</h1>
           <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">
-            Your saved campaigns. Spend, impressions and clicks are not tracked yet because ad serving is not live.
+            Your saved campaigns. Open a campaign to add ads, send it for review and see its spend.
           </p>
         </div>
         {canCreate && (
@@ -61,13 +62,18 @@ export default async function CampaignsListPage({ searchParams }: Props) {
       </div>
 
       {!adv && (
-        <Notice tone="error">
-          Your advertiser account was not found. Please log out and log in again, or contact support.
-        </Notice>
+        <Panel title="Set up your business" note="One quick step before you can create campaigns.">
+          <AdvertiserSetupForm />
+        </Panel>
       )}
 
-      {adv && adv.status !== "active" && (
-        <Notice tone="info">Your advertiser account is not active, so you can view campaigns but not change them.</Notice>
+      {adv && adv.status === "pending" && (
+        <Notice tone="info">
+          Thanks! Your business details are saved. Our team will approve your account soon. After that you can create campaigns.
+        </Notice>
+      )}
+      {adv && adv.status === "suspended" && (
+        <Notice tone="error">Your advertiser account is suspended, so campaigns cannot be changed. Please contact support.</Notice>
       )}
 
       {adv && <CampaignList advertiserId={adv.id} canCreate={canCreate} filters={filters} />}

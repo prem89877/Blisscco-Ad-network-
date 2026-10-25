@@ -52,9 +52,9 @@ export const STATUS_LABELS: Record<CampaignDbStatus, string> = {
 };
 
 export const STATUS_HELP: Record<CampaignDbStatus, string> = {
-  draft: "Not live. Review and activation come in a later stage.",
+  draft: "Not live yet. Add an ad, then send the campaign for review.",
   pending_review: "Waiting for review. It cannot be edited until the review is finished.",
-  active: "Approved. Ad serving is not live yet, so nothing is delivered for now.",
+  active: "Approved and live. Ads can be shown until the budget or the end date is reached.",
   paused: "Paused by you. You can resume it once it has an approved creative.",
   completed: "Finished. It cannot be edited.",
   rejected: "Rejected in review. You can edit it.",

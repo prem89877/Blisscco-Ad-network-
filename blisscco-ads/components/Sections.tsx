@@ -111,20 +111,25 @@ export function Advertisers() {
   );
 }
 
-/* Placeholder: no backend yet, so no form and nothing is sent or stored. */
+/* Advertiser pilot: sign-up ab khula hai (account ko team approve karti hai). */
 export function AdvertiserPilot() {
   return (
     <Section id="advertiser-pilot" title="Advertiser pilot">
       <Card className="max-w-2xl">
-        <Badge tone="violet">Coming later</Badge>
-        <h3 className="mt-3 font-display text-xl font-semibold">Advertiser onboarding is not open yet</h3>
+        <Badge tone="violet">Early access</Badge>
+        <h3 className="mt-3 font-display text-xl font-semibold">Run a pilot campaign</h3>
         <p className="mt-2 text-mist/75">
-          Blisscco is still being built, and no advertisers have joined. There is no sign-up form on this page, and
-          nothing you do here is sent or saved. A pilot campaign sign-up will be added in a later phase.
+          Create an advertiser account, save your business details, and build a campaign with a budget and an ad. Our
+          team reviews every account, ad and campaign before anything is shown, and ads always carry a Sponsored label.
         </p>
-        <Button href="#advertisers" variant="secondary" className="mt-5 w-full sm:w-auto">
-          Back to advertisers
-        </Button>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <Button href="/signup" className="w-full sm:w-auto">
+            Create an account
+          </Button>
+          <Button href="#advertisers" variant="secondary" className="w-full sm:w-auto">
+            Back to advertisers
+          </Button>
+        </div>
       </Card>
     </Section>
   );
@@ -197,12 +202,11 @@ export function Publishers() {
       intro="If you build an AI chatbot, you will be able to integrate Blisscco's advertising API into your own product, while keeping control of the experience."
     >
       <Card className="mb-8 max-w-3xl">
-        <Badge tone="violet">Not open yet</Badge>
+        <Badge tone="violet">Early access</Badge>
         <p className="mt-3 text-mist/80">
-          The Blisscco advertising API exists in a limited, pre-launch form and is not open to the public. There is no
-          self-service sign-up or key creation: keys are issued by hand, and it is not ready for production use. When
-          it opens, access will be subject to authorization and a signed agreement. Nothing on this page connects to a
-          live service.
+          Create a publisher account and, once our team approves it, you can create your own API keys from the dashboard.
+          The API is in early access, so test it carefully before using it in production. Ads are always labelled
+          Sponsored, and keys must stay on your server.
         </p>
       </Card>
 
@@ -219,7 +223,7 @@ export function Publishers() {
           </div>
         </div>
         <Button href="#waitlist" variant="secondary" className="w-full md:w-auto">
-          Check early access status
+          Get started
         </Button>
       </Card>
     </Section>
@@ -302,11 +306,14 @@ export function Trust() {
 /* ---------- Waitlist (placeholder) ---------- */
 export function Waitlist() {
   return (
-    <Section id="waitlist" title="Early access status" intro="Blisscco is in development. We plan to open to a small group of advertisers and AI publishers first.">
+    <Section id="waitlist" title="Get started" intro="Blisscco is in early access. Create an account as an advertiser or an AI publisher. New accounts are approved by our team.">
       <Card className="max-w-xl">
-        <Badge tone="violet">Not open yet</Badge>
-        <p className="mt-3 text-mist/75">The sign-up form arrives with the next phase. Until then, check back soon.</p>
-        <Button href="#top" variant="secondary" className="mt-4">Back to top</Button>
+        <Badge tone="violet">Early access</Badge>
+        <p className="mt-3 text-mist/75">Sign up takes a minute. You can set up your business or platform right after.</p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <Button href="/signup" className="w-full sm:w-auto">Create an account</Button>
+          <Button href="/login" variant="secondary" className="w-full sm:w-auto">Log in</Button>
+        </div>
       </Card>
     </Section>
   );

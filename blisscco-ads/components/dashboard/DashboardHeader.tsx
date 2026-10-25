@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
-import Badge from "@/components/ui/Badge";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { currentLabel } from "@/lib/dashboard-nav";
 
@@ -21,9 +20,6 @@ export default function DashboardHeader({ email }: { email: string }) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2 min-[400px]:gap-3">
-        <span className="hidden min-[400px]:inline-block">
-          <Badge tone="violet">Demo data</Badge>
-        </span>
         {email && (
           <span className="hidden max-w-[14rem] truncate text-sm text-mist/60 xl:inline" title={email}>
             {email}

@@ -349,11 +349,11 @@ for (const route of ROUTES) {
       }
     });
 
-    it("a candidate-load failure never returns a database error (it is a safe no-fill)", async () => {
+    it("a candidate-load failure is a 503 with a fixed body and never returns a database error", async () => {
       setDb({ load_ad_candidates: { data: null, error: { code: "XX000", message: SECRET_TEXT } } });
       const res = await go('{"topic":"gaming"}');
-      assert.equal(res.status, 200);
-      assert.equal(res.text, '{"fill":false}');
+      assert.equal(res.status, 503);
+      assert.equal(res.text, '{"fill":false,"error":"unavailable"}');
     });
 
     it("every JSON response is application/json with Cache-Control: no-store", async () => {

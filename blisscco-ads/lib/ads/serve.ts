@@ -2,6 +2,8 @@ import { resolveCategory } from "./category-matching";
 import type { CategorySlug } from "./taxonomy";
 import type { SelectionOutcome, SelectionRequest } from "./selection";
 import type { MatchedAd, MatchRequest } from "./types";
+// NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
+// Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
 
 // Serve orchestrator (PURA: koi database/env/server-only nahi; saari cheezein `deps` se aati hain, isliye bina database ke test hota hai).
 //
@@ -67,7 +69,11 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
       },
       auth.unitCostUsd,
     );
-    if (!outcome.fill) return { kind: "no_fill" };
+    if (!outcome.fill) {
+      // Database padhne me dikkat = outage (503), "koi ad nahi" (200 no-fill) nahi: dono me farak dikhna chahiye.
+      if (outcome.reason === "candidate_load_failed") return { kind: "unavailable" };
+      return { kind: "no_fill" };
+    }
 
     // 4. Record: database creative ko dobara verify karta hai. Record na ho toh ad nahi dete.
     const recorded = await deps.record(keyHash, outcome.ad.id, resolved.category);

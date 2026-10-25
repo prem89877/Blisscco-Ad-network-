@@ -74,9 +74,9 @@ describe("publisher guide: examples match the real API contract", () => {
 });
 
 describe("publisher guide: security and honesty rules", () => {
-  it("states that keys are manual (not self-service) and that no third-party chatbot integration exists", () => {
+  it("states that keys are created on the Publisher page after approval and that no third-party chatbot integration exists", () => {
     const g = flat(GUIDE);
-    assert.match(g, /not self-service/);
+    assert.match(g, /create a key on the Publisher page/);
     assert.match(g, /no integration with ChatGPT or any other third-party chatbot/);
   });
 

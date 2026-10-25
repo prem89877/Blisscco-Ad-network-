@@ -6,8 +6,19 @@ import Panel from "@/components/dashboard/Panel";
 import Notice from "@/components/auth/Notice";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import RunStateButton from "@/components/campaigns/RunStateButton";
+import CreativeForm from "@/components/campaigns/CreativeForm";
+import CreativeActionButton from "@/components/campaigns/CreativeActionButton";
+import CampaignReviewButton from "@/components/campaigns/CampaignReviewButton";
 import { requireRole } from "@/lib/auth/session";
-import { getCreativeSummary, getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
+import {
+  getCampaignSpend,
+  getCreativeSummary,
+  getMyAdvertiser,
+  listCampaignCreatives,
+  loadMyCampaign,
+} from "@/lib/campaigns/queries";
+import { CREATIVE_STATUS_LABELS, availableCreativeActions } from "@/lib/campaigns/creative-validation";
+import { SUBMIT_BLOCK_MESSAGES, checkSubmitCampaign, reviewActionFor } from "@/lib/campaigns/review";
 import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid } from "@/lib/campaigns/constants";
 import { DELIVERY_NOTE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import { utcToday } from "@/lib/campaigns/validation";
@@ -18,7 +29,14 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; updated?: string; paused?: string; resumed?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    updated?: string;
+    paused?: string;
+    resumed?: string;
+    creative?: string;
+    review?: string;
+  }>;
 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -45,6 +63,8 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   if (!campaign) notFound();
 
   const creatives = await getCreativeSummary(campaign.id);
+  const creativeList = await listCampaignCreatives(campaign.id);
+  const spend = await getCampaignSpend(campaign.id);
   const locked = EDIT_LOCKED_STATUSES.includes(campaign.status);
   const canChange = adv.status === "active";
 
@@ -55,6 +75,15 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   const showResume = canChange && campaign.status === "paused" && resumeCheck.ok;
   const resumeBlocked =
     canChange && campaign.status === "paused" && !resumeCheck.ok ? RESUME_BLOCK_MESSAGES[resumeCheck.reason] : null;
+
+  // Review ke liye bhejna / wapas lena (asli rok server action + database trigger me)
+  const reviewable = creativeList ? creativeList.filter((c) => c.status === "pending_review" || c.status === "approved").length : null;
+  const reviewAction = canChange ? reviewActionFor(campaign.status) : null;
+  const submitCheck = checkSubmitCampaign(campaign, reviewable, utcToday());
+  const showReview = reviewAction !== null && (reviewAction !== "submit" || submitCheck.ok);
+  const reviewBlocked = reviewAction === "submit" && !submitCheck.ok ? SUBMIT_BLOCK_MESSAGES[submitCheck.reason] : null;
+  const canAddCreative = canChange && campaign.status !== "archived" && campaign.status !== "completed";
+  const usd = (n: number) => `$${n.toFixed(4)}`;
 
   return (
     <>
@@ -80,6 +109,11 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
       {sp.resumed === "1" && campaign.status === "active" && (
         <Notice tone="success">Campaign resumed. {DELIVERY_NOTE}</Notice>
       )}
+      {sp.creative === "added" && <Notice tone="success">Ad added as a draft. Send it for review when it is ready.</Notice>}
+      {sp.creative === "submit" && <Notice tone="success">Ad sent for review.</Notice>}
+      {sp.review === "submit" && campaign.status === "pending_review" && (
+        <Notice tone="success">Campaign sent for review. We will approve or reject it soon.</Notice>
+      )}
 
       <div className="mt-6 space-y-5">
         <Panel title="Details">
@@ -103,9 +137,65 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
             </Row>
             <Row label="Created">{formatDate(campaign.createdAt.slice(0, 10))} (UTC)</Row>
             <Row label="Last updated">{formatDate(campaign.updatedAt.slice(0, 10))} (UTC)</Row>
-            <Row label="Spend, impressions, clicks">Not tracked yet (ad serving is not live).</Row>
+            <Row label="Spend so far">
+              {spend ? `${usd(spend.spentTotal)} (${usd(spend.spentToday)} today, UTC)` : "Could not be loaded"}
+            </Row>
+            <Row label="Ads shown">{spend ? `${spend.servesTotal}` : "Could not be loaded"}</Row>
+            <Row label="Impressions, clicks">Not tracked yet. Spend is counted each time your ad is handed to a chatbot.</Row>
           </dl>
         </Panel>
+
+        <Panel
+          title="Ads"
+          note="Each ad is checked by our team before it can be shown. Ads always carry a Sponsored label."
+        >
+          {creativeList === null ? (
+            <p className="text-sm text-mist/70">Ads could not be loaded.</p>
+          ) : creativeList.length === 0 ? (
+            <p className="text-sm text-mist/70">No ads yet. Add your first ad below.</p>
+          ) : (
+            <ul className="space-y-3">
+              {creativeList.map((c) => (
+                <li key={c.id} className="rounded-xl border border-line p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-mist">{c.headline}</p>
+                      <p className="mt-1 whitespace-pre-line break-words text-sm text-mist/80">{c.body}</p>
+                      <p className="mt-1 break-all text-xs text-mist/60">
+                        {c.ctaText ? `Button: ${c.ctaText} · ` : ""}
+                        {c.destinationUrl}
+                      </p>
+                      <p className="mt-2 text-xs text-aqua">{CREATIVE_STATUS_LABELS[c.status]}</p>
+                      {c.status === "rejected" && c.rejectionReason && (
+                        <p className="mt-1 break-words text-xs text-red-300">Reason: {c.rejectionReason}</p>
+                      )}
+                    </div>
+                    {canChange && (
+                      <div className="flex flex-col gap-2">
+                        {availableCreativeActions(c.status).map((a) => (
+                          <CreativeActionButton key={a} creativeId={c.id} action={a} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        {canAddCreative && (
+          <Panel title="Add an ad">
+            <CreativeForm campaignId={campaign.id} />
+          </Panel>
+        )}
+
+        {(showReview || reviewBlocked) && (
+          <Panel title="Review" note="A campaign goes live only after our team approves it and at least one ad.">
+            {showReview && reviewAction && <CampaignReviewButton campaignId={campaign.id} action={reviewAction} />}
+            {reviewBlocked && <p className="max-w-md text-sm text-mist/70">{reviewBlocked}</p>}
+          </Panel>
+        )}
 
         {(showEdit || showPause || showResume || resumeBlocked) && (
           <Panel title="Actions">
@@ -125,7 +215,7 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
           </Panel>
         )}
 
-        {!canChange && <Notice tone="info">Your advertiser account is not active, so this campaign cannot be changed.</Notice>}
+        {!canChange && <Notice tone="info">Your advertiser account is not approved yet, so this campaign cannot be changed.</Notice>}
       </div>
     </>
   );

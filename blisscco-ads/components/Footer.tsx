@@ -8,7 +8,7 @@ const NAV = [
   { href: "#publishers", label: "AI Publishers" },
   { href: "#how", label: "How it works" },
   { href: "#trust", label: "Transparency and trust" },
-  { href: "#waitlist", label: "Early access status" },
+  { href: "#waitlist", label: "Get started" },
 ];
 
 /** Placeholders are plain text, not links, because these pages do not exist yet. */

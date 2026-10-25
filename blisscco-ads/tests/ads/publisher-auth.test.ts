@@ -113,7 +113,7 @@ const SCENARIOS: Scenario[] = [
   { name: "ad found", body: '{"topic":"gaming"}', status: 200 },
   { name: "sensitive topic (no-fill)", body: '{"topic":"health"}', status: 200 },
   { name: "no eligible candidate", body: '{"topic":"gaming"}', db: { load_ad_candidates: { data: [], error: null } }, status: 200 },
-  { name: "candidate load error (silent no-fill)", body: '{"topic":"gaming"}', db: { load_ad_candidates: { data: null, error: LEAKY_ERROR } }, status: 200 },
+  { name: "candidate load error (outage, 503)", body: '{"topic":"gaming"}', db: { load_ad_candidates: { data: null, error: LEAKY_ERROR } }, status: 503 },
   { name: "record rejected", body: '{"topic":"gaming"}', db: { record_ad_serve: { data: { outcome: "rejected" }, error: null } }, status: 200 },
   { name: "unknown field", body: '{"topic":"gaming","prompt":"my private chat"}', status: 400 },
   { name: "missing key", body: '{"topic":"gaming"}', headers: { authorization: "" }, status: 401 },

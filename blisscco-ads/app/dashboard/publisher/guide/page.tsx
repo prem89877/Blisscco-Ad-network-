@@ -150,13 +150,13 @@ export default async function PublisherGuidePage() {
           </p>
         </Panel>
 
-        <Panel title="2. Getting an API key (manual process)">
+        <Panel title="2. Getting an API key">
           <ol className="list-decimal space-y-2 pl-5 text-sm text-mist/75">
-            <li>Sign up and choose the AI Publisher account type, then ask Blisscco for access using the contact address on the Privacy page (shown there when configured).</li>
-            <li>Blisscco reviews and authorises the publisher by hand. There is no self-service key creation and no key page in this dashboard.</li>
-            <li>Blisscco creates a key for your publisher directly in its database. The key is shown once, to Blisscco, and only a hash is stored, so a lost key cannot be recovered: you get a new one.</li>
-            <li>Agree a safe way to receive the key, then store it straight in your server&apos;s secret manager or environment variables. Do not paste it into chat, tickets, screenshots or git.</li>
-            <li>A publisher can hold up to 5 active keys. Keys have no expiry and no rotation tooling yet: ask Blisscco to revoke a key if it may have leaked, and to issue a replacement.</li>
+            <li>Sign up with the AI Publisher account type and save your platform details on the Publisher page.</li>
+            <li>Blisscco reviews and approves the account by hand. Until it is approved, keys cannot be created.</li>
+            <li>Once approved, create a key on the Publisher page. The key is shown once, and only a hash is stored, so a lost key cannot be recovered: create a new one and revoke the old one.</li>
+            <li>Store the key straight in your server&apos;s secret manager or environment variables. Do not paste it into chat, tickets, screenshots or git.</li>
+            <li>A publisher can hold up to 5 active keys. Choose an expiry when you create a key (90 days is the default) and revoke any key that may have leaked.</li>
           </ol>
           <p className="mt-3 text-xs text-mist/55">Keys start with a fixed prefix and are long random strings. This guide never shows a real one.</p>
         </Panel>
@@ -303,12 +303,12 @@ export default async function PublisherGuidePage() {
 
         <Panel title="10. Known limitations" note="These are why this API should not be treated as ready for production use.">
           <ul className="list-disc space-y-1 pl-5 text-sm text-mist/75">
-            <li>Access is manual: keys are issued and revoked by hand, with no self-service, expiry or rotation tools.</li>
-            <li>Advertiser budgets are not enforced yet, and spend tracking is not live.</li>
+            <li>Accounts are approved by hand by the Blisscco team, so approval can take time.</li>
+            <li>Advertiser budgets are enforced, and spend is counted when an ad is handed to you, not when a person sees it.</li>
             <li>A request is counted as an ad serve. There is no impression or click reporting, and nothing here should be used for billing or payouts.</li>
-            <li>Rate limiting is per key only. Edge or IP-level protection may not be in place.</li>
-            <li>Blisscco sets no server-side timeouts yet, and some internal failures return a plain no-fill, so no-fill cannot always be told apart from a problem.</li>
-            <li>No staging environment is published, and the numbers in this dashboard are demo data.</li>
+            <li>Rate limiting is per key, plus a best-effort guard against repeated wrong keys from one IP. Add your own edge protection too.</li>
+            <li>Database calls time out after 8 seconds. A Blisscco outage returns 503 with error unavailable, while a plain no-fill (200) means no matching ad.</li>
+            <li>No staging environment is published.</li>
             <li>The contract can still change; the <code>v1</code> path and its version header are the only stability signal.</li>
           </ul>
         </Panel>

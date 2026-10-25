@@ -335,11 +335,11 @@ describe("R8: no eligible campaign returns no-fill, never an error that leaks in
     assert.deepEqual(json, { fill: false });
   });
 
-  it("candidate load failure -> safe no-fill; error code / table names never reach the response", async () => {
+  it("candidate load failure -> 503 (outage, not 'no ad'); error code / table names never reach the response", async () => {
     useDb({ loadError: true });
     const { res, json } = await call({ topic: "technology" });
-    assert.equal(res.status, 200);
-    assert.deepEqual(json, { fill: false });
+    assert.equal(res.status, 503);
+    assert.deepEqual(json, { fill: false, error: "unavailable" });
     assert.ok(!/XX000|rpc|supabase|postgres|select|stack/i.test(JSON.stringify(json)));
   });
 

@@ -152,4 +152,4 @@ Header: `Retry-After: 60`
 Naye: `lib/ads/contract.ts` (public types + `toPublicAd`/`buildAdResponse`), `tests/ads/contract.test.ts`, `DAY6-ADS-MATCH-CONTRACT.md`.
 Badla: `lib/ads/match-handler.ts` (responses ab contract types se bandhe; ad response `buildAdResponse` se banta hai. JSON bytes pehle jaise hi).
 Nahi badla: validation, taxonomy, matching, selection, SQL, routes, status codes, headers.
-Known gaps pehle jaise (`DAY6-API-V1.md` section 6): budget enforce nahi, edge/IP rate limit Vercel Firewall par.
+Known gaps (`DAY6-API-V1.md` section 6): Day 7 me budget enforce, timeouts aur 503-on-load-failure theek hue. Edge/IP rate limit ke liye Vercel Firewall rule abhi bhi lagana hai (`DAY7-FIXES.md`).

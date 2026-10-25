@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { buildAdResponse, type MatchResponseBody } from "@/lib/ads/contract";
+import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
 import { serveAdForPublisher } from "@/lib/ads/service";
 import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 
@@ -17,7 +18,12 @@ import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 export type MatchHandlerOptions = {
   /** Har response me jodne wale headers (jaise X-Blisscco-Api-Version). */
   extraHeaders?: Record<string, string>;
+  /** Tests ke liye: galat-key guard bahar se. Default: is server instance ka apna guard. */
+  ipGuard?: IpGuard;
 };
+
+// Ek IP se bahut zyada galat key aaye toh database tak jaane se pehle 429 (best-effort; Vercel Firewall alag se lagao).
+const defaultIpGuard = createIpGuard();
 
 const UNAUTHORIZED_HEADERS = { "WWW-Authenticate": 'Bearer realm="blisscco-ads"' };
 
@@ -68,12 +74,20 @@ async function readBodyLimited(request: Request, maxBytes: number): Promise<stri
 
 export async function handleMatchPost(request: Request, options: MatchHandlerOptions = {}): Promise<Response> {
   const extra = options.extraHeaders ?? {};
+  const guard = options.ipGuard ?? defaultIpGuard;
+  const ip = clientIpFromHeaders(request.headers);
   const json = (body: MatchResponseBody, status: number, headers?: Record<string, string>) =>
     NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", ...extra, ...headers } });
 
+  // 0. Is IP se bahut galat keys aa chuki hain? Database tak mat jao.
+  if (guard.isBlocked(ip, Date.now())) return json({ error: "rate_limited" }, 429, { "Retry-After": "60" });
+
   // 1. Key ka format (database tak jaane se pehle). Galat/missing = hamesha ek jaisa 401.
   const key = readBearerKey(request.headers.get("authorization"));
-  if (!key) return json({ error: "unauthorized" }, 401, UNAUTHORIZED_HEADERS);
+  if (!key) {
+    guard.recordFailure(ip, Date.now());
+    return json({ error: "unauthorized" }, 401, UNAUTHORIZED_HEADERS);
+  }
 
   // 2. Request ki shape
   if (!isJsonContentType(request.headers.get("content-type"))) {
@@ -100,6 +114,7 @@ export async function handleMatchPost(request: Request, options: MatchHandlerOpt
 
   switch (result.kind) {
     case "unauthorized":
+      guard.recordFailure(ip, Date.now());
       return json({ error: "unauthorized" }, 401, UNAUTHORIZED_HEADERS);
     case "rate_limited":
       return json({ error: "rate_limited" }, 429, { "Retry-After": "60" });

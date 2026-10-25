@@ -10,6 +10,8 @@ import { handleMatchPost } from "@/lib/ads/match-handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Day 7: function ko max 15 second (database ka apna time-out 8 second hai). Atke toh jaldi 503, latakna nahi.
+export const maxDuration = 15;
 
 export async function POST(request: Request) {
   return handleMatchPost(request, { extraHeaders: { "X-Blisscco-Api-Version": "1" } });

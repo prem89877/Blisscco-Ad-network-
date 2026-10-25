@@ -207,7 +207,9 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
         </FieldShell>
       </div>
 
-      <p className="text-xs text-mist/55">Budgets are in US dollars. Dates use UTC.</p>
+      <p className="text-xs text-mist/55">
+        Budgets are in US dollars. Dates use UTC: a new day starts at 5:30 AM in India, so a campaign that starts &quot;today&quot; may begin a few hours later.
+      </p>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="sm:w-56">
