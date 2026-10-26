@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { countReviewableCreatives, getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
+import { countReviewableCreatives, loadMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
 import { isUuid } from "@/lib/campaigns/constants";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
 import { utcToday } from "@/lib/campaigns/validation";
@@ -28,7 +28,8 @@ const LIST_PATH = "/dashboard/advertiser/campaigns";
 
 async function requireActiveAdvertiser(): Promise<{ id: string } | { error: string }> {
   await requireRole(["advertiser"]);
-  const adv = await getMyAdvertiser();
+  const { advertiser: adv, failed } = await loadMyAdvertiser();
+  if (failed) return { error: "Something went wrong. Please try again." };
   if (!adv) return { error: "Your advertiser account was not found. Please set up your business first." };
   if (adv.status !== "active") return { error: "Your advertiser account is not approved yet, so changes are not allowed." };
   return { id: adv.id };

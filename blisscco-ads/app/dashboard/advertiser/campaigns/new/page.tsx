@@ -3,7 +3,7 @@ import Link from "next/link";
 import CampaignForm from "@/components/campaigns/CampaignForm";
 import Notice from "@/components/auth/Notice";
 import { requireRole } from "@/lib/auth/session";
-import { getMyAdvertiser } from "@/lib/campaigns/queries";
+import { loadMyAdvertiser } from "@/lib/campaigns/queries";
 import { minStartDateForNew, utcToday } from "@/lib/campaigns/validation";
 import { createCampaign } from "../actions";
 
@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function NewCampaignPage() {
   await requireRole(["advertiser"]);
-  const adv = await getMyAdvertiser();
+  const { advertiser: adv, failed } = await loadMyAdvertiser();
+  if (failed) throw new Error("Advertiser could not be loaded");
 
   return (
     <>

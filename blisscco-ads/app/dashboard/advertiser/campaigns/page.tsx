@@ -8,7 +8,7 @@ import CampaignFilters from "@/components/campaigns/CampaignFilters";
 import Notice from "@/components/auth/Notice";
 import { AdvertiserSetupForm } from "@/components/dashboard/AccountSetupForm";
 import { requireRole } from "@/lib/auth/session";
-import { getMyAdvertiser, listMyCampaigns } from "@/lib/campaigns/queries";
+import { listMyCampaigns, loadMyAdvertiser } from "@/lib/campaigns/queries";
 import { categoryLabel } from "@/lib/campaigns/constants";
 import { filtersToHref, hasActiveFilters, parseFilters, type CampaignFilters as Filters } from "@/lib/campaigns/filters";
 import type { Campaign } from "@/lib/campaigns/types";
@@ -42,7 +42,9 @@ export default async function CampaignsListPage({ searchParams }: Props) {
   await requireRole(["advertiser"]);
   // URL ke filters server par dobara validate hote hain (lib/campaigns/filters.ts).
   const filters = parseFilters(await searchParams);
-  const adv = await getMyAdvertiser();
+  const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
+  // Database dikkat ko "advertiser nahi hai" (Set up your business form) na samjho: error boundary (Try again).
+  if (advertiserFailed) throw new Error("Advertiser could not be loaded");
   const canCreate = adv?.status === "active";
 
   return (

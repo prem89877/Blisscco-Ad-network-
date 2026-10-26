@@ -5,7 +5,7 @@ import CampaignForm from "@/components/campaigns/CampaignForm";
 import Notice from "@/components/auth/Notice";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import { requireRole } from "@/lib/auth/session";
-import { getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
+import { getCampaignSpend, loadMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isUuid } from "@/lib/campaigns/constants";
 import { updateCampaign } from "../../actions";
 
@@ -19,11 +19,14 @@ export default async function EditCampaignPage({ params }: Props) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
 
-  const adv = await getMyAdvertiser();
+  const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
+  if (advertiserFailed) throw new Error("Advertiser could not be loaded");
   if (!adv) notFound();
   const { campaign, failed } = await loadMyCampaign(adv.id, id);
   if (failed) throw new Error("Campaign could not be loaded");
   if (!campaign) notFound();
+  // Kharch (sirf dikhane ke liye hint). Na mile toh hint chhup jata hai; asli rok server action me hai.
+  const spend = await getCampaignSpend(campaign.id);
 
   const back = `/dashboard/advertiser/campaigns/${campaign.id}`;
   const locked = EDIT_LOCKED_STATUSES.includes(campaign.status);
@@ -57,6 +60,7 @@ export default async function EditCampaignPage({ params }: Props) {
           action={updateCampaign}
           campaign={campaign}
           categoryLocked={!CATEGORY_EDITABLE_STATUSES.includes(campaign.status)}
+          spentTotal={spend ? spend.spentTotal : null}
           cancelHref={back}
         />
       )}

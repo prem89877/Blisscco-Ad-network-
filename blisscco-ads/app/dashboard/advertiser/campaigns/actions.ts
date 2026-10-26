@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { getCreativeSummary, getMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
+import { getCampaignSpend, getCreativeSummary, loadMyAdvertiser, loadMyCampaign } from "@/lib/campaigns/queries";
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isCategory, isUuid } from "@/lib/campaigns/constants";
 import { parseCampaignForm, readFormValues, utcToday } from "@/lib/campaigns/validation";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
+import { BELOW_SPEND_MESSAGE, SPEND_UNKNOWN_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
 import { PAUSE_BLOCK_MESSAGE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import type { CampaignFormState, RunStateResult } from "@/lib/campaigns/types";
 
@@ -18,7 +19,9 @@ const LIST_PATH = "/dashboard/advertiser/campaigns";
 
 async function requireActiveAdvertiser(): Promise<{ id: string } | { error: string }> {
   await requireRole(["advertiser"]);
-  const adv = await getMyAdvertiser();
+  const { advertiser: adv, failed } = await loadMyAdvertiser();
+  // Database dikkat = "account nahi mila" nahi: alag, saaf message.
+  if (failed) return { error: "Something went wrong. Please try again." };
   if (!adv) return { error: "Your advertiser account was not found. Please log out, log in again, or contact support." };
   if (adv.status !== "active") return { error: "Your advertiser account is not active, so campaigns cannot be changed." };
   return { id: adv.id };
@@ -102,12 +105,38 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
   const categoryLocked = !CATEGORY_EDITABLE_STATUSES.includes(current.status);
   const parsed = parseCampaignForm(values, {
     todayUtc: utcToday(),
-    existing: { startDate: current.startDate, category: current.category, categoryLocked },
+    existing: {
+      startDate: current.startDate,
+      category: current.category,
+      categoryLocked,
+      totalBudget: current.totalBudget,
+      dailyBudget: current.dailyBudget,
+      endDate: current.endDate,
+    },
   });
   if (!parsed.ok) {
     return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: parsed.errors, values };
   }
   const v = parsed.value;
+
+  // Total budget ab tak ke kharch se neeche nahi ja sakta (warna campaign chupchap khatam ho jata hai par "Active" dikhta hai).
+  // Active/paused me kharch na padh paye toh edit rokte hain (fail-closed). Draft/rejected me kharch 0 hota hai: padh na paye toh aage badhte hain.
+  // NOTE: padhne aur likhne ke beech ek serve ho sakta hai; DB-level guard alag approval wali migration se aayega (DAY9-PART1-CAMPAIGNS.md).
+  if (v.totalBudget !== current.totalBudget) {
+    const spend = await getCampaignSpend(current.id);
+    if (spend === null && (current.status === "active" || current.status === "paused")) {
+      return { status: "error", message: SPEND_UNKNOWN_MESSAGE, values };
+    }
+    if (spend !== null && isBelowSpend(v.totalBudget, spend.spentTotal)) {
+      const spent = `$${spend.spentTotal.toFixed(4)}`;
+      return {
+        status: "error",
+        message: "Please fix the highlighted fields.",
+        fieldErrors: { totalBudget: BELOW_SPEND_MESSAGE(spent) },
+        values,
+      };
+    }
+  }
 
   const patch: Record<string, unknown> = {
     name: v.name,

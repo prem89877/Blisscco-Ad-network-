@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
-import { CATEGORY_OPTIONS, DESC_MAX, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
+import { CATEGORY_OPTIONS, DESC_MAX, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
 import { initialFormState, type Campaign, type CampaignFieldName, type CampaignFormState, type FormValues } from "@/lib/campaigns/types";
 
 type Props = {
@@ -14,6 +14,8 @@ type Props = {
   categoryLocked?: boolean;
   /** Sirf naye campaign me: browser ke date picker ki min date (asli check server karta hai). */
   minStartDate?: string;
+  /** Sirf edit me: ab tak ka kharch (USD), sirf hint ke liye. null/undefined = pata nahi, hint nahi. */
+  spentTotal?: number | null;
   cancelHref: string;
 };
 
@@ -64,7 +66,7 @@ function FieldShell({ id, label, hint, error, children }: FieldShellProps) {
   );
 }
 
-export default function CampaignForm({ mode, action, campaign, categoryLocked = false, minStartDate, cancelHref }: Props) {
+export default function CampaignForm({ mode, action, campaign, categoryLocked = false, minStartDate, spentTotal, cancelHref }: Props) {
   const [state, formAction] = useActionState(action, initialFormState);
   const v = state.values ?? defaultsFrom(campaign);
   const err = (f: CampaignFieldName) => state.fieldErrors?.[f];
@@ -147,7 +149,9 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
       </FieldShell>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <FieldShell id="totalBudget" label="Total budget (USD)" error={err("totalBudget")} hint="For example 2500 or 2500.50.">
+        <FieldShell id="totalBudget" label="Total budget (USD)" error={err("totalBudget")} hint={`At least $${MIN_TOTAL_BUDGET.toFixed(2)}. For example 2500 or 2500.50.${
+            mode === "edit" && typeof spentTotal === "number" && spentTotal > 0 ? ` Already spent: $${spentTotal.toFixed(4)}, so the total cannot go lower.` : ""
+          }`}>
           {(d, invalid) => (
             <input
               id="totalBudget"
@@ -162,7 +166,7 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
             />
           )}
         </FieldShell>
-        <FieldShell id="dailyBudget" label="Daily budget (USD, optional)" error={err("dailyBudget")} hint="Leave empty for no daily limit.">
+        <FieldShell id="dailyBudget" label="Daily budget (USD, optional)" error={err("dailyBudget")} hint={`At least $${MIN_DAILY_BUDGET.toFixed(2)}. Leave empty for no daily limit.`}>
           {(d, invalid) => (
             <input
               id="dailyBudget"

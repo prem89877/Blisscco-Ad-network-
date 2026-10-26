@@ -1,4 +1,14 @@
-import { DESC_MAX, MAX_BUDGET, NAME_MAX, NAME_MIN, isCategory } from "./constants";
+import {
+  DESC_MAX,
+  MAX_BUDGET,
+  MAX_CAMPAIGN_DAYS,
+  MIN_DAILY_BUDGET,
+  MIN_TOTAL_BUDGET,
+  NAME_MAX,
+  NAME_MIN,
+  START_MAX_DAYS_AHEAD,
+  isCategory,
+} from "./constants";
 import type { CampaignFieldName, FormValues } from "./types";
 
 // Server-side validation (asli check yahi hai). Browser ki checking sirf suvidha ke liye.
@@ -20,9 +30,22 @@ export type ParseResult =
 export type ParseOptions = {
   /** Aaj ki UTC date (YYYY-MM-DD). */
   todayUtc: string;
-  /** Edit ke waqt: purani start date aur category (unchanged values allowed rehti hain). */
-  existing?: { startDate: string; category: string; categoryLocked: boolean };
+  /**
+   * Edit ke waqt: purani values. Jo value badli nahi, uspar naye (sakht) niyam nahi lagte, taaki purana campaign
+   * sirf naam badalne par bhi atak na jaye. Budget/endDate optional hain (purane callers ke liye).
+   */
+  existing?: {
+    startDate: string;
+    category: string;
+    categoryLocked: boolean;
+    totalBudget?: number;
+    dailyBudget?: number | null;
+    endDate?: string | null;
+  };
 };
+
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 const FIELD_MAX = 200;
 
@@ -77,11 +100,19 @@ function parseMoney(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Do paise-ke amount barabar hain? (undefined = pehle se koi value nahi thi.) */
+function sameMoney(a: number, b: number | undefined): boolean {
+  return b !== undefined && Math.round(a * 100) === Math.round(b * 100);
+}
+
 export function parseCampaignForm(values: FormValues, opts: ParseOptions): ParseResult {
   const errors: Partial<Record<CampaignFieldName, string>> = {};
 
-  const name = values.name.trim();
-  if (name.length === 0) errors.name = "Enter a campaign name.";
+  // Naam ek line ka text: kai spaces/tab/newline ek space ban jate hain, aur chhupe control characters reject.
+  const rawName = values.name;
+  const name = rawName.replace(/\s+/g, " ").trim();
+  if (CONTROL_CHARS.test(rawName.replace(/[\t\n\r]/g, " "))) errors.name = "Remove special control characters.";
+  else if (name.length === 0) errors.name = "Enter a campaign name.";
   else if (name.length < NAME_MIN) errors.name = `Use at least ${NAME_MIN} characters.`;
   else if (name.length > NAME_MAX) errors.name = `Use ${NAME_MAX} characters or fewer.`;
 
@@ -105,6 +136,9 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
     if (total === null) errors.totalBudget = "Enter a number like 2500 or 2500.50. No symbols or minus sign.";
     else if (total <= 0) errors.totalBudget = "Total budget must be more than 0.";
     else if (total > MAX_BUDGET) errors.totalBudget = `Total budget can be up to ${MAX_BUDGET.toLocaleString("en-US")}.`;
+    else if (total < MIN_TOTAL_BUDGET && !sameMoney(total, opts.existing?.totalBudget)) {
+      errors.totalBudget = `Total budget must be at least $${MIN_TOTAL_BUDGET.toFixed(2)}.`;
+    }
   }
 
   let daily: number | null = null;
@@ -114,6 +148,8 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
     else if (daily <= 0) errors.dailyBudget = "Daily budget must be more than 0, or leave it empty.";
     else if (errors.totalBudget === undefined && total !== null && Math.round(daily * 100) > Math.round(total * 100)) {
       errors.dailyBudget = "Daily budget cannot be more than the total budget.";
+    } else if (daily < MIN_DAILY_BUDGET && !sameMoney(daily, opts.existing?.dailyBudget ?? undefined)) {
+      errors.dailyBudget = `Daily budget must be at least $${MIN_DAILY_BUDGET.toFixed(2)}, or leave it empty.`;
     }
   }
 
@@ -122,6 +158,8 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
   else if (!isRealDate(startDate)) errors.startDate = "Choose a valid start date.";
   else if (startDate !== opts.existing?.startDate && startDate < minStartDateForNew(opts.todayUtc)) {
     errors.startDate = "Start date cannot be in the past.";
+  } else if (startDate !== opts.existing?.startDate && startDate > addDays(opts.todayUtc, START_MAX_DAYS_AHEAD)) {
+    errors.startDate = `Start date can be at most ${START_MAX_DAYS_AHEAD} days from today.`;
   }
 
   const endRaw = values.endDate.trim();
@@ -130,6 +168,13 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
     if (!isRealDate(endRaw)) errors.endDate = "Choose a valid end date, or leave it empty.";
     else if (errors.startDate === undefined && startDate !== "" && endRaw < startDate) {
       errors.endDate = "End date must be on or after the start date.";
+    } else if (
+      errors.startDate === undefined &&
+      startDate !== "" &&
+      endRaw > addDays(startDate, MAX_CAMPAIGN_DAYS) &&
+      (endRaw !== (opts.existing?.endDate ?? null) || startDate !== opts.existing?.startDate)
+    ) {
+      errors.endDate = `A campaign can run for at most ${MAX_CAMPAIGN_DAYS} days.`;
     } else endDate = endRaw;
   }
 

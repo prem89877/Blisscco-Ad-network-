@@ -71,6 +71,15 @@ export const DESC_MAX = 1000;
 // numeric(12,2) ki sima ~10 billion; app me practical limit.
 export const MAX_BUDGET = 10_000_000;
 
+// Day 9 Part 1: bahut chhota budget kabhi serve nahi hota (ek serve ki keemat CPM/1000 = $0.002 default),
+// par campaign "Active" dikhta rehta hai. Isliye minimum. Badalna ho toh sirf yahi do number badlo.
+export const MIN_TOTAL_BUDGET = 1;
+export const MIN_DAILY_BUDGET = 0.5;
+
+// Schedule ki seema: start date aaj se zyada se zyada itne din aage, aur campaign itne din se lamba nahi.
+export const START_MAX_DAYS_AHEAD = 365;
+export const MAX_CAMPAIGN_DAYS = 730;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function isUuid(v: string): boolean {
   return UUID_RE.test(v);

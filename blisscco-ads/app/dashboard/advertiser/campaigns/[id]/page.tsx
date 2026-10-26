@@ -13,10 +13,11 @@ import { requireRole } from "@/lib/auth/session";
 import {
   getCampaignSpend,
   getCreativeSummary,
-  getMyAdvertiser,
   listCampaignCreatives,
+  loadMyAdvertiser,
   loadMyCampaign,
 } from "@/lib/campaigns/queries";
+import { remainingBudget } from "@/lib/campaigns/budget";
 import { CREATIVE_STATUS_LABELS, availableCreativeActions } from "@/lib/campaigns/creative-validation";
 import { SUBMIT_BLOCK_MESSAGES, checkSubmitCampaign, reviewActionFor } from "@/lib/campaigns/review";
 import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid } from "@/lib/campaigns/constants";
@@ -54,7 +55,8 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   const sp = await searchParams;
   if (!isUuid(id)) notFound();
 
-  const adv = await getMyAdvertiser();
+  const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
+  if (advertiserFailed) throw new Error("Advertiser could not be loaded");
   if (!adv) notFound();
   // Na mila / kisi aur ka: dono me same notFound (existence leak nahi).
   const { campaign, failed } = await loadMyCampaign(adv.id, id);
@@ -62,9 +64,12 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   if (failed) throw new Error("Campaign could not be loaded");
   if (!campaign) notFound();
 
-  const creatives = await getCreativeSummary(campaign.id);
-  const creativeList = await listCampaignCreatives(campaign.id);
-  const spend = await getCampaignSpend(campaign.id);
+  // Teeno queries ek dusre par nirbhar nahi: saath chalao (page tezi se khulta hai). Ownership upar campaign load se pakki hai.
+  const [creatives, creativeList, spend] = await Promise.all([
+    getCreativeSummary(campaign.id),
+    listCampaignCreatives(campaign.id),
+    getCampaignSpend(campaign.id),
+  ]);
   const locked = EDIT_LOCKED_STATUSES.includes(campaign.status);
   const canChange = adv.status === "active";
 
@@ -100,7 +105,8 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
         <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">{STATUS_HELP[campaign.status]}</p>
       </div>
 
-      {sp.created === "1" && <Notice tone="success">Campaign created as a draft.</Notice>}
+      {/* Purani URL reload par galat message na dikhe: "created" notice sirf tab jab campaign abhi bhi draft ho. */}
+      {sp.created === "1" && campaign.status === "draft" && <Notice tone="success">Campaign created as a draft.</Notice>}
       {sp.updated === "1" && <Notice tone="success">Changes saved.</Notice>}
       {/* Notice sirf tab jab status sach me wahi ho (purani URL reload par galat message na dikhe). */}
       {sp.paused === "1" && campaign.status === "paused" && (
@@ -145,6 +151,9 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
             <Row label="Last updated">{formatDate(campaign.updatedAt.slice(0, 10))} (UTC)</Row>
             <Row label="Spend so far">
               {spend ? `${usd(spend.spentTotal)} (${usd(spend.spentToday)} today, UTC)` : "Could not be loaded"}
+            </Row>
+            <Row label="Budget left">
+              {spend ? formatMoney(remainingBudget(campaign.totalBudget, spend.spentTotal)) : "Could not be loaded"}
             </Row>
             <Row label="Ads shown">{spend ? `${spend.servesTotal}` : "Could not be loaded"}</Row>
             <Row label="Impressions, clicks">Not tracked yet. Spend is counted each time your ad is handed to a chatbot.</Row>

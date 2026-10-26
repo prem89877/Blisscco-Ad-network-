@@ -23,6 +23,8 @@
     "lib/campaigns/review.ts",
     "lib/campaigns/creative-validation.ts",
     "lib/campaigns/types.ts",
+    "lib/campaigns/budget.ts",
+    "lib/campaigns/advertiser.ts",
     "lib/accounts/validation.ts",
     "lib/admin/decisions.ts",
     "lib/auth/redirect.ts",
