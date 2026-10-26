@@ -18,6 +18,8 @@ jobs:
       - name: Install
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Installed versions (next, react)
+        run: npm ls next react react-dom
       - run: npm run lint
       - run: npm test
       - name: ESLint (warning only for now)
