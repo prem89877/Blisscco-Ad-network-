@@ -51,4 +51,4 @@ Vercel project, Firewall, Add Rule, path `/api/v1/ads/match` aur `/api/ads/match
 `DAY2-*.md`, `DAY3-*.md`, `DAY4-*.md`, `DAY5-*.md` purani history hain. Asli guide: `SETUP.md`, `DAY6-API-V1.md` aur ye file.
 
 ## Tests
-`npm test` me ab 689 tests hain (pehle 598). Naye: login ke niyam, route ki security, campaign/ad ke form, admin ke faisle, publisher key, landing page ke links, IP guard, SQL migration ki static jaanch.
+`npm test` me ab 972 tests hain (Day 7 ke end tak; pehle 598). Naye: login ke niyam, route ki security, campaign/ad ke form, admin ke faisle, publisher key, landing page ke links, IP guard, SQL migration ki static jaanch.

@@ -14,7 +14,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      # package-lock.json repo me ho toh npm ci (pakka, same versions); nahi ho toh pehle jaisa npm install.
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
       - run: npm run lint
       - run: npm test
       - name: ESLint (warning only for now)
@@ -30,3 +33,4 @@ jobs:
         with:
           name: package-lock
           path: package-lock.json
+          if-no-files-found: ignore
