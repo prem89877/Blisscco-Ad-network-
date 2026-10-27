@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
-import { getMyPublisher } from "@/lib/publisher/queries";
+import { loadMyPublisher } from "@/lib/publisher/queries";
 import { issuePublisherKey, revokePublisherKey } from "@/lib/publisher/keys-db";
 import { isExpiryChoice, parseKeyLabel, type KeyActionState } from "@/lib/publisher/keys";
 import { isUuid } from "@/lib/campaigns/constants";
@@ -12,7 +12,9 @@ import { isUuid } from "@/lib/campaigns/constants";
 
 async function requireActivePublisher(): Promise<{ id: string } | { error: string }> {
   await requireRole(["publisher"]);
-  const pub = await getMyPublisher();
+  const { publisher: pub, failed } = await loadMyPublisher();
+  // Database dikkat ko "setup nahi hua" na samjho: alag, sahi message.
+  if (failed) return { error: "We could not check your account right now. Please try again." };
   if (!pub) return { error: "Please set up your platform details first." };
   if (pub.status !== "active") return { error: "Your publisher account is not approved yet, so keys cannot be created." };
   return { id: pub.id };

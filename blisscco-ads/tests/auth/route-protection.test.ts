@@ -64,7 +64,8 @@ describe("route protection: server actions", () => {
   it("publisher actions never take publisher id from the form", () => {
     const src = read("app/dashboard/publisher/actions.ts");
     assert.ok(!/formData\.get\("publisherId"\)/.test(src));
-    assert.match(src, /getMyPublisher\(\)/);
+    // Publisher hamesha login se dhoondha jata hai (loadMyPublisher: database error alag se pata chalta hai).
+    assert.match(src, /loadMyPublisher\(\)/);
   });
 });
 

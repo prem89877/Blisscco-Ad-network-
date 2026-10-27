@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import {
+  mapPublisherSetupError,
   parseAdvertiserSetup,
   parsePublisherSetup,
   type AdvertiserFields,
@@ -68,9 +69,16 @@ export async function setupPublisher(_prev: SetupState<PublisherFields>, formDat
     category: parsed.value.category,
   });
 
-  if (error && error.code !== "23505") {
+  // 23505 = publisher record pehle se hai (do baar click ya doosre tab se). Purani row nahi badalti, isliye
+  // "details saved" ka banner nahi dikhate: seedha publisher page, jo asli saved details aur status dikhata hai.
+  if (error && error.code === "23505") {
+    revalidatePath("/dashboard", "layout");
+    redirect("/dashboard/publisher");
+  }
+  if (error) {
     console.error("[account] publisher setup failed", { code: error.code ?? null });
-    return { status: "error", message: "We could not save your details. Please try again.", values };
+    const failure = mapPublisherSetupError(error);
+    return { status: "error", message: failure.message, fieldErrors: failure.fieldErrors, values };
   }
 
   revalidatePath("/dashboard", "layout");

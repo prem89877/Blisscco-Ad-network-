@@ -9,7 +9,15 @@ export const URL_MAX = 2048;
 
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+// Dikhne me khali / chhupe characters (zero-width space, soft hyphen, text-direction override). Inse naam khali ya dhokha dene wala ban sakta hai.
+// ZWJ/ZWNJ (200C/200D) jaan-boojh kar allowed hain: Hindi, Persian jaise naamo me asli use hota hai.
+const HIDDEN_CHARS = /[\u00ad\u200b\u202a-\u202e\u2060-\u2064\u2066-\u2069]/;
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+/** Naam me control ya chhupe hue characters hain? */
+function hasBadNameChars(name: string): boolean {
+  return CONTROL_CHARS.test(name) || HIDDEN_CHARS.test(name);
+}
 
 /** Web address ki jaanch (https sirf). Theek hai toh undefined, warna user ko dikhane layak message. */
 export function checkHttpsUrl(raw: string): string | undefined {
@@ -61,7 +69,7 @@ export function parseAdvertiserSetup(input: { companyName: string; websiteUrl: s
 
   if (companyName.length === 0) errors.companyName = "Enter your business name.";
   else if (companyName.length > COMPANY_MAX) errors.companyName = `Use at most ${COMPANY_MAX} characters.`;
-  else if (CONTROL_CHARS.test(companyName)) errors.companyName = "Remove special control characters.";
+  else if (hasBadNameChars(companyName)) errors.companyName = "Remove special control characters.";
 
   if (websiteUrl.length > 0) {
     const urlError = checkHttpsUrl(websiteUrl);
@@ -87,7 +95,7 @@ export function parsePublisherSetup(input: { name: string; websiteUrl: string; c
 
   if (name.length === 0) errors.name = "Enter the name of your chatbot or platform.";
   else if (name.length > NAME_MAX) errors.name = `Use at most ${NAME_MAX} characters.`;
-  else if (CONTROL_CHARS.test(name)) errors.name = "Remove special control characters.";
+  else if (hasBadNameChars(name)) errors.name = "Remove special control characters.";
 
   if (websiteUrl.length > 0) {
     const urlError = checkHttpsUrl(websiteUrl);
@@ -100,4 +108,32 @@ export function parsePublisherSetup(input: { name: string; websiteUrl: string; c
     ok: true,
     value: { name, websiteUrl: websiteUrl.length > 0 ? websiteUrl : null, category: category.length > 0 ? category : null },
   };
+}
+
+/* ---------------- Publisher setup: database error -> user message ---------------- */
+type SetupDbError = { code?: string | null; message?: string | null } | null | undefined;
+export type PublisherSetupFailure = { message: string; fieldErrors?: Partial<Record<PublisherFields, string>> };
+
+/**
+ * Publisher row insert fail hone par user ko dikhne wala message. Raw database message kabhi nahi dikhta.
+ * 23505 (row pehle se hai) yahan nahi aata: server action use alag sambhalta hai.
+ */
+export function mapPublisherSetupError(error: SetupDbError): PublisherSetupFailure {
+  switch (error?.code) {
+    case "23503":
+      // Foreign key: category list me nahi (ya band ho chuki). Baaki FK (role) me generic message.
+      if (typeof error.message === "string" && /category/i.test(error.message)) {
+        return {
+          message: "Please fix the highlighted fields.",
+          fieldErrors: { category: "That topic is not available. Choose another one from the list." },
+        };
+      }
+      return { message: "We could not save your details. Please try again." };
+    case "23514":
+      return { message: "One of the details was not accepted. Check the name and website, then try again." };
+    case "42501":
+      return { message: "Your account cannot save these details right now. If you think this is a mistake, please contact support." };
+    default:
+      return { message: "We could not save your details. Please try again." };
+  }
 }

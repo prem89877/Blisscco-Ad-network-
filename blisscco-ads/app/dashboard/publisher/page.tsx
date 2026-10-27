@@ -7,7 +7,8 @@ import { PublisherSetupForm } from "@/components/dashboard/AccountSetupForm";
 import Notice from "@/components/auth/Notice";
 import Button from "@/components/ui/Button";
 import { requireRole } from "@/lib/auth/session";
-import { getMyPublisher } from "@/lib/publisher/queries";
+import { loadMyPublisher } from "@/lib/publisher/queries";
+import { categoryLabel } from "@/lib/campaigns/constants";
 import { listPublisherKeys } from "@/lib/publisher/keys-db";
 
 export const metadata: Metadata = { title: "Publisher | Blisscco Dashboard" };
@@ -24,9 +25,11 @@ const PRIVACY_POINTS: string[] = [
 type Props = { searchParams: Promise<{ setup?: string }> };
 
 export default async function PublisherPage({ searchParams }: Props) {
-  await requireRole(["publisher"]);
+  // Role check aur publisher ki query SAATH me (role galat ho toh redirect pehle hi ho jata hai).
+  const [, { publisher: pub, failed }] = await Promise.all([requireRole(["publisher"]), loadMyPublisher()]);
   const sp = await searchParams;
-  const pub = await getMyPublisher();
+  // Database dikkat ko "publisher nahi hai" (Set up your platform form) na samjho: error boundary (Try again).
+  if (failed) throw new Error("Publisher could not be loaded");
   const keys = pub && pub.status === "active" ? await listPublisherKeys(pub.id) : null;
 
   return (
@@ -43,6 +46,41 @@ export default async function PublisherPage({ searchParams }: Props) {
         {!pub && (
           <Panel title="Set up your platform" note="One quick step before you can get an API key.">
             <PublisherSetupForm />
+          </Panel>
+        )}
+
+        {pub && (
+          <Panel title="Your platform" note="The details you saved when you joined.">
+            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs text-mist/55">Name</dt>
+                <dd className="mt-0.5 break-words text-mist">{pub.name}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-mist/55">Account status</dt>
+                <dd className="mt-0.5">
+                  <span
+                    className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                      pub.status === "active"
+                        ? "bg-aqua/15 text-aqua"
+                        : pub.status === "pending"
+                          ? "bg-amber-400/15 text-amber-300"
+                          : "bg-red-500/15 text-red-300"
+                    }`}
+                  >
+                    {pub.status === "active" ? "Approved" : pub.status === "pending" ? "Waiting for approval" : "Suspended"}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-mist/55">Website</dt>
+                <dd className="mt-0.5 break-all text-mist">{pub.websiteUrl ?? "Not added"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-mist/55">Main topic</dt>
+                <dd className="mt-0.5 text-mist">{pub.category ? categoryLabel(pub.category) : "Not sure / mixed"}</dd>
+              </div>
+            </dl>
           </Panel>
         )}
 

@@ -4,7 +4,8 @@ import Panel from "@/components/dashboard/Panel";
 import Button from "@/components/ui/Button";
 import { requireAccount } from "@/lib/auth/session";
 import { getMyAdvertiser, listMyCampaigns } from "@/lib/campaigns/queries";
-import { getMyPublisher } from "@/lib/publisher/queries";
+import { loadMyPublisher } from "@/lib/publisher/queries";
+import Notice from "@/components/auth/Notice";
 import { listPublisherKeys } from "@/lib/publisher/keys-db";
 import { createClient } from "@/lib/supabase/server";
 
@@ -79,7 +80,16 @@ export default async function OverviewPage() {
   }
 
   if (account.role === "publisher") {
-    const pub = await getMyPublisher();
+    const { publisher: pub, failed: publisherFailed } = await loadMyPublisher();
+    // Database dikkat par galat "Set up my platform" step nahi dikhate.
+    if (publisherFailed) {
+      return (
+        <>
+          <PageHeader demo={false} title="Overview" description="Your next steps to show ads in your chatbot." />
+          <Notice tone="error">We could not load your account details. Please refresh the page.</Notice>
+        </>
+      );
+    }
     const keys = pub && pub.status === "active" ? await listPublisherKeys(pub.id) : null;
     const hasKey = keys !== null && keys.length > 0;
     return (
