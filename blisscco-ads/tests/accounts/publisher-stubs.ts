@@ -11,7 +11,20 @@ export type FakePublisher = {
   category: string | null;
 };
 
+export type FakeKey = {
+  id: string;
+  label: string | null;
+  prefix: string;
+  hint: string | null;
+  status: "active" | "revoked";
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+};
+
 export const fake = {
+  /** listPublisherKeys ka nateeja (null = database error). */
+  keys: [] as FakeKey[] | null,
   /** Kaun login hai (auth user id). */
   userId: "user-A",
   /** requireRole fail kare (login/role galat) toh true. */
@@ -24,10 +37,11 @@ export const fake = {
   revalidated: [] as string[],
   issued: [] as { publisherId: string; label: string | null; expiry: string }[],
   revoked: [] as { publisherId: string; keyId: string }[],
-  issueResult: { ok: true, key: "blc_live_" + "ab".repeat(32) } as { ok: true; key: string } | { ok: false; reason: "limit" | "error" },
+  issueResult: { ok: true, key: "blc_live_" + "ab".repeat(32) } as { ok: true; key: string } | { ok: false; reason: "limit" | "daily" | "error" },
   revokeResult: true,
   reset() {
     this.userId = "user-A";
+    this.keys = [];
     this.roleFails = false;
     this.load = { publisher: null, failed: false };
     this.dbError = null;
@@ -80,6 +94,9 @@ const stubs: Record<string, unknown> = {
     async issuePublisherKey(publisherId: string, label: string | null, expiry: string) {
       fake.issued.push({ publisherId, label, expiry });
       return fake.issueResult;
+    },
+    async listPublisherKeys() {
+      return fake.keys;
     },
     async revokePublisherKey(publisherId: string, keyId: string) {
       fake.revoked.push({ publisherId, keyId });

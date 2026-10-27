@@ -30,7 +30,8 @@ export default async function PublisherPage({ searchParams }: Props) {
   const sp = await searchParams;
   // Database dikkat ko "publisher nahi hai" (Set up your platform form) na samjho: error boundary (Try again).
   if (failed) throw new Error("Publisher could not be loaded");
-  const keys = pub && pub.status === "active" ? await listPublisherKeys(pub.id) : null;
+  // Suspended publisher ki purani keys bhi dikhti hain (sirf revoke ke liye): leaked key hamesha band ho sake.
+  const keys = pub && (pub.status === "active" || pub.status === "suspended") ? await listPublisherKeys(pub.id) : null;
 
   return (
     <>
@@ -100,6 +101,11 @@ export default async function PublisherPage({ searchParams }: Props) {
             ) : (
               <PublisherKeyManager keys={keys} nowIso={new Date().toISOString()} />
             )}
+          </Panel>
+        )}
+        {pub && pub.status === "suspended" && keys !== null && keys.some((k) => k.status === "active") && (
+          <Panel title="API keys" note="Your account is suspended, so these keys do not work. You can still revoke them.">
+            <PublisherKeyManager keys={keys} nowIso={new Date().toISOString()} canCreate={false} />
           </Panel>
         )}
 

@@ -100,7 +100,7 @@ const SERVER_EXAMPLE = [
 const ERRORS: Array<{ status: string; body: string; meaning: string; action: string }> = [
   { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, or an Idempotency-Key that is not 8 to 64 letters, digits, _ or -; the reason is invalid_idempotency_key).", action: "Do not retry. Fix the request." },
   { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked, or the publisher is not active.", action: "Do not retry. Check the key, then contact Blisscco." },
-  { status: "405", body: "(none)", meaning: "Any method other than POST.", action: "Do not retry. Use POST." },
+  { status: "405", body: "(empty)", meaning: "Any method other than POST. This answer comes from the hosting platform, so it has no JSON body.", action: "Do not retry. Use POST." },
   { status: "413", body: "payload_too_large", meaning: "Body is over 2048 bytes.", action: "Do not retry. Send only topic and exclude_ad_ids." },
   { status: "415", body: "unsupported_media_type", meaning: "Content-Type is not application/json.", action: "Do not retry. Fix the header." },
   { status: "429", body: "rate_limited", meaning: "Too many requests for this key. The response carries Retry-After: 60.", action: "Stop asking for ads until Retry-After has passed, then retry once." },
@@ -171,6 +171,7 @@ export default async function PublisherGuidePage() {
             <li>Once approved, create a key on the Publisher page. The key is shown once, and only a hash is stored, so a lost key cannot be recovered: create a new one and revoke the old one.</li>
             <li>Store the key straight in your server&apos;s secret manager or environment variables. Do not paste it into chat, tickets, screenshots or git.</li>
             <li>A publisher can hold up to 5 active keys. Choose an expiry when you create a key (90 days is the default) and revoke any key that may have leaked.</li>
+            <li>To replace a key without downtime, use Rotate on the Publisher page: it creates a new key with the same name, and the old key keeps working until you revoke it. Switch your server to the new key first, then revoke the old one.</li>
           </ol>
           <p className="mt-3 text-xs text-mist/55">Keys start with a fixed prefix and are long random strings. This guide never shows a real one.</p>
         </Panel>
@@ -207,8 +208,9 @@ export default async function PublisherGuidePage() {
 
         <Panel title="4. Responses">
           <p className="text-sm text-mist/75">
-            Every response is JSON with <code>Cache-Control: no-store</code>. The v1 endpoint also sends{" "}
-            <code>X-Blisscco-Api-Version: 1</code>.
+            Every response from the API itself is JSON with <code>Cache-Control: no-store</code>. The v1 endpoint also sends{" "}
+            <code>X-Blisscco-Api-Version: 1</code>. The only exception is the platform&apos;s empty 405 for a method other than POST (see
+            section 5).
           </p>
           <p className="mt-3 text-sm font-medium">Successful match (200)</p>
           <div className="mt-2">
@@ -257,7 +259,7 @@ export default async function PublisherGuidePage() {
             <li>
               Send an <code>Idempotency-Key</code> header on every request: a new random value (a UUID works) per ad placement, 8 to 64
               characters of letters, digits, <code>_</code> or <code>-</code>. If you retry that same placement after a timeout or a 5xx,
-              send the same key. Blisscco then returns the same ad and does not count a second serve. Keys are remembered for 48 hours.
+              send the same key. The value must be random: never put a user id, an email or any text from the conversation in it. Blisscco then returns the same ad and does not count a second serve. Keys are remembered for 48 hours.
               Without the header, a retry after a lost response can be counted as a second serve.
             </li>
             <li>Never loop. No retries inside a single chat turn beyond what the table says, and never block the chatbot&apos;s answer while waiting.</li>

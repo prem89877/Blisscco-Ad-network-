@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { mapPublisherSetupError, parseAdvertiserSetup, parsePublisherSetup } from "@/lib/accounts/validation";
 import { toPublisher } from "@/lib/publisher/publisher";
 import { setupPublisher } from "@/app/dashboard/account/actions";
-import { createKey, revokeKey } from "@/app/dashboard/publisher/actions";
+import { createKey, revokeKey, rotateKey } from "@/app/dashboard/publisher/actions";
 
 const root = join(__dirname, "..", "..", "..");
 const read = (f: string) => readFileSync(join(root, f), "utf8");
@@ -186,16 +186,16 @@ describe("publisher key actions: ownership and account state", () => {
     assert.equal(fake.issued.length, 0);
   });
 
-  it("pending and suspended publishers cannot create or revoke keys", async () => {
+  it("pending and suspended publishers cannot create or rotate keys, but CAN revoke their own (a leaked key must always be closable)", async () => {
     for (const status of ["pending", "suspended"] as const) {
       fake.load = { publisher: pub({ status }), failed: false };
-      const a = await createKey(keyIdle, form({ label: "srv", expiry: "30" }));
-      assert.equal(a.status, "error", status);
-      const b = await revokeKey(keyIdle, form({ keyId: UUID_KEY }));
-      assert.equal(b.status, "error", status);
+      assert.equal((await createKey(keyIdle, form({ label: "srv", expiry: "30" }))).status, "error", status);
+      assert.equal((await rotateKey(keyIdle, form({ rotateKeyId: UUID_KEY, expiry: "30" }))).status, "error", status);
+      assert.equal((await revokeKey(keyIdle, form({ keyId: UUID_KEY }))).status, "success", status);
     }
     assert.equal(fake.issued.length, 0);
-    assert.equal(fake.revoked.length, 0);
+    assert.equal(fake.revoked.length, 2);
+    assert.ok(fake.revoked.every((r) => r.publisherId === "pub-A"));
   });
 
   it("active publisher: the publisher id comes from the login, never from the form", async () => {

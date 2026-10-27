@@ -99,8 +99,8 @@ describe("part3: verification-link site URL", () => {
 /* ---------------- 3. Server-side authorization on every action ---------------- */
 describe("part3: every server action checks auth BEFORE touching the database", () => {
   const actionFiles = walk("app").filter((f) => /actions\.ts$/.test(f) && f.startsWith("app/dashboard"));
-  const GATES = /(requireRole|requireActiveAdvertiser|requireActivePublisher|requireAccount|requireUser|changeRunState)\(/;
-  const DB = /(createClient\(|createAdminClient\(|\.from\(|\.rpc\(|loadMyCampaign\(|getCreativeSummary\(|countReviewableCreatives\(|issuePublisherKey\(|revokePublisherKey\()/;
+  const GATES = /(requireRole|requireActiveAdvertiser|requireActivePublisher|requireOwnPublisher|requireAccount|requireUser|changeRunState)\(/;
+  const DB = /(createClient\(|createAdminClient\(|\.from\(|\.rpc\(|loadMyCampaign\(|getCreativeSummary\(|countReviewableCreatives\(|issuePublisherKey\(|listPublisherKeys\(|revokePublisherKey\()/;
 
   for (const f of actionFiles) {
     const src = read(f);

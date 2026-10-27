@@ -1,12 +1,51 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createKey, revokeKey } from "@/app/dashboard/publisher/actions";
-import { EXPIRY_CHOICES, KEY_LABEL_MAX, initialKeyState, keyIsUsable, type PublisherKey } from "@/lib/publisher/keys";
+import { createKey, revokeKey, rotateKey } from "@/app/dashboard/publisher/actions";
+import { EXPIRY_CHOICES, KEY_LABEL_MAX, initialKeyState, keyIsUsable, type KeyActionState, type PublisherKey } from "@/lib/publisher/keys";
 import { formatDate } from "@/lib/format";
 
 const btn =
   "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+
+// Create aur Rotate ek hi form-state se chalte hain: nayi key (secret) ek hi jagah ek baar dikhti hai.
+async function issueAction(prev: KeyActionState, formData: FormData): Promise<KeyActionState> {
+  return formData.has("rotateKeyId") ? rotateKey(prev, formData) : createKey(prev, formData);
+}
+
+function RotateButton({ keyId, formAction, pending }: { keyId: string; formAction: (fd: FormData) => void; pending: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className={`${btn} border-line text-mist/80 hover:bg-white/5`}>
+        Rotate
+      </button>
+    );
+  }
+  return (
+    <form action={formAction} className="flex flex-col gap-2">
+      <input type="hidden" name="rotateKeyId" value={keyId} />
+      <p className="max-w-xs text-xs text-mist/70">
+        Creates a new key with the same name. The old key keeps working until you revoke it, so you can switch your server first.
+      </p>
+      <select name="expiry" defaultValue="90" aria-label="New key expires" className="min-h-11 rounded-lg border border-line bg-ink px-3 py-2 text-sm text-mist">
+        {EXPIRY_CHOICES.map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} border-aqua/60 text-aqua hover:bg-aqua/10`}>
+          {pending ? "Creating…" : "Create new key"}
+        </button>
+        <button type="button" disabled={pending} onClick={() => setOpen(false)} className={`${btn} border-line text-mist/80`}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
 
 function RevokeButton({ keyId }: { keyId: string }) {
   const [state, formAction, pending] = useActionState(revokeKey, initialKeyState);
@@ -46,8 +85,10 @@ function KeyStatus({ k, now }: { k: PublisherKey; now: Date }) {
 }
 
 /** Publisher ki keys: nayi banao (ek baar dikhti hai), list dekho, band karo. */
-export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherKey[]; nowIso: string }) {
-  const [state, formAction, pending] = useActionState(createKey, initialKeyState);
+export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: { keys: PublisherKey[]; nowIso: string; canCreate?: boolean }) {
+  const [state, formAction, pending] = useActionState(issueAction, initialKeyState);
+  // "Hide" dabane par secret screen se hat jata hai (sirf is page ki memory me tha, kahin save nahi).
+  const [hiddenKey, setHiddenKey] = useState<string | null>(null);
   // Kaunsi key copy hui (text se), taaki nayi key banne par "Copied" apne aap hat jaye.
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copyFailedKey, setCopyFailedKey] = useState<string | null>(null);
@@ -66,13 +107,16 @@ export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherK
 
   return (
     <div className="space-y-6">
-      {state.status === "success" && state.newKey && (
+      {state.status === "success" && state.newKey && state.newKey !== hiddenKey && (
         <div role="status" className="rounded-xl border border-aqua/50 bg-aqua/5 p-4">
           <p className="text-sm font-medium text-aqua">{state.message}</p>
-          <code className="mt-3 block break-all rounded-lg bg-ink px-3 py-3 text-sm text-mist">{state.newKey}</code>
+          <code translate="no" className="mt-3 block break-all rounded-lg bg-ink px-3 py-3 text-sm text-mist">{state.newKey}</code>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button type="button" onClick={() => copy(state.newKey ?? "")} className={`${btn} border-aqua/60 text-aqua hover:bg-aqua/10`}>
               {copiedKey === state.newKey ? "Copied" : "Copy key"}
+            </button>
+            <button type="button" onClick={() => setHiddenKey(state.newKey ?? null)} className={`${btn} border-line text-mist/80`}>
+              I have saved it, hide
             </button>
             <span className="text-xs text-mist/60">Keep it on your server only. Never put it in a website or app that users can open.</span>
             {copyFailedKey === state.newKey && (
@@ -89,7 +133,8 @@ export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherK
         </p>
       )}
 
-      <form action={formAction} className="grid max-w-xl gap-4 sm:grid-cols-2">
+      {canCreate ? (
+      <form action={formAction} autoComplete="off" className="grid max-w-xl gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="key-label" className="mb-1.5 block text-sm font-medium text-mist">
             Name for this key (optional)
@@ -120,6 +165,9 @@ export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherK
           </button>
         </div>
       </form>
+      ) : (
+        <p className="text-sm text-mist/70">New keys cannot be created right now. You can still revoke the keys below.</p>
+      )}
 
       <div>
         <h3 className="font-display text-base font-semibold">Your keys</h3>
@@ -141,7 +189,12 @@ export default function PublisherKeyManager({ keys, nowIso }: { keys: PublisherK
                       {k.lastUsedAt ? ` · Last used ${formatDate(k.lastUsedAt.slice(0, 10))}` : " · Never used"}
                     </p>
                   </div>
-                  {k.status === "active" && <RevokeButton keyId={k.id} />}
+                  {k.status === "active" && (
+                    <div className="flex flex-wrap gap-2">
+                      {canCreate && keyIsUsable(k, now) && <RotateButton keyId={k.id} formAction={formAction} pending={pending} />}
+                      <RevokeButton keyId={k.id} />
+                    </div>
+                  )}
                 </div>
               </li>
             ))}

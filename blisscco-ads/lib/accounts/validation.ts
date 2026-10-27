@@ -15,7 +15,7 @@ const HIDDEN_CHARS = /[\u00ad\u200b\u202a-\u202e\u2060-\u2064\u2066-\u2069]/;
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 /** Naam me control ya chhupe hue characters hain? */
-function hasBadNameChars(name: string): boolean {
+export function hasBadNameChars(name: string): boolean {
   return CONTROL_CHARS.test(name) || HIDDEN_CHARS.test(name);
 }
 

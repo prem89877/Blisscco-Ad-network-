@@ -2,13 +2,13 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashApiKey } from "@/lib/ads/api-key";
-import { buildKeyParts, expiryIso, toPublisherKey, type ExpiryChoice, type PublisherKey } from "./keys";
+import { buildKeyParts, expiryIso, issueFailReason, toPublisherKey, type ExpiryChoice, type IssueFailReason, type PublisherKey } from "./keys";
 
 // Publisher key banana / dekhna / band karna. Service-role key SIRF createAdminClient() ke andar hai.
 // publisher_id HAMESHA server logged-in user se nikalta hai (caller se kabhi nahi aata).
 // Plain key return hoti hai (ek baar dikhane ke liye) aur kahin store/log nahi hoti. Log me sirf error code jaata hai.
 
-export type IssueResult = { ok: true; key: string } | { ok: false; reason: "limit" | "error" };
+export type IssueResult = { ok: true; key: string } | { ok: false; reason: IssueFailReason };
 
 export async function issuePublisherKey(
   publisherId: string,
@@ -30,8 +30,8 @@ export async function issuePublisherKey(
     });
     if (error) {
       console.error("[publisher/keys] issue failed", error.code ?? "unknown");
-      // 22023 = limit (5 active keys) ya galat value
-      return { ok: false, reason: error.code === "22023" ? "limit" : "error" };
+      // 22023 + hint = limit (5 active) / roz ki limit / galat value (issueFailReason)
+      return { ok: false, reason: issueFailReason(error) };
     }
     return { ok: true, key: parts.key };
   } catch {

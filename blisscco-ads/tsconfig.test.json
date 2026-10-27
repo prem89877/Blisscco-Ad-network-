@@ -36,6 +36,7 @@
     "lib/dashboard-nav.ts",
     "lib/site.ts",
     "lib/publisher/keys.ts",
+    "lib/publisher/keys-db.ts",
     "lib/publisher/publisher.ts",
     "app/dashboard/advertiser/campaigns/actions.ts",
     "app/dashboard/account/actions.ts",

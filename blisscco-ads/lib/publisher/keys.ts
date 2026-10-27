@@ -1,5 +1,7 @@
 // Publisher API key ke pure helpers (koi database/random/clock nahi: bahar se aate hain). Plain key sirf banate waqt ek baar dikhti hai.
 
+import { hasBadNameChars } from "@/lib/accounts/validation";
+
 export const KEY_PREFIX = "blc_live_";
 export const KEY_LABEL_MAX = 60;
 
@@ -31,8 +33,8 @@ export function expiryIso(choice: ExpiryChoice, now: Date): string | null {
 
 export function parseKeyLabel(raw: string): { ok: true; value: string | null } | { ok: false; error: string } {
   const label = raw.replace(/\s+/g, " ").trim();
-  // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f]/.test(label)) return { ok: false, error: "Remove special control characters." };
+  // Control aur chhupe hue characters (zero-width, text-direction override) dono band.
+  if (hasBadNameChars(label)) return { ok: false, error: "Remove special control characters." };
   if (label.length > KEY_LABEL_MAX) return { ok: false, error: `Use at most ${KEY_LABEL_MAX} characters.` };
   return { ok: true, value: label.length > 0 ? label : null };
 }
@@ -47,6 +49,26 @@ export type PublisherKey = {
   lastUsedAt: string | null;
   expiresAt: string | null;
 };
+
+export type IssueFailReason = "limit" | "daily" | "error";
+
+/**
+ * Key banane ka database error -> kaaran. day-10-2 migration hint deti hai ("key_limit", "key_daily_limit", "invalid_*").
+ * Migration se pehle (hint nahi) 22023 purane jaise "limit" maana jata hai: dono order me deploy safe.
+ */
+export function issueFailReason(error: { code?: string | null; hint?: string | null } | null | undefined): IssueFailReason {
+  if (!error || error.code !== "22023") return "error";
+  const hint = typeof error.hint === "string" ? error.hint : "";
+  if (hint === "key_daily_limit") return "daily";
+  if (hint.startsWith("invalid_")) return "error";
+  return "limit";
+}
+
+export function issueFailMessage(reason: IssueFailReason): string {
+  if (reason === "limit") return "You already have 5 active keys. Revoke an old key first.";
+  if (reason === "daily") return "You created too many keys today. Please try again tomorrow.";
+  return "We could not create the key. Please try again.";
+}
 
 /** Key abhi chalti hai ya nahi (revoked ya expired = nahi). */
 export function keyIsUsable(k: Pick<PublisherKey, "status" | "expiresAt">, now: Date): boolean {
