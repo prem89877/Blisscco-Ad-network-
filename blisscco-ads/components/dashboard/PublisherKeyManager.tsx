@@ -171,6 +171,9 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
 
       <div>
         <h3 className="font-display text-base font-semibold">Your keys</h3>
+        <p className="mt-1 text-xs text-mist/60">
+          Only the start and the last 4 characters of each key are shown. They identify a key but cannot be used to call the API, and the full key can never be shown again.
+        </p>
         {keys.length === 0 ? (
           <p className="mt-2 text-sm text-mist/70">No keys yet.</p>
         ) : (

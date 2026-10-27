@@ -384,7 +384,8 @@ describe("day 9 part 2: createCampaign budget flow", () => {
     assert.equal(fake.calls.find((c) => c.op === "insert")?.payload.advertiser_id, "adv-A");
   });
   it("invalid budget is stopped before the database", async () => {
-    for (const over of [{ totalBudget: "0" }, { totalBudget: "50", dailyBudget: "60" }, { totalBudget: "20000000" }]) {
+    const cases: Record<string, string>[] = [{ totalBudget: "0" }, { totalBudget: "50", dailyBudget: "60" }, { totalBudget: "20000000" }];
+    for (const over of cases) {
       const r = await create(over);
       assert.equal(r.state?.status, "error", JSON.stringify(over));
     }

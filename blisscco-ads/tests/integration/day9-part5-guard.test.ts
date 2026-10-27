@@ -84,8 +84,8 @@ describe("day 9 part 5: integration test files are safe by construction (static 
     for (const f of files) {
       const src = readFileSync(path.join(dir, f), "utf8");
       assert.equal(/\btruncate\b/i.test(src), false, `${f} must not truncate`);
-      for (const m of src.matchAll(/delete\s+from\s+[\w.]+(?<rest>[^`"']*)/gi)) {
-        assert.match(m.groups?.rest ?? "", /where/i, `${f}: every delete needs a where clause`);
+      for (const m of src.matchAll(/delete\s+from\s+[\w.]+([^`"']*)/gi)) {
+        assert.match(m[1] ?? "", /where/i, `${f}: every delete needs a where clause`);
       }
     }
   });

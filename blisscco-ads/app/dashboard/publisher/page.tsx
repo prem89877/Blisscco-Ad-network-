@@ -95,7 +95,7 @@ export default async function PublisherPage({ searchParams }: Props) {
         )}
 
         {pub && pub.status === "active" && (
-          <Panel title="API keys" note="Use a key on your server to ask for ads. You can have up to 5 active keys.">
+          <Panel title="API keys" note="A key is a private password for your server. Never put it in a website or app. You can have up to 5 active keys.">
             {keys === null ? (
               <p className="text-sm text-red-300">Keys could not be loaded. Please refresh the page.</p>
             ) : (

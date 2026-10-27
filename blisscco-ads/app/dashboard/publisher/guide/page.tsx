@@ -64,46 +64,111 @@ const SERVER_EXAMPLE = [
   "const API_KEY = process.env.BLISSCCO_PUBLISHER_API_KEY; // secret, kept out of git",
   "",
   "let pausedUntil = 0; // epoch ms: stop asking for ads while rate limited",
+  "const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));",
   "",
-  "// One new key per ad placement. If YOU retry that same placement, pass the SAME key back in (see section 5).",
+  "// One new Idempotency-Key per ad placement. If YOU retry that same placement, the SAME key is reused (see section 5).",
   "export async function getSponsoredAd(",
-  "  topic: string,",
+  "  topic: string, // a supported topic slug that YOUR code chose (see section 1), never user text",
   "  shownAdIds: string[] = [],",
   "  idempotencyKey: string = crypto.randomUUID(),",
   "): Promise<SponsoredAd | null> {",
   "  if (!API_BASE || !API_KEY) return null; // not configured: just run without ads",
   "  if (Date.now() < pausedUntil) return null;",
-  "  try {",
-  '    const res = await fetch(API_BASE + "/api/v1/ads/match", {',
-  '      method: "POST",',
-  "      headers: {",
-  '        Authorization: "Bearer " + API_KEY,',
-  '        "Content-Type": "application/json",',
-  '        "Idempotency-Key": idempotencyKey, // same key on a retry = no second charge',
-  "      },",
-  "      body: JSON.stringify({ topic: topic, exclude_ad_ids: shownAdIds }),",
-  "      signal: AbortSignal.timeout(2000), // your own timeout: never make the chat wait for an ad",
-  "    });",
-  "    if (res.status === 429) {",
-  '      pausedUntil = Date.now() + (Number(res.headers.get("Retry-After")) || 60) * 1000;',
-  "      return null;",
+  "  for (let attempt = 0; attempt < 2; attempt++) {",
+  "    try {",
+  "      const res = await fetch(API_BASE + \"/api/v1/ads/match\", {",
+  "        method: \"POST\",",
+  "        headers: {",
+  "          Authorization: \"Bearer \" + API_KEY,",
+  "          \"Content-Type\": \"application/json\",",
+  "          \"Idempotency-Key\": idempotencyKey, // same key on a retry = no second charge",
+  "        },",
+  "        body: JSON.stringify({ topic: topic, exclude_ad_ids: shownAdIds }),",
+  "        signal: AbortSignal.timeout(2000), // your own timeout: never make the chat wait for an ad",
+  "      });",
+  "      if (res.status === 429) {",
+  "        pausedUntil = Date.now() + (Number(res.headers.get(\"Retry-After\")) || 60) * 1000;",
+  "        return null;",
+  "      }",
+  "      if (res.ok) {",
+  "        const data = (await res.json()) as MatchResponse;",
+  "        return data.fill === true && data.sponsored === true ? data.ad : null;",
+  "      }",
+  "      if (res.status < 500) return null; // 400/401/413/415: fix the request, never retry",
+  "    } catch {",
+  "      // network error or timeout: fall through to ONE retry",
   "    }",
-  "    if (!res.ok) return null; // 400/401/413/415/503/...: continue without an ad",
-  "    const data = (await res.json()) as MatchResponse;",
+  "    if (attempt === 0) await sleep(1000 + Math.random() * 500); // wait 1s or more, with jitter",
+  "  }",
+  "  return null; // still failing: continue without an ad",
+  "}",
+].join("\n");
+
+const PROXY_EXAMPLE = [
+  "// proxy.mjs: Node 18+, no dependencies. Runs on YOUR backend; the key never leaves it.",
+  "// Your frontend calls GET /sponsored?area=coding on YOUR server and receives only the public ad fields.",
+  "import { createServer } from \"node:http\";",
+  "import { randomUUID } from \"node:crypto\";",
+  "",
+  "const API_BASE = process.env.BLISSCCO_API_BASE_URL; // given to you by Blisscco",
+  "const API_KEY = process.env.BLISSCCO_PUBLISHER_API_KEY; // secret, kept out of git",
+  "",
+  "// YOUR fixed mapping from a product area to a Blisscco topic. Your code decides it, not the user's message.",
+  "const TOPIC_BY_AREA = new Map([",
+  "  [\"coding\", \"developer_tools\"],",
+  "  [\"gaming\", \"gaming\"],",
+  "  [\"travel\", \"travel\"],",
+  "]);",
+  "",
+  "async function fetchAd(topic) {",
+  "  if (!API_BASE || !API_KEY) return null;",
+  "  try {",
+  "    const res = await fetch(API_BASE + \"/api/v1/ads/match\", {",
+  "      method: \"POST\",",
+  "      headers: {",
+  "        Authorization: \"Bearer \" + API_KEY,",
+  "        \"Content-Type\": \"application/json\",",
+  "        \"Idempotency-Key\": randomUUID(), // random, one per placement; never a user id or text",
+  "      },",
+  "      body: JSON.stringify({ topic: topic }),",
+  "      signal: AbortSignal.timeout(2000),",
+  "    });",
+  "    if (!res.ok) return null; // 429, 5xx, anything else: no ad",
+  "    const data = await res.json();",
   "    return data.fill === true && data.sponsored === true ? data.ad : null;",
   "  } catch {",
-  "    return null; // network error or timeout: continue without an ad",
+  "    return null; // network error or timeout: no ad",
   "  }",
   "}",
+  "",
+  "createServer(async (req, res) => {",
+  "  const url = new URL(req.url, \"http://localhost\");",
+  "  if (req.method !== \"GET\" || url.pathname !== \"/sponsored\") {",
+  "    res.writeHead(404).end();",
+  "    return;",
+  "  }",
+  "  const topic = TOPIC_BY_AREA.get(url.searchParams.get(\"area\") ?? \"\");",
+  "  const ad = topic ? await fetchAd(topic) : null;",
+  "  if (!ad) {",
+  "    res.writeHead(204).end(); // no ad: the browser shows nothing",
+  "    return;",
+  "  }",
+  "  res.writeHead(200, { \"Content-Type\": \"application/json\", \"Cache-Control\": \"no-store\" });",
+  "  // Only the five public ad fields go to the browser. Never the key, never the raw upstream response.",
+  "  res.end(JSON.stringify({",
+  "    sponsored: true,",
+  "    ad: { id: ad.id, headline: ad.headline, body: ad.body, cta_text: ad.cta_text, destination_url: ad.destination_url },",
+  "  }));",
+  "}).listen(Number(process.env.PORT) || 3000);",
 ].join("\n");
 
 const ERRORS: Array<{ status: string; body: string; meaning: string; action: string }> = [
   { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, or an Idempotency-Key that is not 8 to 64 letters, digits, _ or -; the reason is invalid_idempotency_key).", action: "Do not retry. Fix the request." },
-  { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked, or the publisher is not active.", action: "Do not retry. Check the key, then contact Blisscco." },
+  { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked or expired, or the publisher account is not active (pending or suspended). All of these look identical on purpose.", action: "Do not retry. Check the key and the account status on the Publisher page, then create a new key or contact Blisscco." },
   { status: "405", body: "(empty)", meaning: "Any method other than POST. This answer comes from the hosting platform, so it has no JSON body.", action: "Do not retry. Use POST." },
   { status: "413", body: "payload_too_large", meaning: "Body is over 2048 bytes.", action: "Do not retry. Send only topic and exclude_ad_ids." },
   { status: "415", body: "unsupported_media_type", meaning: "Content-Type is not application/json.", action: "Do not retry. Fix the header." },
-  { status: "429", body: "rate_limited", meaning: "Too many requests for this key. The response carries Retry-After: 60.", action: "Stop asking for ads until Retry-After has passed, then retry once." },
+  { status: "429", body: "rate_limited", meaning: "Too many requests for this key in the current minute, or too many wrong keys from your IP address. The response carries Retry-After: 60.", action: "Stop asking for ads until Retry-After has passed, then retry once. If it keeps happening with a correct key, you are over your limit: slow down." },
   { status: "503 (or any 5xx)", body: "fill:false + error:unavailable", meaning: "Temporary failure on Blisscco's side.", action: "Retry at most once or twice, after 1 second or more with jitter, and send the SAME Idempotency-Key. Then continue without an ad." },
 ];
 
@@ -162,18 +227,49 @@ export default async function PublisherGuidePage() {
             also work. Sensitive topics (for example health, religion, politics) never return an ad, and you should not
             request ads in sensitive conversations in the first place.
           </p>
+          <p className="mt-3 text-sm font-medium">Privacy-safe topic signals</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>The topic is the only contextual signal the API accepts. It is one coarse category slug, never a sentence, a keyword list or a summary of what the person said.</li>
+            <li>Choose the topic in your own code, from a fixed list you control (for example the product area or placement the person is in). Do not copy it from the message text, and do not build it from several messages or from a history of the person.</li>
+            <li>Send nothing that identifies a person: no user id, email, IP address, device id, session id, conversation id or location. The API rejects any such extra field with a 400.</li>
+            <li>The topic must be lowercase letters, digits and underscores, for example <code>developer_tools</code>. <code>Gaming</code> or <code>video games</code> (capital letter, space) returns 400 <code>invalid_topic</code>.</li>
+            <li>A well-formed topic that is not supported, or is sensitive, is not an error: it returns the normal no-fill response, so you cannot use the API to find out why.</li>
+            <li>Blisscco stores the topic with each served ad for counting. It is a category, not a profile, and it should never be tied to a person on your side either.</li>
+          </ul>
         </Panel>
 
-        <Panel title="2. Getting an API key">
-          <ol className="list-decimal space-y-2 pl-5 text-sm text-mist/75">
-            <li>Sign up with the AI Publisher account type and save your platform details on the Publisher page.</li>
-            <li>Blisscco reviews and approves the account by hand. Until it is approved, keys cannot be created.</li>
-            <li>Once approved, create a key on the Publisher page. The key is shown once, and only a hash is stored, so a lost key cannot be recovered: create a new one and revoke the old one.</li>
-            <li>Store the key straight in your server&apos;s secret manager or environment variables. Do not paste it into chat, tickets, screenshots or git.</li>
-            <li>A publisher can hold up to 5 active keys. Choose an expiry when you create a key (90 days is the default) and revoke any key that may have leaked.</li>
-            <li>To replace a key without downtime, use Rotate on the Publisher page: it creates a new key with the same name, and the old key keeps working until you revoke it. Switch your server to the new key first, then revoke the old one.</li>
+        <Panel title="2. Approval, API keys, revocation and rotation">
+          <p className="text-sm font-medium">Approval process</p>
+          <ol className="mt-1 list-decimal space-y-2 pl-5 text-sm text-mist/75">
+            <li>Sign up with the AI Publisher account type and save your platform details on the Publisher page. The account starts as <strong>Waiting for approval</strong>.</li>
+            <li>Blisscco reviews each account by hand and sets it to <strong>Approved</strong> or <strong>Suspended</strong>. The Publisher page shows the current status. This guide does not promise a review time.</li>
+            <li>Until the account is Approved, keys cannot be created, and any key that already exists is refused with 401. If an Approved account is later Suspended, all of its keys stop working at once; they work again only if the account is reinstated and the keys were not revoked or expired.</li>
           </ol>
-          <p className="mt-3 text-xs text-mist/55">Keys start with a fixed prefix and are long random strings. This guide never shows a real one.</p>
+
+          <p className="mt-4 text-sm font-medium">Key generation</p>
+          <ol className="mt-1 list-decimal space-y-2 pl-5 text-sm text-mist/75">
+            <li>Once approved, create a key on the Publisher page. You can give it a name (up to 60 characters) and choose an expiry: 30 days, 90 days (the default), 1 year or no expiry.</li>
+            <li>Blisscco generates the key on its server from 32 random bytes. It looks like <code>blc_live_</code> followed by 64 lowercase hex characters. The key is shown once; only a one-way hash is stored, so a lost key cannot be recovered or shown again. Create a new one and revoke the old one.</li>
+            <li>Store the key straight in your server&apos;s secret manager or environment variables. Do not paste it into chat, tickets, screenshots or git.</li>
+            <li>A publisher can hold up to 5 active keys, and creating keys may also be limited per day. Use a separate, named key for each server or environment so one can be revoked without touching the others.</li>
+          </ol>
+          <p className="mt-3 text-xs text-mist/55">This guide never shows a real key, and the examples use environment variables instead.</p>
+
+          <p className="mt-4 text-sm font-medium">Revocation</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>Revoke a key on the Publisher page (Revoke, then confirm). It stops working immediately: the next request with it returns 401. Revoking cannot be undone.</li>
+            <li>You can revoke at any time, including while the account is suspended. If a key may have leaked, revoke it first and create a replacement afterwards.</li>
+            <li>An expired key behaves like a revoked one (401). The Publisher page marks it Expired.</li>
+          </ul>
+
+          <p className="mt-4 text-sm font-medium">Rotation without downtime</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-mist/75">
+            <li>On the Publisher page choose Rotate on the key and pick an expiry. This creates a new key with the same name. The old key keeps working.</li>
+            <li>Copy the new key into your server&apos;s secret manager and deploy.</li>
+            <li>Confirm requests succeed with the new key (the Publisher page shows when each key was last used).</li>
+            <li>Revoke the old key.</li>
+          </ol>
+          <p className="mt-2 text-xs text-mist/55">Rotating counts towards the 5 active keys, so revoke an old key first if you already have 5. Rotate before an expiry date, not after.</p>
         </Panel>
 
         <Panel title="3. Making a request" note="Server to server only. Do not call this from a browser.">
@@ -186,11 +282,16 @@ export default async function PublisherGuidePage() {
             <li><code>Authorization: Bearer YOUR_PUBLISHER_API_KEY</code></li>
             <li><code>Content-Type: application/json</code> (optionally with <code>charset=utf-8</code>)</li>
           </ul>
+          <p className="mt-3 text-sm font-medium">Optional header</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li><code>Idempotency-Key</code>: a random value of 8 to 64 letters, digits, <code>_</code> or <code>-</code>, new for each ad placement. Recommended; see section 5.</li>
+          </ul>
           <p className="mt-3 text-sm font-medium">JSON body</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li><code>topic</code> (required): lowercase slug, 1 to 50 characters of a-z, 0-9 and underscore. Not free text.</li>
             <li><code>exclude_ad_ids</code> (optional): up to 20 ad ids you already showed, as UUIDs. This is best-effort: if there is no other eligible ad, the same ad can come back.</li>
             <li>No other field is accepted. The body must be 2048 bytes or smaller.</li>
+            <li>The key is not a body field: it goes only in the <code>Authorization</code> header, and only the format <code>Bearer</code> + a space + the key is accepted.</li>
           </ul>
           <div className="mt-3 grid gap-3">
             <CodeBlock code={REQUEST_EXAMPLE} label="Request body" />
@@ -203,6 +304,14 @@ export default async function PublisherGuidePage() {
           </p>
           <div className="mt-3">
             <CodeBlock code={SERVER_EXAMPLE} label="Server-side TypeScript example" />
+          </div>
+          <p className="mt-4 text-sm font-medium">Server-side JavaScript example (backend for your own frontend)</p>
+          <p className="mt-1 text-sm text-mist/75">
+            A dependency-free Node 18+ server. Your browser or app calls your own <code>/sponsored</code> route, never Blisscco. The
+            topic comes from a fixed map in your code, and the browser gets only the five public ad fields.
+          </p>
+          <div className="mt-3">
+            <CodeBlock code={PROXY_EXAMPLE} label="Server-side JavaScript example" />
           </div>
         </Panel>
 
@@ -264,7 +373,7 @@ export default async function PublisherGuidePage() {
             </li>
             <li>Never loop. No retries inside a single chat turn beyond what the table says, and never block the chatbot&apos;s answer while waiting.</li>
             <li>Set your own timeout (the example uses 2 seconds). Blisscco does not set one for you yet.</li>
-            <li>Rate limits are per key, per minute (60 by default; Blisscco can change it). The window is fixed, so a burst right at a minute boundary can briefly reach about twice the limit.</li>
+            <li>Rate limits are per key, per minute (60 by default; Blisscco can change it). The window is fixed, so a burst right at a minute boundary can briefly reach about twice the limit. Requests rejected before the key check (400, 413, 415) do not use up this quota. Separately, about 20 wrong keys per minute from one IP address earn a 429 for that IP.</li>
             <li>Error bodies never contain internal details. If you see one that does, report it to Blisscco.</li>
           </ul>
         </Panel>
@@ -302,7 +411,46 @@ export default async function PublisherGuidePage() {
             variables (any prefix that is shipped to the client), frontend components and public repositories are all
             readable by users, so the key must never be there. The API has no CORS support on purpose, so browser calls
             do not work. Call it from your backend, and send the browser only the ad fields it needs to display. If a
-            key leaks, contact Blisscco at once to have it revoked.
+            key leaks, revoke it on the Publisher page at once (see section 2).
+          </p>
+          <p className="mt-4 text-sm font-medium">Private key or public value?</p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[30rem] text-left text-sm">
+              <caption className="sr-only">Which values are private and which are safe to show</caption>
+              <thead>
+                <tr className="border-b border-line text-xs uppercase tracking-wide text-mist/55">
+                  <th scope="col" className="py-2 pr-3 font-medium">Value</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">Private?</th>
+                  <th scope="col" className="py-2 font-medium">Where it may live</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-line/60 align-top text-mist/75">
+                  <td className="py-2 pr-3">Full API key (<code>blc_live_</code> + 64 hex characters)</td>
+                  <td className="py-2 pr-3">Private. Never share.</td>
+                  <td className="py-2">Server environment variable or secret manager only.</td>
+                </tr>
+                <tr className="border-b border-line/60 align-top text-mist/75">
+                  <td className="py-2 pr-3">Key name, the start and last 4 characters shown on the Publisher page</td>
+                  <td className="py-2 pr-3">Identifier only. It cannot be used to call the API.</td>
+                  <td className="py-2">Fine in your own notes and tickets to say which key you mean.</td>
+                </tr>
+                <tr className="border-b border-line/60 align-top text-mist/75">
+                  <td className="py-2 pr-3">Returned ad fields (<code>id</code>, <code>headline</code>, <code>body</code>, <code>cta_text</code>, <code>destination_url</code>)</td>
+                  <td className="py-2 pr-3">Public. They are meant to be displayed.</td>
+                  <td className="py-2">Your server may send them to the browser.</td>
+                </tr>
+                <tr className="align-top text-mist/75">
+                  <td className="py-2 pr-3"><code>Idempotency-Key</code></td>
+                  <td className="py-2 pr-3">Not a credential, but keep it random and unlinked to a person.</td>
+                  <td className="py-2">Your server only.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-sm text-mist/75">
+            This API has no public or &quot;site&quot; key and no publisher id to put in a page. The one credential is the private key, so
+            there is nothing that is safe to put in browser code except the ad fields you display.
           </p>
         </Panel>
 

@@ -93,3 +93,6 @@ Legacy par koi `Deprecation`/`Link` header nahi jodi (tumhari haan se). Jab migr
 - Galat shape => `400 {"error":"invalid_request","reason":"invalid_idempotency_key"}`.
 - Wahi key retry me => wahi ad, dobara charge nahi (48 ghante tak yaad). Publisher guide me ye ab documented hai.
 - Request/response body, status codes aur baaki headers nahi badle. Details: `DAY9-PART3-BUDGET-ATOMIC.md`.
+
+## Day 10 Part 4 addendum : docs
+Publisher guide (`/dashboard/publisher/guide`) aur `DAY6-ADS-MATCH-CONTRACT.md` ab approval, key generation, revoke / rotate, private key vs public values, privacy-safe topic signal, 401 / 429 ke asli kaaran aur do server-side examples (TypeScript, JavaScript) cover karte hain. Endpoint, fields aur behaviour **nahi badle**. Details: `DAY10-PART4-PUBLISHER-DOCS.md`.
