@@ -22,13 +22,26 @@ export type AuthorizeResult =
   | { outcome: "rate_limited" }
   | { outcome: "error" };
 
-export type RecordResult = { outcome: "recorded" } | { outcome: "rejected" } | { outcome: "error" };
+export type RecordResult =
+  | { outcome: "recorded"; replayedAd?: MatchedAd }
+  | { outcome: "rejected" }
+  | { outcome: "error" };
+
+export type ReplayResult =
+  | { outcome: "found"; ad: MatchedAd }
+  | { outcome: "none" }
+  | { outcome: "rejected" }
+  | { outcome: "unauthorized" }
+  | { outcome: "error" };
 
 export type ServeDeps = {
   authorize: (keyHash: string) => Promise<AuthorizeResult>;
   /** unitCostUsd authorize se aata hai, isliye selection ka wiring caller ke haath me hai. */
   select: (request: SelectionRequest, unitCostUsd: number) => Promise<SelectionOutcome>;
-  record: (keyHash: string, creativeId: string, category: CategorySlug) => Promise<RecordResult>;
+  /** idempotencyKey sirf tab aata hai jab publisher ne `Idempotency-Key` bheji ho. */
+  record: (keyHash: string, creativeId: string, category: CategorySlug, idempotencyKey?: string) => Promise<RecordResult>;
+  /** Optional: selection se PEHLE "ye key pehle charge ho chuki hai?" (retry me wahi ad, dobara charge nahi). */
+  lookupReplay?: (keyHash: string, idempotencyKey: string) => Promise<ReplayResult>;
 };
 
 export type ServeResult =
@@ -37,6 +50,12 @@ export type ServeResult =
   | { kind: "unauthorized" }
   | { kind: "rate_limited" }
   | { kind: "unavailable" };
+
+/** Sirf 5 public fields (extra property kabhi bahar nahi jaati). */
+function publicFields(ad: MatchedAd): MatchedAd {
+  const { id, headline, body, ctaText, destinationUrl } = ad;
+  return { id, headline, body, ctaText, destinationUrl };
+}
 
 /** Kabhi throw nahi karta: kuch bhi anjaana => "unavailable" (route 503 + fill:false deta hai). */
 export async function serveAd(keyHash: string, request: MatchRequest, deps: ServeDeps): Promise<ServeResult> {
@@ -54,6 +73,25 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
         break;
       default:
         return { kind: "unavailable" };
+    }
+
+    // 1b. Retry check: publisher ne `Idempotency-Key` bheji ho aur wo pehle charge ho chuki ho => wahi ad, DOBARA charge nahi.
+    //     Ye selection se pehle hota hai, taaki pehli request se budget khatam ho gaya ho tab bhi retry ko wahi ad mile.
+    //     Lookup fail ho toh 503 (andaza nahi laga sakte ki charge hua ya nahi; dobara charge karne se behtar hai ruk jana).
+    if (request.idempotencyKey !== undefined && deps.lookupReplay) {
+      const replay = await deps.lookupReplay(keyHash, request.idempotencyKey);
+      switch (replay.outcome) {
+        case "found":
+          return { kind: "ad", ad: publicFields(replay.ad) };
+        case "rejected":
+          return { kind: "no_fill" };
+        case "unauthorized":
+          return { kind: "unauthorized" };
+        case "none":
+          break;
+        default:
+          return { kind: "unavailable" };
+      }
     }
 
     // 2. Category signal: sirf ek chhota supported category (alias/sensitive/unsupported ka faisla taxonomy karti hai)
@@ -76,13 +114,17 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
     }
 
     // 4. Record: database creative ko dobara verify karta hai. Record na ho toh ad nahi dete.
-    const recorded = await deps.record(keyHash, outcome.ad.id, resolved.category);
+    //    Retry-key hone par wahi key do requests ek saath aayein toh database ek hi baar charge karta hai; doosri ko
+    //    pehle charge hue creative ka ad milta hai (replayedAd), selection ne kuch bhi chuna ho.
+    const recorded =
+      request.idempotencyKey === undefined
+        ? await deps.record(keyHash, outcome.ad.id, resolved.category)
+        : await deps.record(keyHash, outcome.ad.id, resolved.category, request.idempotencyKey);
     if (recorded.outcome === "rejected") return { kind: "no_fill" };
     if (recorded.outcome !== "recorded") return { kind: "unavailable" };
 
     // 5. Sirf 5 public fields
-    const { id, headline, body, ctaText, destinationUrl } = outcome.ad;
-    return { kind: "ad", ad: { id, headline, body, ctaText, destinationUrl } };
+    return { kind: "ad", ad: publicFields(recorded.replayedAd ?? outcome.ad) };
   } catch {
     return { kind: "unavailable" };
   }

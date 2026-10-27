@@ -53,8 +53,8 @@ export type MatchNoFillResponse = {
 // Errors
 // ---------------------------------------------------------------------------
 
-/** 400 `reason` values. `unreadable_body` handler se aata hai, baaki validation.ts se. */
-export type InvalidRequestReason = ParseFailure | "unreadable_body";
+/** 400 `reason` values. `unreadable_body` aur `invalid_idempotency_key` handler se aate hain, baaki validation.ts se. */
+export type InvalidRequestReason = ParseFailure | "unreadable_body" | "invalid_idempotency_key";
 
 export type InvalidRequestResponse = { error: "invalid_request"; reason: InvalidRequestReason };
 export type UnauthorizedResponse = { error: "unauthorized" };

@@ -12,6 +12,11 @@ export type MatchedAd = {
 export type MatchRequest = {
   topic: string;
   excludeAdIds: string[];
+  /**
+   * Optional retry-key (HTTP header `Idempotency-Key`, body me nahi). Wahi key dobara aaye toh dobara charge nahi hota,
+   * wahi ad milta hai. Header na ho toh pehle jaisa behaviour.
+   */
+  idempotencyKey?: string;
 };
 
 /** Database function match_contextual_ad ka nateeja. */

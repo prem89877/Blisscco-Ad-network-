@@ -3,7 +3,7 @@ import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { buildAdResponse, type MatchResponseBody } from "@/lib/ads/contract";
 import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
 import { serveAdForPublisher } from "@/lib/ads/service";
-import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
+import { MAX_BODY_BYTES, parseIdempotencyKey, parseMatchRequest } from "@/lib/ads/validation";
 
 // Ad-match ka SHARED handler. Do routes isi ko chalate hain:
 //   POST /api/ads/match      (purana, jaisa tha waisa; behaviour same)
@@ -129,8 +129,14 @@ async function processMatch(request: Request, options: MatchHandlerOptions): Pro
   const parsed = parseMatchRequest(raw);
   if (!parsed.ok) return json({ error: "invalid_request", reason: parsed.reason }, 400);
 
+  // 2b. Optional `Idempotency-Key` header (retry-safety). Header ho par galat shape ka ho => 400 (chup-chaap ignore nahi:
+  //     warna publisher sochega retry safe hai aur dobara charge ho jayega). Header na ho => pehle jaisa behaviour.
+  const idem = parseIdempotencyKey(request.headers.get("idempotency-key"));
+  if (!idem.ok) return json({ error: "invalid_request", reason: "invalid_idempotency_key" }, 400);
+  const matchRequest = idem.value === undefined ? parsed.value : { ...parsed.value, idempotencyKey: idem.value };
+
   // 3. Service: authorize + rate limit + category match + selection + serve record
-  const result = await serveAdForPublisher(hashApiKey(key), parsed.value);
+  const result = await serveAdForPublisher(hashApiKey(key), matchRequest);
 
   switch (result.kind) {
     case "unauthorized":

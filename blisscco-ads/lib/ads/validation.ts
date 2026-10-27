@@ -11,6 +11,19 @@ export const MAX_EXCLUDE_IDS = 20;
 const TOPIC_RE = /^[a-z0-9_]{1,50}$/;
 const ALLOWED_KEYS: readonly string[] = ["topic", "exclude_ad_ids"];
 
+// Idempotency-Key header: 8-64 characters, sirf letters/digits/underscore/hyphen (UUID bhi chalta hai). SQL ka CHECK bhi yahi hai.
+export const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+export type IdempotencyKeyResult = { ok: true; value: string | undefined } | { ok: false };
+
+/** Header na ho (null) => ok + undefined. Ho par galat shape => ok:false (handler 400 deta hai, chup-chaap ignore nahi karta). */
+export function parseIdempotencyKey(header: string | null): IdempotencyKeyResult {
+  if (header === null) return { ok: true, value: undefined };
+  const value = header.trim();
+  if (!IDEMPOTENCY_KEY_RE.test(value)) return { ok: false };
+  return { ok: true, value };
+}
+
 export type ParseFailure =
   | "invalid_json"
   | "invalid_body"
