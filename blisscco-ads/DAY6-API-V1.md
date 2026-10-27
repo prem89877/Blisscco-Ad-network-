@@ -87,3 +87,9 @@ Legacy par koi `Deprecation`/`Link` header nahi jodi (tumhari haan se). Jab migr
 6. Purana `match_contextual_ad` + `lib/ads/match.ts` ab bhi code me hain (route se use nahi hote). v1 unse nahi judta.
 
 > **OWNER NOTE:** Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
+
+## Day 9 addendum : `Idempotency-Key` (optional header)
+- Header optional hai; na bhejne par behaviour pehle jaisa. Bheja toh 8 se 64 characters, sirf `A-Z a-z 0-9 _ -` (UUID chalta hai).
+- Galat shape => `400 {"error":"invalid_request","reason":"invalid_idempotency_key"}`.
+- Wahi key retry me => wahi ad, dobara charge nahi (48 ghante tak yaad). Publisher guide me ye ab documented hai.
+- Request/response body, status codes aur baaki headers nahi badle. Details: `DAY9-PART3-BUDGET-ATOMIC.md`.

@@ -19,6 +19,7 @@ const CURL_EXAMPLE = [
   'curl -i -X POST "https://YOUR-BLISSCCO-API-HOST/api/v1/ads/match" \\',
   '  -H "Authorization: Bearer $BLISSCCO_PUBLISHER_API_KEY" \\',
   '  -H "Content-Type: application/json" \\',
+  '  -H "Idempotency-Key: 7b0e3c1a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" \\',
   "  -d '{\"topic\":\"gaming\"}'",
 ].join("\n");
 
@@ -64,13 +65,22 @@ const SERVER_EXAMPLE = [
   "",
   "let pausedUntil = 0; // epoch ms: stop asking for ads while rate limited",
   "",
-  "export async function getSponsoredAd(topic: string, shownAdIds: string[] = []): Promise<SponsoredAd | null> {",
+  "// One new key per ad placement. If YOU retry that same placement, pass the SAME key back in (see section 5).",
+  "export async function getSponsoredAd(",
+  "  topic: string,",
+  "  shownAdIds: string[] = [],",
+  "  idempotencyKey: string = crypto.randomUUID(),",
+  "): Promise<SponsoredAd | null> {",
   "  if (!API_BASE || !API_KEY) return null; // not configured: just run without ads",
   "  if (Date.now() < pausedUntil) return null;",
   "  try {",
   '    const res = await fetch(API_BASE + "/api/v1/ads/match", {',
   '      method: "POST",',
-  '      headers: { Authorization: "Bearer " + API_KEY, "Content-Type": "application/json" },',
+  "      headers: {",
+  '        Authorization: "Bearer " + API_KEY,',
+  '        "Content-Type": "application/json",',
+  '        "Idempotency-Key": idempotencyKey, // same key on a retry = no second charge',
+  "      },",
   "      body: JSON.stringify({ topic: topic, exclude_ad_ids: shownAdIds }),",
   "      signal: AbortSignal.timeout(2000), // your own timeout: never make the chat wait for an ad",
   "    });",
@@ -88,13 +98,13 @@ const SERVER_EXAMPLE = [
 ].join("\n");
 
 const ERRORS: Array<{ status: string; body: string; meaning: string; action: string }> = [
-  { status: "400", body: "invalid_request + reason", meaning: "The body broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids).", action: "Do not retry. Fix the request." },
+  { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, or an Idempotency-Key that is not 8 to 64 letters, digits, _ or -; the reason is invalid_idempotency_key).", action: "Do not retry. Fix the request." },
   { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked, or the publisher is not active.", action: "Do not retry. Check the key, then contact Blisscco." },
   { status: "405", body: "(none)", meaning: "Any method other than POST.", action: "Do not retry. Use POST." },
   { status: "413", body: "payload_too_large", meaning: "Body is over 2048 bytes.", action: "Do not retry. Send only topic and exclude_ad_ids." },
   { status: "415", body: "unsupported_media_type", meaning: "Content-Type is not application/json.", action: "Do not retry. Fix the header." },
   { status: "429", body: "rate_limited", meaning: "Too many requests for this key. The response carries Retry-After: 60.", action: "Stop asking for ads until Retry-After has passed, then retry once." },
-  { status: "503 (or any 5xx)", body: "fill:false + error:unavailable", meaning: "Temporary failure on Blisscco's side.", action: "Retry at most once or twice, after 1 second or more with jitter. Then continue without an ad." },
+  { status: "503 (or any 5xx)", body: "fill:false + error:unavailable", meaning: "Temporary failure on Blisscco's side.", action: "Retry at most once or twice, after 1 second or more with jitter, and send the SAME Idempotency-Key. Then continue without an ad." },
 ];
 
 export default async function PublisherGuidePage() {
@@ -244,6 +254,12 @@ export default async function PublisherGuidePage() {
           </div>
           <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li>Retry only 429 and 5xx. Never retry 4xx errors other than 429: they will fail the same way.</li>
+            <li>
+              Send an <code>Idempotency-Key</code> header on every request: a new random value (a UUID works) per ad placement, 8 to 64
+              characters of letters, digits, <code>_</code> or <code>-</code>. If you retry that same placement after a timeout or a 5xx,
+              send the same key. Blisscco then returns the same ad and does not count a second serve. Keys are remembered for 48 hours.
+              Without the header, a retry after a lost response can be counted as a second serve.
+            </li>
             <li>Never loop. No retries inside a single chat turn beyond what the table says, and never block the chatbot&apos;s answer while waiting.</li>
             <li>Set your own timeout (the example uses 2 seconds). Blisscco does not set one for you yet.</li>
             <li>Rate limits are per key, per minute (60 by default; Blisscco can change it). The window is fixed, so a burst right at a minute boundary can briefly reach about twice the limit.</li>
@@ -310,7 +326,7 @@ export default async function PublisherGuidePage() {
           <ul className="list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li>Accounts are approved by hand by the Blisscco team, so approval can take time.</li>
             <li>Advertiser budgets are enforced, and spend is counted when an ad is handed to you, not when a person sees it.</li>
-            <li>A request is counted as an ad serve. There is no impression or click reporting, and nothing here should be used for billing or payouts.</li>
+            <li>A request is counted as an ad serve. There is no impression or click reporting, and nothing here should be used for billing or payouts. Retries are safe only when you send the same <code>Idempotency-Key</code>.</li>
             <li>Rate limiting is per key, plus a best-effort guard against repeated wrong keys from one IP. Add your own edge protection too.</li>
             <li>Database calls time out after 8 seconds. A Blisscco outage returns 503 with error unavailable, while a plain no-fill (200) means no matching ad.</li>
             <li>No staging environment is published.</li>

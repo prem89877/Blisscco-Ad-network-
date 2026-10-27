@@ -129,7 +129,7 @@ export type MatchContext = {
   /**
    * "enforce" (default) = total/daily budget check lagta hai (spentTotal / spentToday par bharosa karke).
    * "skip" = budget check BILKUL nahi lagta. Tab use karo jab kharch ka koi bharosemand record nahi hai
-   * (abhi campaign_spend_daily me koi likhta nahi, Day 6 tak). Taaki hum jhooth na bolen ki limit lag rahi hai.
+   * (Day 7 se record_ad_serve likhta hai, isliye production me "enforce"). Taaki hum jhooth na bolen ki limit lag rahi hai.
    */
   budgetCheck?: "enforce" | "skip";
 };

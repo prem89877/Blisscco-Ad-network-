@@ -20,6 +20,13 @@ Security policies (RLS, grants, guard triggers) bhi pehle se `day-3-5-security.s
 | 6 | `day-4-1-campaign-guards.sql` | advertiser signup par auto-active, campaign guards |
 | 7 | `day-4-3-campaign-description.sql` | `campaigns.description` |
 | 8 | `day-5-1` se `day-5-4` | `ad_categories` (FK), publisher API keys, delivery tables, match function |
+| 9 | `day-5-6` se `day-5-11` | `load_ad_candidates`, serve functions, creative URL hardening |
+| 10 | `day-7-1-budget-keys-retention.sql` | publisher key functions, 3-arg `record_ad_serve` (spend + limits), retention |
+| 11 | `day-9-3-budget-rules.sql` | `total_budget <= 10,000,000` check, trigger `campaigns_guard_budget` (budget kharch se neeche nahi) |
+| 12 | `day-9-5-atomic-spend-idempotency.sql` | `ad_serve_requests`, 4-arg `record_ad_serve` (`Idempotency-Key`), `find_idempotent_serve`, trigger `campaign_spend_guard_limits` |
+| 13 | `day-9-7-lifecycle-guards.sql` | resume budget guard, admin approve checks, `replay_serve` schedule check, `load_ad_candidates` exhausted filter |
+
+Day 9 ka order **9-3 -> 9-5 -> 9-7** hi hona chahiye (har file pichli par depend karti hai). Rollback-only test files: `day-9-2`, `day-9-4`, `day-9-6`, `day-9-8` (kuch save nahi karte). Impression/click ka koi table/column abhi nahi hai; kharch sirf `record_ad_serve` likhta hai.
 
 Test files (`day-3-6`, `day-4-2`, `day-4-4`, `day-4-5`, `day-5-5`) schema nahi badalte, sirf jaanchte hain.
 

@@ -49,7 +49,7 @@ export function utcDateString(now: Date): string | null {
 export type CandidateLoader = (category: CategorySlug, today: string) => Promise<readonly AdCandidate[]>;
 
 export type SpendTracking =
-  /** campaign_spend_daily me kharch asli impressions par likha ja raha hai: budget check lagao. */
+  /** campaign_spend_daily me kharch (record_ad_serve se, har serve par) likha ja raha hai: budget check lagao. Ye impression tracking nahi hai. */
   | "reliable"
   /** Kharch ka koi bharosemand record nahi (abhi ki sthiti): budget check NAHI lagta, aur result me budgetEnforced=false aata hai. */
   | "unavailable";
