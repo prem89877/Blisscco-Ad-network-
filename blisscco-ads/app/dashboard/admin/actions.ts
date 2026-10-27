@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/campaigns/constants";
-import { isAdminDecisionKind, validateAdminDecision, REJECT_REASON_MAX } from "@/lib/admin/decisions";
+import { isAdminDecisionKind, mapAdminError, validateAdminDecision, REJECT_REASON_MAX } from "@/lib/admin/decisions";
 import type { RunStateResult } from "@/lib/campaigns/types";
 
 // Admin ke faisle. Role server par check hota hai, aur database function bhi dobara admin check karti hai (private.is_admin()).
@@ -26,7 +26,7 @@ export async function adminDecision(_prev: RunStateResult, formData: FormData): 
   if (!checked.ok) return { status: "error", message: checked.message };
 
   const supabase = await createClient();
-  let error: { code?: string | null } | null = null;
+  let error: { code?: string | null; hint?: string | null } | null = null;
 
   switch (kind) {
     case "advertiser":
@@ -48,12 +48,8 @@ export async function adminDecision(_prev: RunStateResult, formData: FormData): 
   }
 
   if (error) {
-    console.error("[admin] decision failed", { kind, code: error.code ?? null });
-    if (error.code === "42501") return { status: "error", message: "Only an admin can do this." };
-    if (error.code === "22023") {
-      return { status: "error", message: "The database did not allow this change (for example, a campaign needs an approved ad first)." };
-    }
-    return { status: "error", message: "Something went wrong. Please try again." };
+    console.error("[admin] decision failed", { kind, code: error.code ?? null, hint: error.hint ?? null });
+    return { status: "error", message: mapAdminError(error) };
   }
 
   revalidatePath("/dashboard/admin");

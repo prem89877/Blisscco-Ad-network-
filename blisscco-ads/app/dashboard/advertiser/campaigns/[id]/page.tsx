@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button";
 import Panel from "@/components/dashboard/Panel";
 import Notice from "@/components/auth/Notice";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
+import DeliveryNote from "@/components/campaigns/DeliveryNote";
 import RunStateButton from "@/components/campaigns/RunStateButton";
 import CreativeForm from "@/components/campaigns/CreativeForm";
 import CreativeActionButton from "@/components/campaigns/CreativeActionButton";
@@ -18,6 +19,7 @@ import {
   loadMyCampaign,
 } from "@/lib/campaigns/queries";
 import { remainingBudget } from "@/lib/campaigns/budget";
+import { deliveryState } from "@/lib/campaigns/delivery";
 import { CREATIVE_STATUS_LABELS, availableCreativeActions } from "@/lib/campaigns/creative-validation";
 import { SUBMIT_BLOCK_MESSAGES, checkSubmitCampaign, reviewActionFor } from "@/lib/campaigns/review";
 import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid } from "@/lib/campaigns/constants";
@@ -50,12 +52,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 export default async function CampaignDetailPage({ params, searchParams }: Props) {
-  await requireRole(["advertiser"]);
+  // Speed: role check aur advertiser ki query SAATH me chalti hain (pehle ek ke baad ek). Role galat ho toh redirect pehle hi ho jata hai.
+  const [, { advertiser: adv, failed: advertiserFailed }] = await Promise.all([
+    requireRole(["advertiser"]),
+    loadMyAdvertiser(),
+  ]);
   const { id } = await params;
   const sp = await searchParams;
   if (!isUuid(id)) notFound();
 
-  const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
   if (advertiserFailed) throw new Error("Advertiser could not be loaded");
   if (!adv) notFound();
   // Na mila / kisi aur ka: dono me same notFound (existence leak nahi).
@@ -74,7 +79,24 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   const canChange = adv.status === "active";
 
   // Button sirf tab jab sach me eligible ho (server action dobara check karta hai).
-  const resumeCheck = checkResume(campaign, creatives ? creatives.approved : null, utcToday());
+  const today = utcToday();
+  const resumeCheck = checkResume(campaign, creatives ? creatives.approved : null, today, spend ? spend.spentTotal : null);
+  // "Active" status ke saath sach: kya ye abhi ad dikha sakta hai? (sirf dikhane ki jaankari; database status nahi badalta)
+  const delivery =
+    campaign.status === "active"
+      ? deliveryState({
+          status: campaign.status,
+          startDate: campaign.startDate,
+          endDate: campaign.endDate,
+          totalBudget: campaign.totalBudget,
+          dailyBudget: campaign.dailyBudget,
+          approvedCreatives: creatives ? creatives.approved : null,
+          spentTotal: spend ? spend.spentTotal : null,
+          spentToday: spend ? spend.spentToday : null,
+          todayUtc: today,
+          advertiserActive: adv.status === "active",
+        })
+      : null;
   const showEdit = canChange && !locked;
   const showPause = canChange && canPause(campaign.status);
   const showResume = canChange && campaign.status === "paused" && resumeCheck.ok;
@@ -84,7 +106,7 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   // Review ke liye bhejna / wapas lena (asli rok server action + database trigger me)
   const reviewable = creativeList ? creativeList.filter((c) => c.status === "pending_review" || c.status === "approved").length : null;
   const reviewAction = canChange ? reviewActionFor(campaign.status) : null;
-  const submitCheck = checkSubmitCampaign(campaign, reviewable, utcToday());
+  const submitCheck = checkSubmitCampaign(campaign, reviewable, today);
   const showReview = reviewAction !== null && (reviewAction !== "submit" || submitCheck.ok);
   const reviewBlocked = reviewAction === "submit" && !submitCheck.ok ? SUBMIT_BLOCK_MESSAGES[submitCheck.reason] : null;
   const canAddCreative = canChange && campaign.status !== "archived" && campaign.status !== "completed";
@@ -103,6 +125,7 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
           <CampaignStatusBadge status={campaign.status} />
         </div>
         <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">{STATUS_HELP[campaign.status]}</p>
+        {delivery && <DeliveryNote state={delivery} />}
       </div>
 
       {/* Purani URL reload par galat message na dikhe: "created" notice sirf tab jab campaign abhi bhi draft ho. */}

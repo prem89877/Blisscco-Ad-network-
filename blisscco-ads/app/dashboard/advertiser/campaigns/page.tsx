@@ -4,12 +4,15 @@ import Button from "@/components/ui/Button";
 import Panel from "@/components/dashboard/Panel";
 import DataTable, { type Column } from "@/components/dashboard/DataTable";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
+import DeliveryNote from "@/components/campaigns/DeliveryNote";
 import CampaignFilters from "@/components/campaigns/CampaignFilters";
 import Notice from "@/components/auth/Notice";
 import { AdvertiserSetupForm } from "@/components/dashboard/AccountSetupForm";
 import { requireRole } from "@/lib/auth/session";
 import { listMyCampaigns, loadMyAdvertiser } from "@/lib/campaigns/queries";
 import { categoryLabel } from "@/lib/campaigns/constants";
+import { deliveryState } from "@/lib/campaigns/delivery";
+import { utcToday } from "@/lib/campaigns/validation";
 import { filtersToHref, hasActiveFilters, parseFilters, type CampaignFilters as Filters } from "@/lib/campaigns/filters";
 import type { Campaign } from "@/lib/campaigns/types";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -30,7 +33,32 @@ const columns: Column<Campaign>[] = [
     ),
   },
   { header: "Category", cell: (c) => categoryLabel(c.category) },
-  { header: "Status", cell: (c) => <CampaignStatusBadge status={c.status} /> },
+  {
+    header: "Status",
+    cell: (c) => {
+      // Is list me ads/kharch load nahi hote: sirf dates se pata chalne wali baat dikhate hain (ended / not started).
+      const state =
+        c.status === "active"
+          ? deliveryState({
+              status: c.status,
+              startDate: c.startDate,
+              endDate: c.endDate,
+              totalBudget: c.totalBudget,
+              dailyBudget: c.dailyBudget,
+              approvedCreatives: null,
+              spentTotal: null,
+              spentToday: null,
+              todayUtc: utcToday(),
+            })
+          : null;
+      return (
+        <>
+          <CampaignStatusBadge status={c.status} />
+          {state && !state.serving && <DeliveryNote state={state} compact />}
+        </>
+      );
+    },
+  },
   { header: "Total budget", numeric: true, cell: (c) => formatMoney(c.totalBudget) },
   { header: "Start date", cell: (c) => formatDate(c.startDate) },
   { header: "End date", cell: (c) => (c.endDate ? formatDate(c.endDate) : "No end date") },
@@ -39,10 +67,13 @@ const columns: Column<Campaign>[] = [
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function CampaignsListPage({ searchParams }: Props) {
-  await requireRole(["advertiser"]);
+  // Speed: role check aur advertiser ki query SAATH me chalti hain (pehle ek ke baad ek). Role galat ho toh redirect pehle hi ho jata hai.
+  const [, { advertiser: adv, failed: advertiserFailed }] = await Promise.all([
+    requireRole(["advertiser"]),
+    loadMyAdvertiser(),
+  ]);
   // URL ke filters server par dobara validate hote hain (lib/campaigns/filters.ts).
   const filters = parseFilters(await searchParams);
-  const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
   // Database dikkat ko "advertiser nahi hai" (Set up your business form) na samjho: error boundary (Try again).
   if (advertiserFailed) throw new Error("Advertiser could not be loaded");
   const canCreate = adv?.status === "active";

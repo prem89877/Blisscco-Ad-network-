@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
+import NavPending from "@/components/dashboard/NavPending";
 import { isActive, type NavItem } from "@/lib/dashboard-nav";
 
 /** Fixed sidebar for desktop (lg and up). Phones use MobileNav instead. */
@@ -22,11 +23,12 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
+                  className={`relative flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
                     active ? "bg-violet/20 text-aqua" : "text-mist/75 hover:bg-surface hover:text-mist"
                   }`}
                 >
                   {item.label}
+                  <NavPending className="inset-y-2 left-0 w-0.5" />
                 </Link>
               </li>
             );

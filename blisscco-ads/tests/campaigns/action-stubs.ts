@@ -29,6 +29,8 @@ export const fake = {
   campaigns: [] as FakeCampaign[],
   /** Kharch: null = padh nahi paya. */
   spend: { spentTotal: 0, spentToday: 0, servesTotal: 0 } as { spentTotal: number; spentToday: number; servesTotal: number } | null,
+  /** Campaign ke creatives ki ginti (resume ke liye). null = padh nahi paya. */
+  creatives: { total: 1, approved: 1 } as { total: number; approved: number } | null,
   /** Database update/insert par ye error laut aaye (trigger/CHECK jaisa). */
   dbError: null as { code: string; hint?: string } | null,
   calls: [] as DbCall[],
@@ -37,6 +39,7 @@ export const fake = {
     this.roleFails = false;
     this.campaigns = [];
     this.spend = { spentTotal: 0, spentToday: 0, servesTotal: 0 };
+    this.creatives = { total: 1, approved: 1 };
     this.dbError = null;
     this.calls = [];
   },
@@ -106,7 +109,7 @@ const stubs: Record<string, unknown> = {
       return fake.spend;
     },
     async getCreativeSummary() {
-      return { total: 1, approved: 1 };
+      return fake.creatives;
     },
   },
 };

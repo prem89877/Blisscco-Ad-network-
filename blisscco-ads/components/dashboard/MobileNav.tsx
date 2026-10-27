@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NavPending from "@/components/dashboard/NavPending";
 import { isActive, type NavItem } from "@/lib/dashboard-nav";
 
 /** Bottom tab bar for phones and tablets (below lg). Easy to reach with a thumb. */
@@ -20,11 +21,12 @@ export default function MobileNav({ items }: { items: NavItem[] }) {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-14 items-center justify-center border-t-2 px-0.5 text-center text-[12px] font-medium transition-colors min-[360px]:text-[13px] ${
+                className={`relative flex min-h-14 items-center justify-center border-t-2 px-0.5 text-center text-[12px] font-medium transition-colors min-[360px]:text-[13px] ${
                   active ? "border-aqua bg-violet/10 text-aqua" : "border-transparent text-mist/70 hover:text-mist"
                 }`}
               >
                 <span className="truncate">{item.label}</span>
+                <NavPending className="inset-x-2 -top-0.5 h-0.5" />
               </Link>
             </li>
           );

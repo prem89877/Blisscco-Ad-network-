@@ -6,13 +6,24 @@ import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/campaigns/constants";
 import { toCreative, type Creative } from "@/lib/campaigns/creative-validation";
+import { utcToday } from "@/lib/campaigns/validation";
+import { CAMPAIGN_APPROVE_BLOCK_MESSAGES, campaignApproveBlock } from "@/lib/admin/decisions";
 import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Admin | Blisscco Dashboard" };
 export const dynamic = "force-dynamic";
 
 type Account = { id: string; name: string; website: string | null; status: string; createdAt: string; extra: string | null };
-type PendingCampaign = { id: string; name: string; category: string; totalBudget: number; startDate: string; endDate: string | null };
+type PendingCampaign = {
+  id: string;
+  name: string;
+  category: string;
+  totalBudget: number;
+  startDate: string;
+  endDate: string | null;
+  /** null = pata nahi chala (load fail): button block nahi, database final faisla karega. */
+  approvedAds: number | null;
+};
 
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 
@@ -57,11 +68,30 @@ async function loadAdminData() {
       const startDate = str(r.start_date);
       const total = typeof r.total_budget === "number" ? r.total_budget : Number(r.total_budget);
       if (!id || !name || !category || !startDate || !Number.isFinite(total)) return null;
-      return { id, name, category, totalBudget: total, startDate, endDate: str(r.end_date) };
+      return { id, name, category, totalBudget: total, startDate, endDate: str(r.end_date), approvedAds: null };
     })
     .filter((c): c is PendingCampaign => c !== null);
 
-  return { failed, advertisers, publishers, creatives: creativeRows, campaigns: campaignRows };
+  // Har pending campaign ke kitne ads approved hain (label sach rakhne ke liye; approve ka asli niyam database function me hai).
+  let approvedFailed = false;
+  if (campaignRows.length > 0) {
+    const { data: approved, error: approvedError } = await supabase
+      .from("ad_creatives")
+      .select("campaign_id")
+      .eq("status", "approved")
+      .in("campaign_id", campaignRows.map((c) => c.id));
+    if (approvedError || !approved) {
+      approvedFailed = true;
+    } else {
+      const counts = new Map<string, number>();
+      for (const row of approved as { campaign_id?: unknown }[]) {
+        if (typeof row.campaign_id === "string") counts.set(row.campaign_id, (counts.get(row.campaign_id) ?? 0) + 1);
+      }
+      for (const c of campaignRows) c.approvedAds = counts.get(c.id) ?? 0;
+    }
+  }
+
+  return { failed: failed || approvedFailed, advertisers, publishers, creatives: creativeRows, campaigns: campaignRows };
 }
 
 function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: Account[] }) {
@@ -99,6 +129,7 @@ function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: A
 export default async function AdminPage() {
   await requireRole(["admin"]);
   const data = await loadAdminData();
+  const today = utcToday();
   const pendingAccounts =
     data.advertisers.filter((a) => a.status === "pending").length + data.publishers.filter((a) => a.status === "pending").length;
 
@@ -147,19 +178,26 @@ export default async function AdminPage() {
             <p className="text-sm text-mist/70">Nothing waiting.</p>
           ) : (
             <ul className="space-y-3">
-              {data.campaigns.map((c) => (
-                <li key={c.id} className="rounded-xl border border-line p-4">
-                  <p className="break-words text-sm font-medium text-mist">{c.name}</p>
-                  <p className="mt-1 text-xs text-mist/60">
-                    {categoryLabel(c.category)} · Budget ${c.totalBudget.toFixed(2)} · {formatDate(c.startDate)} to{" "}
-                    {c.endDate ? formatDate(c.endDate) : "no end date"}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-start gap-2">
-                    <AdminDecisionButton kind="campaign" id={c.id} decision="approve" label="Approve campaign" />
-                    <AdminDecisionButton kind="campaign" id={c.id} decision="reject" label="Reject campaign" tone="bad" />
-                  </div>
-                </li>
-              ))}
+              {data.campaigns.map((c) => {
+                const block = campaignApproveBlock(c, c.approvedAds, today);
+                return (
+                  <li key={c.id} className="rounded-xl border border-line p-4">
+                    <p className="break-words text-sm font-medium text-mist">{c.name}</p>
+                    <p className="mt-1 text-xs text-mist/60">
+                      {categoryLabel(c.category)} · Budget ${c.totalBudget.toFixed(2)} · {formatDate(c.startDate)} to{" "}
+                      {c.endDate ? formatDate(c.endDate) : "no end date"}
+                    </p>
+                    <p className="mt-1 text-xs text-mist/60">
+                      Approved ads: {c.approvedAds === null ? "could not be loaded" : c.approvedAds}
+                    </p>
+                    {block && <p className="mt-2 text-sm text-amber-300">{CAMPAIGN_APPROVE_BLOCK_MESSAGES[block]}</p>}
+                    <div className="mt-3 flex flex-wrap items-start gap-2">
+                      {!block && <AdminDecisionButton kind="campaign" id={c.id} decision="approve" label="Approve campaign" />}
+                      <AdminDecisionButton kind="campaign" id={c.id} decision="reject" label="Reject campaign" tone="bad" />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>

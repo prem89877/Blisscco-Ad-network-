@@ -204,14 +204,15 @@ async function changeRunState(formData: FormData, to: "paused" | "active"): Prom
   if (to === "paused") {
     if (!canPause(current.status)) return { status: "error", message: PAUSE_BLOCK_MESSAGE };
   } else {
-    const creatives = await getCreativeSummary(current.id);
-    const check = checkResume(current, creatives ? creatives.approved : null, utcToday());
+    // Resume ke liye teen cheezein dekhte hain: approved ad, end date, aur budget bacha hai ya nahi (kharch padh na paye toh database trigger final faisla karta hai).
+    const [creatives, spend] = await Promise.all([getCreativeSummary(current.id), getCampaignSpend(current.id)]);
+    const check = checkResume(current, creatives ? creatives.approved : null, utcToday(), spend ? spend.spentTotal : null);
     if (!check.ok) return { status: "error", message: RESUME_BLOCK_MESSAGES[check.reason] };
   }
 
   const supabase = await createClient();
   // .eq("status", from): beech me status badal gaya toh 0 rows (galat transition nahi hota).
-  // Final guard database trigger + RLS hai (resume par approved creative aur end_date wahan bhi check hote hain).
+  // Final guard database trigger + RLS hai (resume par approved creative, end_date aur budget wahan bhi check hote hain).
   const { data, error } = await supabase
     .from("campaigns")
     .update({ status: to })

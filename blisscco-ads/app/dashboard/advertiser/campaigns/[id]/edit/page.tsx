@@ -15,11 +15,14 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditCampaignPage({ params }: Props) {
-  await requireRole(["advertiser"]);
+  // Speed: role check aur advertiser ki query SAATH me chalti hain (pehle ek ke baad ek). Role galat ho toh redirect pehle hi ho jata hai.
+  const [, { advertiser: adv, failed: advertiserFailed }] = await Promise.all([
+    requireRole(["advertiser"]),
+    loadMyAdvertiser(),
+  ]);
   const { id } = await params;
   if (!isUuid(id)) notFound();
 
-  const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
   if (advertiserFailed) throw new Error("Advertiser could not be loaded");
   if (!adv) notFound();
   const { campaign, failed } = await loadMyCampaign(adv.id, id);

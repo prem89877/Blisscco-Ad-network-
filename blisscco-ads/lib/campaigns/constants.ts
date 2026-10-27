@@ -54,8 +54,8 @@ export const STATUS_LABELS: Record<CampaignDbStatus, string> = {
 export const STATUS_HELP: Record<CampaignDbStatus, string> = {
   draft: "Not live yet. Add an ad, then send the campaign for review.",
   pending_review: "Waiting for review. It cannot be edited until the review is finished.",
-  active: "Approved and live. Ads can be shown until the budget or the end date is reached.",
-  paused: "Paused by you. You can resume it once it has an approved creative.",
+  active: "Approved by our team. Ads are shown only while it has an approved ad, is between its start and end dates, and has budget left.",
+  paused: "Paused by you. You can resume it once it has an approved ad, has not ended and still has budget left.",
   completed: "Finished. It cannot be edited.",
   rejected: "Rejected in review. You can edit it.",
   archived: "Archived. It cannot be edited.",

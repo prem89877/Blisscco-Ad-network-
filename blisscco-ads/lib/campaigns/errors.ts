@@ -4,6 +4,7 @@ type DbError = { code?: string | null; hint?: string | null } | null | undefined
 const HINT_MESSAGES: Record<string, string> = {
   resume_needs_approved_creative: "This campaign cannot be resumed until it has at least one approved creative.",
   resume_campaign_ended: "This campaign's end date has passed. Change the end date before resuming.",
+  resume_budget_exhausted: "This campaign has no budget left. Raise the total budget before resuming.",
   campaign_limit_reached: "You have reached the limit of 50 campaigns. Archive an old campaign first.",
   budget_below_spend: "The total budget cannot be lower than what this campaign has already spent.",
 };
