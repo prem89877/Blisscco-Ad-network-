@@ -1,10 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
-import { CATEGORY_OPTIONS, DESC_MAX, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
+import { CATEGORY_OPTIONS, DESC_MAX, MAX_BUDGET, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
+import { checkBudgets, type BudgetField } from "@/lib/campaigns/budget-rules";
+import { BELOW_SPEND_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
+import { dollarsToCents } from "@/lib/campaigns/money";
 import { initialFormState, type Campaign, type CampaignFieldName, type CampaignFormState, type FormValues } from "@/lib/campaigns/types";
 
 type Props = {
@@ -68,8 +71,43 @@ function FieldShell({ id, label, hint, error, children }: FieldShellProps) {
 
 export default function CampaignForm({ mode, action, campaign, categoryLocked = false, minStartDate, spentTotal, cancelHref }: Props) {
   const [state, formAction] = useActionState(action, initialFormState);
+  // Browser ki jaldi jaanch (sirf suvidha): server wale hi niyam (budget-rules.ts) use hote hain. Asli check server + database karta hai.
+  const [clientErrors, setClientErrors] = useState<Partial<Record<BudgetField, string>>>({});
+  // Jis budget field ko user ne chhua/jaancha, uske liye browser ka naya result dikhta hai (server ka purana error nahi).
+  const [checked, setChecked] = useState<Partial<Record<BudgetField, boolean>>>({});
   const v = state.values ?? defaultsFrom(campaign);
-  const err = (f: CampaignFieldName) => state.fieldErrors?.[f];
+  const err = (f: CampaignFieldName) =>
+    f === "totalBudget" || f === "dailyBudget"
+      ? checked[f]
+        ? clientErrors[f]
+        : state.fieldErrors?.[f]
+      : state.fieldErrors?.[f];
+
+  function budgetProblems(form: HTMLFormElement): Partial<Record<BudgetField, string>> {
+    const fd = new FormData(form);
+    const total = typeof fd.get("totalBudget") === "string" ? (fd.get("totalBudget") as string) : "";
+    const daily = typeof fd.get("dailyBudget") === "string" ? (fd.get("dailyBudget") as string) : "";
+    const result = checkBudgets(total, daily, { totalBudget: campaign?.totalBudget, dailyBudget: campaign?.dailyBudget });
+    const problems = { ...result.errors };
+    // Edit me: total budget ab tak ke kharch se neeche nahi ja sakta.
+    if (!problems.totalBudget && result.totalCents !== null && mode === "edit" && typeof spentTotal === "number") {
+      const old = dollarsToCents(campaign?.totalBudget);
+      if (result.totalCents !== old && isBelowSpend(result.totalCents / 100, spentTotal)) {
+        problems.totalBudget = BELOW_SPEND_MESSAGE(`$${spentTotal.toFixed(4)}`);
+      }
+    }
+    return problems;
+  }
+
+  function onBudgetBlur(form: HTMLFormElement | null, field: BudgetField) {
+    if (!form) return;
+    const problems = budgetProblems(form);
+    // Khali field par blur karte hi "Enter the total budget" nahi dikhana (submit par dikhega).
+    const input = form.elements.namedItem(field) as HTMLInputElement | null;
+    if (input && input.value.trim() === "" && field === "totalBudget") delete problems.totalBudget;
+    setClientErrors(problems);
+    setChecked((c) => ({ ...c, [field]: true }));
+  }
   const border = (f: CampaignFieldName) => (err(f) ? "border-red-400" : "border-line");
 
   // Purane data ki category list me na ho toh bhi select me dikhe (badalna zaroori nahi).
@@ -79,7 +117,18 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
     shownCategory !== "" && !CATEGORY_OPTIONS.some((o) => o.value === shownCategory) ? shownCategory : null;
 
   return (
-    <form action={formAction} className="max-w-xl space-y-5" noValidate>
+    <form
+      action={formAction}
+      className="max-w-xl space-y-5"
+      noValidate
+      onSubmit={(e) => {
+        const problems = budgetProblems(e.currentTarget);
+        setClientErrors(problems);
+        setChecked({ totalBudget: true, dailyBudget: true });
+        // Galat budget par server ko bhejte hi nahi; preventDefault se form action nahi chalta.
+        if (Object.keys(problems).length > 0) e.preventDefault();
+      }}
+    >
       {campaign && <input type="hidden" name="campaignId" value={campaign.id} />}
       {campaign && <input type="hidden" name="expectedUpdatedAt" value={campaign.updatedAt} />}
       {state.status === "error" && state.message && <Notice tone="error">{state.message}</Notice>}
@@ -149,7 +198,7 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
       </FieldShell>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <FieldShell id="totalBudget" label="Total budget (USD)" error={err("totalBudget")} hint={`At least $${MIN_TOTAL_BUDGET.toFixed(2)}. For example 2500 or 2500.50.${
+        <FieldShell id="totalBudget" label="Total budget (USD)" error={err("totalBudget")} hint={`At least $${MIN_TOTAL_BUDGET.toFixed(2)} and at most $${MAX_BUDGET.toLocaleString("en-US")}.00. For example 2500 or 2500.50.${
             mode === "edit" && typeof spentTotal === "number" && spentTotal > 0 ? ` Already spent: $${spentTotal.toFixed(4)}, so the total cannot go lower.` : ""
           }`}>
           {(d, invalid) => (
@@ -160,13 +209,14 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
               inputMode="decimal"
               required
               defaultValue={v.totalBudget}
+              onBlur={(e) => onBudgetBlur(e.currentTarget.form, "totalBudget")}
               aria-invalid={invalid || undefined}
               aria-describedby={d}
               className={`${inputBase} ${border("totalBudget")}`}
             />
           )}
         </FieldShell>
-        <FieldShell id="dailyBudget" label="Daily budget (USD, optional)" error={err("dailyBudget")} hint={`At least $${MIN_DAILY_BUDGET.toFixed(2)}. Leave empty for no daily limit.`}>
+        <FieldShell id="dailyBudget" label="Daily budget (USD, optional)" error={err("dailyBudget")} hint={`At least $${MIN_DAILY_BUDGET.toFixed(2)} and not more than the total budget. Leave empty for no daily limit.`}>
           {(d, invalid) => (
             <input
               id="dailyBudget"
@@ -174,6 +224,7 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
               type="text"
               inputMode="decimal"
               defaultValue={v.dailyBudget}
+              onBlur={(e) => onBudgetBlur(e.currentTarget.form, "dailyBudget")}
               aria-invalid={invalid || undefined}
               aria-describedby={d}
               className={`${inputBase} ${border("dailyBudget")}`}

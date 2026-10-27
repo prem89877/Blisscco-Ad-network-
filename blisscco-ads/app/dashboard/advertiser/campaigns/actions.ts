@@ -121,7 +121,7 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
 
   // Total budget ab tak ke kharch se neeche nahi ja sakta (warna campaign chupchap khatam ho jata hai par "Active" dikhta hai).
   // Active/paused me kharch na padh paye toh edit rokte hain (fail-closed). Draft/rejected me kharch 0 hota hai: padh na paye toh aage badhte hain.
-  // NOTE: padhne aur likhne ke beech ek serve ho sakta hai; DB-level guard alag approval wali migration se aayega (DAY9-PART1-CAMPAIGNS.md).
+  // NOTE: padhne aur likhne ke beech ek serve ho sakta hai; us race ko database trigger rokta hai (day-9-3-budget-rules.sql), neeche error map hota hai.
   if (v.totalBudget !== current.totalBudget) {
     const spend = await getCampaignSpend(current.id);
     if (spend === null && (current.status === "active" || current.status === "paused")) {
@@ -162,6 +162,15 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
 
   if (error) {
     logDbError("update", error);
+    // Database trigger (day-9-3): padhne aur likhne ke beech serve ho gaya toh bhi budget kharch se neeche nahi jata.
+    if (error.hint === "budget_below_spend") {
+      return {
+        status: "error",
+        message: "Please fix the highlighted fields.",
+        fieldErrors: { totalBudget: mapDbError(error) },
+        values,
+      };
+    }
     return { status: "error", message: mapDbError(error), values };
   }
   if (!data || data.length === 0) {

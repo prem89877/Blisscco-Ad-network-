@@ -1,14 +1,5 @@
-import {
-  DESC_MAX,
-  MAX_BUDGET,
-  MAX_CAMPAIGN_DAYS,
-  MIN_DAILY_BUDGET,
-  MIN_TOTAL_BUDGET,
-  NAME_MAX,
-  NAME_MIN,
-  START_MAX_DAYS_AHEAD,
-  isCategory,
-} from "./constants";
+import { DESC_MAX, MAX_CAMPAIGN_DAYS, NAME_MAX, NAME_MIN, START_MAX_DAYS_AHEAD, isCategory } from "./constants";
+import { checkBudgets, toDbAmount } from "./budget-rules";
 import type { CampaignFieldName, FormValues } from "./types";
 
 // Server-side validation (asli check yahi hai). Browser ki checking sirf suvidha ke liye.
@@ -89,22 +80,6 @@ export function isRealDate(iso: string): boolean {
   return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 
-/** "2500" ya "2,500.50" -> number. Sirf 2 decimal tak, koi symbol ya minus nahi. */
-function parseMoney(raw: string): number | null {
-  const trimmed = raw.trim();
-  // Comma sirf hazaar ke group ke liye ("2,500"); "2,5,0,0" jaisa galat likha hua sahi number nahi banna chahiye.
-  if (trimmed.includes(",") && !/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(trimmed)) return null;
-  const s = trimmed.replace(/,/g, "");
-  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
-
-/** Do paise-ke amount barabar hain? (undefined = pehle se koi value nahi thi.) */
-function sameMoney(a: number, b: number | undefined): boolean {
-  return b !== undefined && Math.round(a * 100) === Math.round(b * 100);
-}
-
 export function parseCampaignForm(values: FormValues, opts: ParseOptions): ParseResult {
   const errors: Partial<Record<CampaignFieldName, string>> = {};
 
@@ -129,29 +104,14 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
     errors.category = "Choose a category.";
   }
 
-  let total: number | null = null;
-  if (values.totalBudget.trim() === "") errors.totalBudget = "Enter the total budget.";
-  else {
-    total = parseMoney(values.totalBudget);
-    if (total === null) errors.totalBudget = "Enter a number like 2500 or 2500.50. No symbols or minus sign.";
-    else if (total <= 0) errors.totalBudget = "Total budget must be more than 0.";
-    else if (total > MAX_BUDGET) errors.totalBudget = `Total budget can be up to ${MAX_BUDGET.toLocaleString("en-US")}.`;
-    else if (total < MIN_TOTAL_BUDGET && !sameMoney(total, opts.existing?.totalBudget)) {
-      errors.totalBudget = `Total budget must be at least $${MIN_TOTAL_BUDGET.toFixed(2)}.`;
-    }
-  }
-
-  let daily: number | null = null;
-  if (values.dailyBudget.trim() !== "") {
-    daily = parseMoney(values.dailyBudget);
-    if (daily === null) errors.dailyBudget = "Enter a number like 100 or 100.50, or leave it empty.";
-    else if (daily <= 0) errors.dailyBudget = "Daily budget must be more than 0, or leave it empty.";
-    else if (errors.totalBudget === undefined && total !== null && Math.round(daily * 100) > Math.round(total * 100)) {
-      errors.dailyBudget = "Daily budget cannot be more than the total budget.";
-    } else if (daily < MIN_DAILY_BUDGET && !sameMoney(daily, opts.existing?.dailyBudget ?? undefined)) {
-      errors.dailyBudget = `Daily budget must be at least $${MIN_DAILY_BUDGET.toFixed(2)}, or leave it empty.`;
-    }
-  }
+  // Budget: poori jaanch budget-rules.ts me (integer cents; browser form bhi wahi use karta hai).
+  const budget = checkBudgets(values.totalBudget, values.dailyBudget, {
+    totalBudget: opts.existing?.totalBudget,
+    dailyBudget: opts.existing?.dailyBudget,
+  });
+  Object.assign(errors, budget.errors);
+  const total = budget.totalCents === null ? null : toDbAmount(budget.totalCents);
+  const daily = budget.dailyCents === null ? null : toDbAmount(budget.dailyCents);
 
   const startDate = values.startDate.trim();
   if (startDate === "") errors.startDate = "Choose a start date.";

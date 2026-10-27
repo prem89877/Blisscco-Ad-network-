@@ -6,8 +6,12 @@ function micro(n: number): number {
   return Math.round(n * 10_000);
 }
 
-/** true = naya total budget ab tak ke kharch se kam hai (aisa edit rokna hai). */
+/**
+ * true = naya total budget ab tak ke kharch se kam hai (aisa edit rokna hai).
+ * Koi number NaN/Infinity ho toh bhi true (fail-closed): galat data par edit chupchap nahi chalta.
+ */
 export function isBelowSpend(newTotalBudget: number, spentTotal: number): boolean {
+  if (!Number.isFinite(newTotalBudget) || !Number.isFinite(spentTotal)) return true;
   return micro(newTotalBudget) < micro(spentTotal);
 }
 

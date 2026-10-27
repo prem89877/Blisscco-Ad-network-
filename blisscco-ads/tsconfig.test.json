@@ -24,6 +24,9 @@
     "lib/campaigns/creative-validation.ts",
     "lib/campaigns/types.ts",
     "lib/campaigns/budget.ts",
+    "lib/campaigns/budget-rules.ts",
+    "lib/campaigns/money.ts",
+    "lib/campaigns/errors.ts",
     "lib/campaigns/advertiser.ts",
     "lib/accounts/validation.ts",
     "lib/admin/decisions.ts",
@@ -33,6 +36,7 @@
     "lib/dashboard-nav.ts",
     "lib/site.ts",
     "lib/publisher/keys.ts",
+    "app/dashboard/advertiser/campaigns/actions.ts",
     "app/api/ads/match/route.ts",
     "app/api/v1/ads/match/route.ts",
     "tests/**/*.ts"

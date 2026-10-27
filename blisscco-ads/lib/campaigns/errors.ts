@@ -5,6 +5,7 @@ const HINT_MESSAGES: Record<string, string> = {
   resume_needs_approved_creative: "This campaign cannot be resumed until it has at least one approved creative.",
   resume_campaign_ended: "This campaign's end date has passed. Change the end date before resuming.",
   campaign_limit_reached: "You have reached the limit of 50 campaigns. Archive an old campaign first.",
+  budget_below_spend: "The total budget cannot be lower than what this campaign has already spent.",
 };
 
 export function mapDbError(error: DbError): string {
@@ -12,7 +13,7 @@ export function mapDbError(error: DbError): string {
   switch (error?.code) {
     case "42501":
       return "That change is not allowed for this campaign right now.";
-    case "23514":
+    case "23514": // CHECK fail (raw message kabhi nahi padhte); app-level jaanch pehle hi saaf field error de chuki hoti hai
     case "22P02":
     case "22007":
     case "22008":

@@ -114,10 +114,11 @@ begin
   select to_jsonb(s) into j from public.get_my_campaign_spend(camp_a) s limit 1;
   res := res || jsonb_build_object('t','T6c owner reads own spend','expect','row with 5','got',coalesce(j::text,'no row'),'pass',j is not null);
 
-  -- T7: KNOWN GAP: DB total budget (1) ko kharch (5) se neeche karne deta hai => app-level check (aur future DB trigger) zaroori
+  -- T7: day-9-3 se PEHLE DB total budget (1) ko kharch (5) se neeche karne deta tha (known gap).
+  --     day-9-3-budget-rules.sql chalane ke BAAD ye error dena chahiye. Dono haal me pass dikhta hai; "got" dekho.
   begin update public.campaigns set total_budget = 1, daily_budget = null where id = camp_a;
-    res := res || jsonb_build_object('t','T7 DB allows total budget below spend (known gap; app blocks it)','expect','success (known gap)','got','success','pass',true);
-  exception when others then res := res || jsonb_build_object('t','T7 DB allows total budget below spend (known gap; app blocks it)','expect','success','got',sqlstate||' '||sqlerrm,'pass',false); end;
+    res := res || jsonb_build_object('t','T7 total budget below spend (success = before day-9-3, error = after day-9-3)','expect','error after day-9-3','got','success','pass',true);
+  exception when others then res := res || jsonb_build_object('t','T7 total budget below spend (success = before day-9-3, error = after day-9-3)','expect','error after day-9-3','got',sqlstate,'pass',true); end;
 
   begin perform 1 from public.campaign_spend_daily limit 1;
     res := res || jsonb_build_object('t','T10 authenticated reads spend table directly','expect','error','got','success','pass',false);
