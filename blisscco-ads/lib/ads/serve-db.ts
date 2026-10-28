@@ -1,6 +1,7 @@
 import "server-only";
 import { isUuid } from "@/lib/campaigns/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { chargedUnitCostUsd } from "./category-matching";
 import type { CategorySlug } from "./taxonomy";
 import type { MatchedAd } from "./types";
 
@@ -44,7 +45,8 @@ export function parseAuthorizeResult(data: unknown): AuthorizeOutcome {
       ) {
         return { outcome: "error" };
       }
-      return { outcome: "ok", publisher: { id, status: "active" }, unitCostUsd: unit };
+      // DB jo charge karta hai wahi keemat (round 4 decimals, min 0.0001): TypeScript pre-filter DB se alag na ho.
+      return { outcome: "ok", publisher: { id, status: "active" }, unitCostUsd: chargedUnitCostUsd(unit) };
     }
     default:
       return { outcome: "error" };

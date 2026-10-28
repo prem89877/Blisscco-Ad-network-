@@ -16,6 +16,9 @@ import type { MatchedAd, MatchRequest } from "./types";
 //
 // Publisher ko SIRF ServeResult milta hai: no-fill ki wajah, campaign, advertiser, budget kuch nahi.
 
+/** Ek request me record_ad_serve ke kul kitne try (pehla chuna hua + selection ke nextAds). Latency ki seema. */
+const MAX_RECORD_ATTEMPTS = 3;
+
 export type AuthorizeResult =
   | { outcome: "ok"; publisher: { id: string; status: string }; unitCostUsd: number }
   | { outcome: "unauthorized" }
@@ -116,15 +119,22 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
     // 4. Record: database creative ko dobara verify karta hai. Record na ho toh ad nahi dete.
     //    Retry-key hone par wahi key do requests ek saath aayein toh database ek hi baar charge karta hai; doosri ko
     //    pehle charge hue creative ka ad milta hai (replayedAd), selection ne kuch bhi chuna ho.
-    const recorded =
-      request.idempotencyKey === undefined
-        ? await deps.record(keyHash, outcome.ad.id, resolved.category)
-        : await deps.record(keyHash, outcome.ad.id, resolved.category, request.idempotencyKey);
-    if (recorded.outcome === "rejected") return { kind: "no_fill" };
-    if (recorded.outcome !== "recorded") return { kind: "unavailable" };
-
-    // 5. Sirf 5 public fields
-    return { kind: "ad", ad: publicFields(recorded.replayedAd ?? outcome.ad) };
+    //    Agar DB chune hue creative ko reject kare (budget khatam / race / paused), toh selection ke agle eligible
+    //    creatives (max 2) try hote hain: kul MAX_RECORD_ATTEMPTS record calls. Reject par kuch likha nahi jaata
+    //    (na spend, na idempotency key), isliye agla try safe hai. Error par ruk jaate hain (503), koi guess nahi.
+    const attempts = [outcome.ad, ...(outcome.nextAds ?? [])].slice(0, MAX_RECORD_ATTEMPTS);
+    for (const attempt of attempts) {
+      const recorded =
+        request.idempotencyKey === undefined
+          ? await deps.record(keyHash, attempt.id, resolved.category)
+          : await deps.record(keyHash, attempt.id, resolved.category, request.idempotencyKey);
+      if (recorded.outcome === "recorded") {
+        // 5. Sirf 5 public fields
+        return { kind: "ad", ad: publicFields(recorded.replayedAd ?? attempt) };
+      }
+      if (recorded.outcome !== "rejected") return { kind: "unavailable" };
+    }
+    return { kind: "no_fill" };
   } catch {
     return { kind: "unavailable" };
   }

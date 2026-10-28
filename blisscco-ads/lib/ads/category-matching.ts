@@ -198,6 +198,17 @@ function toMicros(v: number): number {
   return Math.round(v * MICROS);
 }
 
+/**
+ * Database jo ek serve ka charge asal me lagata hai wahi keemat (USD): record_ad_serve ka
+ * greatest(round(cpm / 1000, 4), 0.0001). authorize_publisher_key seedha cpm / 1000 (bina round) deta hai, isliye
+ * CPM jaise 2.5555 ya 0.05 par TypeScript ka budget pre-filter DB se alag ho jata tha (DB reject => bekaar no-fill).
+ * round() yahan half-away-from-zero hai (numeric jaisa); 1e-9 float ke 25.499999.. jaise dhoke se bachata hai.
+ */
+export function chargedUnitCostUsd(rawUnitUsd: number): number {
+  const tenThousandths = Math.max(1, Math.round(rawUnitUsd * 10_000 + 1e-9));
+  return tenThousandths / 10_000;
+}
+
 /** Impression ki keemat: upar ki taraf round (kabhi kam nahi aanka, taaki budget paar na ho). */
 function unitCostMicros(v: number): number {
   return Math.ceil(v * MICROS - 1e-9);

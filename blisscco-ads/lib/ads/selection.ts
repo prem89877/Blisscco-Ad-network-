@@ -72,6 +72,9 @@ export type SelectionRequest = {
   excludeCreativeIds?: readonly string[];
 };
 
+/** Record reject hone par aage kitne agle candidates try ho sakte hain (serve.ts me total attempts = 1 + ye). */
+export const MAX_NEXT_ADS = 2;
+
 export type NoFillReason =
   | RejectionReason
   | "no_eligible_candidates"
@@ -88,6 +91,11 @@ export type SelectionOutcome =
       repeat: boolean;
       /** false = budget check nahi laga (spendTracking = "unavailable"). Ise "budget pura enforce hua" mat samajhna. */
       budgetEnforced: boolean;
+      /**
+       * Agle eligible creatives (max MAX_NEXT_ADS), isi order me. Sirf tab jab `ad` ka record DB me reject ho
+       * (budget/race/paused) toh serve.ts inhe try karta hai. Key tab hi hoti hai jab koi next-ad ho.
+       */
+      nextAds?: MatchedAd[];
     }
   | { fill: false; reason: NoFillReason };
 
@@ -144,11 +152,13 @@ export async function selectAd(request: SelectionRequest, deps: SelectionDeps): 
     if (result.status === "rejected") return noFill(result.reason);
     if (result.status === "no_match") return noFill("no_eligible_candidates");
 
+    const nextAds = result.candidates.slice(1, 1 + MAX_NEXT_ADS).map(toPublicAd);
     return {
       fill: true,
       ad: toPublicAd(result.selected),
       repeat: result.repeat,
       budgetEnforced: budgetCheck === "enforce",
+      ...(nextAds.length > 0 ? { nextAds } : {}),
     };
   } catch {
     // Kuch bhi anjaana: publisher ko kuch nahi dikhta, bas no-fill.
