@@ -13,7 +13,7 @@ export default async function AnalyticsPage() {
       <Panel title="Not available yet">
         <p className="max-w-2xl text-sm text-mist/80">
           Impressions and clicks are not tracked yet, so there is nothing real to chart. Advertisers can already see
-          spend and the number of ads shown on each campaign page.
+          spend and the number of ads served (handed to a chatbot, not necessarily seen by a person) on each campaign page.
         </p>
       </Panel>
     </>

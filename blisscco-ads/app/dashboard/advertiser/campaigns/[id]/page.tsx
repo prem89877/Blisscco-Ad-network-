@@ -178,7 +178,7 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
             <Row label="Budget left">
               {spend ? formatMoney(remainingBudget(campaign.totalBudget, spend.spentTotal)) : "Could not be loaded"}
             </Row>
-            <Row label="Ads shown">{spend ? `${spend.servesTotal}` : "Could not be loaded"}</Row>
+            <Row label="Ads served">{spend ? `${spend.servesTotal} (handed to chatbots; older counts may be removed after about 90 days)` : "Could not be loaded"}</Row>
             <Row label="Impressions, clicks">Not tracked yet. Spend is counted each time your ad is handed to a chatbot.</Row>
           </dl>
         </Panel>

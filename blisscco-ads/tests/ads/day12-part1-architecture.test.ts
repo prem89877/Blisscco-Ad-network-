@@ -1,0 +1,111 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { PUBLIC_AD_FIELDS, buildAdResponse } from "@/lib/ads/contract";
+
+// Day 12 / Part 1: architecture report ka reality check. Sirf static (koi database, network ya SQL nahi).
+// Maqsad: report jo kehti hai ("ye exist nahi karta", "contract nahi badla", "charge serve par hai") wo repo se sach rahe,
+// aur koi naya tracking code/SQL chup-chaap na aa jaye jabki design abhi sirf proposal hai.
+
+const ROOT = path.join(__dirname, "..", "..", "..");
+const read = (f: string) => readFileSync(path.join(ROOT, f), "utf8");
+const SKIP = new Set(["node_modules", ".next", ".test-build", ".git"]);
+
+function walk(dir: string, exts: string[], out: string[] = []): string[] {
+  for (const name of readdirSync(path.join(ROOT, dir))) {
+    if (SKIP.has(name)) continue;
+    const rel = path.join(dir, name);
+    if (statSync(path.join(ROOT, rel)).isDirectory()) walk(rel, exts, out);
+    else if (exts.some((e) => name.endsWith(e))) out.push(rel);
+  }
+  return out;
+}
+
+const report = read("DAY12-PART1-ARCHITECTURE.md");
+const sql = walk("supabase/sql", [".sql"]).filter((f) => !/-tests?\.sql$/.test(f));
+const sqlText = sql.map((f) => read(f)).join("\n");
+const code = ["app", "lib", "components"].flatMap((d) => walk(d, [".ts", ".tsx"])).filter((f) => f !== "lib/demo-data.ts");
+
+describe("Day 12 part 1: report states the facts the repo proves", () => {
+  it("report has every required section", () => {
+    for (const heading of [
+      /Actual flow/,
+      /Kya sach me hai aur kya nahi/,
+      /Identifiers/,
+      /authoritative ingestion/,
+      /Duplicate-event risk register/,
+      /Trust boundaries/,
+      /Required migrations/,
+      /Baaki faisle/,
+    ]) {
+      assert.match(report, heading);
+    }
+  });
+
+  it("report does not claim Revive is integrated and keeps billing on serve", () => {
+    assert.match(report, /Revive Adserver integrated NAHI hai/);
+    assert.match(report, /Charge ka aadhar abhi bhi "serve" hai/);
+    assert.match(report, /Billing migration is list me nahi hai/);
+    assert.doesNotMatch(report, /Revive (is|hai) integrated(?! NAHI)/i);
+  });
+
+  it("report says migrations are proposed only, and no migration for it exists in supabase/sql", () => {
+    assert.match(report, /PROPOSED, abhi koi nahi chali/);
+    assert.equal(/ad_events|record_ad_event|serve_ref/i.test(sqlText), false, "an event/serve_ref migration slipped into supabase/sql");
+  });
+});
+
+describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
+  it("no event ingestion code, route, pixel, beacon or serve_ref exists yet", () => {
+    for (const f of code) {
+      const src = read(f);
+      assert.equal(/serve_ref|serveRef|record_ad_event|recordAdEvent|sendBeacon|tracking pixel/i.test(src), false, f);
+      assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `file name: ${f}`);
+    }
+    const apiRoutes = walk("app/api", [".ts"]).map((f) => f.replace(/\\/g, "/")).sort();
+    assert.deepEqual(apiRoutes, [
+      "app/api/ads/match/route.ts",
+      "app/api/supabase-health/route.ts",
+      "app/api/v1/ads/match/route.ts",
+    ]);
+  });
+
+  it("serve log has no public reference: ad_serve_log keeps a bigint identity id and no serve_ref column", () => {
+    const delivery = read("supabase/sql/day-5-3-delivery-tables.sql");
+    assert.match(delivery, /id\s+bigint generated always as identity primary key/);
+    assert.equal(/serve_ref/i.test(read("supabase/sql/day-9-5-atomic-spend-idempotency.sql")), false);
+  });
+
+  it("the public match response keeps exactly the 5 ad fields (no serve reference leaked into the contract)", () => {
+    assert.deepEqual([...PUBLIC_AD_FIELDS], ["id", "headline", "body", "cta_text", "destination_url"]);
+    const res = buildAdResponse({ id: "11111111-1111-4111-8111-111111111111", headline: "h", body: "b", ctaText: null, destinationUrl: "https://example.com" });
+    assert.deepEqual(Object.keys(res).sort(), ["ad", "fill", "sponsored"]);
+    assert.deepEqual(Object.keys(res.ad).sort(), [...PUBLIC_AD_FIELDS].sort());
+  });
+
+  it("charge is still written only by record_ad_serve at serve time (basis not moved to impression)", () => {
+    const record = read("supabase/sql/day-7-1-budget-keys-retention.sql");
+    assert.match(record, /insert into public\.campaign_spend_daily/);
+    assert.match(record, /insert into public\.ad_serve_log/);
+    assert.match(read("lib/ads/service.ts"), /spendTracking: "reliable"/);
+  });
+});
+
+describe("Day 12 part 1: user-facing wording does not call a serve a view", () => {
+  const norm = (f: string) => read(f).replace(/\s+/g, " ");
+
+  it("advertiser campaign page says Ads served, not Ads shown, and still says not tracked yet", () => {
+    const page = norm("app/dashboard/advertiser/campaigns/[id]/page.tsx");
+    assert.match(page, /label="Ads served"/);
+    assert.doesNotMatch(page, /label="Ads shown"/);
+    assert.match(page, /Not tracked yet/);
+  });
+
+  it("analytics page says ads served and still says impressions and clicks are not tracked yet", () => {
+    const page = norm("app/dashboard/analytics/page.tsx");
+    assert.match(page, /number of ads served/);
+    assert.doesNotMatch(page, /number of ads shown/);
+    assert.match(page, /not tracked yet/);
+  });
+});
