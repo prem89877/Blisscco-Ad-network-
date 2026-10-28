@@ -87,7 +87,7 @@ describe("day 11 part 5 | category matching: exact, alias, casing, whitespace, u
   });
 
   it("missing / wrong-typed context never resolves", () => {
-    for (const raw of [undefined, null, 0, 1, true, false, {}, [], ["gaming"], { topic: "gaming" }, () => "gaming", Symbol("x"), 10n, NaN]) {
+    for (const raw of [undefined, null, 0, 1, true, false, {}, [], ["gaming"], { topic: "gaming" }, () => "gaming", Symbol("x"), BigInt(10), NaN]) {
       assert.deepEqual(resolveCategory(raw), { ok: false, reason: "not_a_string" });
     }
     assert.deepEqual(resolveCategory(""), { ok: false, reason: "empty" });
@@ -293,10 +293,8 @@ describe("day 11 part 5 | selection never counts anything (no impression/click/s
 
 // ---------------------------------------------------------------------------------------------------------------------
 describe("day 11 part 5 | selection bugs found by tests (excluded-but-eligible ad after DB reject)", () => {
-  // POLICY DECISION PENDING (owner): today an excluded (recently shown) creative is never tried as a fallback, so when the only fresh ad is
-  // rejected by the DB (budget/pause race) the result is {fill:false} even though an excluded creative is still eligible. Part 1 test
-  // "nextAds ... never include ... excluded creatives" pins the current behaviour, so this is NOT changed without approval.
-  it("fresh ad rejected by the DB at record time => the still-eligible excluded ad is served (not a no-fill)", { todo: "owner decision: exclude list soft vs hard" }, async () => {
+  // Owner ne "soft exclude" approve kiya (Day 11 Part 6): excluded creative fresh ke baad last resort hai.
+  it("fresh ad rejected by the DB at record time => the still-eligible excluded ad is served (not a no-fill)", async () => {
     const FRESH = cid(1);
     const SEEN = cid(2);
     const recorded: string[] = [];

@@ -6,11 +6,11 @@ Status: 1 confirmed bug fix (sirf TypeScript, `lib/ads/category-matching.ts`) + 
 
 **Confirmed bug (fix kiya):** creative ka text/URL "poora hai" check karta tha, par control characters (NUL, ESC, DEL), bidi-override characters (text ulta dikhate hain) aur URL me invisible characters (zero-width space, word joiner, BOM) pass ho jaate the. Ab ye creative `creative_incomplete` ban kar kabhi serve nahi hota. Normal text same hai: body me tab/newline allowed, emoji (ZWJ) aur accents allowed. Test ne pehle fail karke bug pakda, fix ke baad pass.
 
-**Policy sawal (BADLA NAHI, aapka faisla chahiye):** agar publisher ki exclude list me ad A hai aur eligible fresh ad B hai, aur DB B ko record ke waqt reject kare (budget/pause race), toh abhi result `{fill:false}` aata hai, jabki A eligible hai. Purana Part 1 test pakka karta hai ki excluded creative kabhi `nextAds` me nahi aata, isliye maine isko apne aap nahi badla. Iska test likha hai aur `todo: owner decision` mark hai (chalta hai, suite fail nahi karta).
+**Policy (owner ne "soft exclude" approve kiya, Part 6 me lagaya):** exclude list ab "soft" hai. Fresh ad DB se reject ho jaye aur excluded ad eligible ho, toh excluded ad last resort me serve hota hai (pehle fresh, phir excluded). Ineligible ad kabhi nahi. Details: DAY11-PART6-FINAL-REPORT.md.
 
 **Bug nahi nikla (jo test ne confirm kiya):** HTTP body ke shuru me UTF-8 BOM ho toh request chalti hai (standard behaviour); API `topic` me casing/space/hyphen par 400 `invalid_topic` deti hai (documented contract), jabki andar ka resolver `Gaming`, `Video Games` jaisa saaf kar deta hai. Dono jaise the waise rakhe.
 
-## Naya test file: `tests/ads/day11-part5-hardening.test.ts` (128 tests pass + 1 todo)
+## Naya test file: `tests/ads/day11-part5-hardening.test.ts` (128 tests pass )
 
 - Category: har alias, koi alias do category me nahi, casing/whitespace, unknown/partial/look-alike (cyrillic), galat type, `__proto__`/`constructor`, sensitive/legacy, irrelevant category hard gate.
 - Eligibility matrix (25 cases): paused/draft/completed campaign, creative pending/rejected/paused/archived, advertiser pending/suspended, profile suspended, scheduled, expired, aaj start/end (inclusive), total + daily budget (bilkul ek unit bacha / ek unit kam / zero / overspent), kharab candidates (NaN, negative, string number, galat date/id).
@@ -23,7 +23,7 @@ Status: 1 confirmed bug fix (sirf TypeScript, `lib/ads/category-matching.ts`) + 
 ## Real results (maine chalaya)
 
 - Pehle (baseline): 1804 tests, 1803 pass, 1 fail.
-- Ab: **1933 tests, 1931 pass, 1 fail, 1 todo.** Wahi 1 fail purana hai (publisher guide ka TypeScript example compile: `@types/node` install nahi). `npm install` ke baad apne laptop/CI par dekho.
+- Ab: **(Part 6 ke baad final numbers DAY11-PART6-FINAL-REPORT.md me).** Wahi 1 fail purana hai (publisher guide ka TypeScript example compile: `@types/node` install nahi). `npm install` ke baad apne laptop/CI par dekho.
 - Integration (`tests/integration`): 11 pass (guard tests). Asli DB wale suites **skip** (blocked): `TEST_DATABASE_URL`, `TEST_SUPABASE_PROJECT_REF`, `TEST_DB_CONFIRM` set nahi. Isliye atomic spend ka asli SQL test is part me NAHI chala; concurrency tests SQL ke Node model par hain.
 - NAHI chala: `next build`, `tsc --noEmit`, asli Supabase par kuch.
 

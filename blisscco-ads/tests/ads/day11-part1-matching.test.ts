@@ -103,7 +103,7 @@ describe("selection: nextAds for a rejected record", () => {
     assert.equal("nextAds" in out, false);
   });
 
-  it("nextAds are public ads only (5 fields) and never include ineligible or excluded creatives", async () => {
+  it("nextAds are public ads only (5 fields), never include ineligible creatives, and excluded creatives come only AFTER fresh ones (soft exclude)", async () => {
     const mixed = [
       candidate(CR_A, CAMP_1, 0),
       candidate(CR_B, CAMP_2, 1, { campaignStatus: "paused" }),
@@ -113,7 +113,7 @@ describe("selection: nextAds for a rejected record", () => {
     const out = await run(mixed, [CR_D]);
     assert.ok(out.fill);
     assert.equal(out.ad.id, CR_A);
-    assert.deepEqual(out.nextAds?.map((a) => a.id), [CR_C]); // B ineligible, D excluded (fresh alternative hai)
+    assert.deepEqual(out.nextAds?.map((a) => a.id), [CR_C, CR_D]); // B ineligible (kabhi nahi); D excluded par eligible: fresh C ke BAAD, last resort
     assert.deepEqual(Object.keys(out.nextAds?.[0] ?? {}).sort(), ["body", "ctaText", "destinationUrl", "headline", "id"]);
   });
 });

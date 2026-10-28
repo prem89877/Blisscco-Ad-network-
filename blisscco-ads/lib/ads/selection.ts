@@ -177,7 +177,14 @@ export async function selectAd(request: SelectionRequest, deps: SelectionDeps): 
     if (result.status === "rejected") return noFill(result.reason);
     if (result.status === "no_match") return noFill("no_eligible_candidates");
 
-    const nextAds = pickNextCandidates(result.candidates, MAX_NEXT_ADS).map(toPublicAd);
+    // Soft exclude: pehle fresh creatives (alag campaigns pehle), phir bache slots me exclude list wale eligible creatives.
+    // Wo sirf tab try hote hain jab fresh sab DB se reject ho jayein. Record calls ki kul seema ab bhi 3.
+    const freshNext = pickNextCandidates(result.candidates, MAX_NEXT_ADS);
+    const repeatNext =
+      result.repeatCandidates.length > 0 && freshNext.length < MAX_NEXT_ADS
+        ? pickNextCandidates([result.selected, ...result.repeatCandidates], MAX_NEXT_ADS - freshNext.length)
+        : [];
+    const nextAds = [...freshNext, ...repeatNext].map(toPublicAd);
     return {
       fill: true,
       ad: toPublicAd(result.selected),

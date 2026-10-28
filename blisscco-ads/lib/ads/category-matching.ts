@@ -162,6 +162,11 @@ export type MatchResult =
       candidates: readonly AdCandidate[];
       /** true = sab eligible creatives publisher ki exclude list me the, isliye repeat dena pada. */
       repeat: boolean;
+      /**
+       * Day 11 Part 6 (soft exclude): eligible par publisher ki exclude list wale creatives, rank order me. Sirf tab bharte hain jab fresh
+       * creatives hain. Fresh sab DB se reject ho jayein toh yahi aakhri bachat hai (alternative khatam => repeat theek). INTERNAL.
+       */
+      repeatCandidates: readonly AdCandidate[];
     }
   | { status: "no_match"; category: CategorySlug; reason: "no_eligible_candidates" }
   | { status: "rejected"; reason: RejectionReason };
@@ -402,5 +407,6 @@ export function matchCategorySignal(
     selected: pool[0],
     candidates: pool,
     repeat: fresh.length === 0 && exclude.size > 0,
+    repeatCandidates: fresh.length > 0 ? eligible.filter((c) => exclude.has(c.ad.id.toLowerCase())) : [],
   };
 }
