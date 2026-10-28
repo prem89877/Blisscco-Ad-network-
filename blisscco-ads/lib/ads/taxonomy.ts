@@ -13,6 +13,11 @@ import { CATEGORY_OPTIONS, type CampaignCategory } from "../campaigns/constants"
 // SENSITIVE_CATEGORY_TERMS unhe alag se pehchaan kar reject karta hai, aur test check karta hai ki
 // koi alias/slug un terms se na takraye.
 
+// MATCHING POLICY (Day 11, tests/ads/day11-part2-categories.test.ts is the proof):
+//   * Alias = ek alag naam jo EXACT ek canonical slug par jaata hai (many-to-one). Normalize hone ke baad exact match, kuch aur nahi.
+//   * Parent-child (hierarchy) NAHI hai: technology aur developer_tools alag hain, ek doosre ke campaigns kabhi nahi dete.
+//   * Substring / prefix / "contains" matching NAHI hai ("game", "gaming_pro", "gamings" => unsupported).
+//   * Naya alias jodne se pehle dekho ki wo kisi aur slug/alias se na takraye (test iska bhi check karta hai).
 export type CategorySlug = CampaignCategory;
 
 /** Har canonical slug ke liye allowed aliases. Record hone se naya slug jodte hi compiler yahan entry maangega. */
