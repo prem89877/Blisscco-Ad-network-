@@ -86,10 +86,12 @@ with checks(check_name, passed, detail) as (
     'campaign_spend_daily is never purged'),
 
   -- ---- billing / serve unchanged ----
-  ('record_ad_serve (3 and 4 args) does not mention events or serve_ref (billing untouched)',
-    (select count(*) = 2 and bool_and(position('ad_events' in prosrc) = 0 and position('serve_ref' in prosrc) = 0)
+  -- Day 12 Part 3 (day-12-5) ke baad record_ad_serve serve_ref WAPAS deta hai (allowed), par ad_events ko kabhi nahi chhuta:
+  -- serve ko impression nahi ginte. (Billing/spend ka matching check day-12-6 me hai.)
+  ('record_ad_serve (3 and 4 args) does not write or mention ad_events (a serve is not an impression)',
+    (select count(*) = 2 and bool_and(position('ad_events' in prosrc) = 0)
        from pg_proc where pronamespace = 'public'::regnamespace and proname = 'record_ad_serve'),
-    'both overloads present and unchanged'),
+    'both overloads present; none touches ad_events'),
   ('no function writes to ad_events yet (writer comes in a later part)',
     (select count(*) = 0 from pg_proc where pronamespace in ('public'::regnamespace, 'private'::regnamespace)
        and proname <> 'purge_old_ad_logs' and prosrc ilike '%insert into public.ad_events%'),

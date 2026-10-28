@@ -156,6 +156,8 @@ describe("Day 9 part 6: spend accounting stays separate from impression/click tr
 
   it("no impression/click tracking endpoint, table or pixel exists", () => {
     for (const f of code) {
+      // Day 12 part 3: sirf token banane/jaanchne ka pure module (koi route/table/pixel nahi) is naam se allowed hai.
+      if (f.replace(/\\/g, "/") === "lib/ads/tracking-token.ts") continue;
       assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `route/file naam: ${f}`);
     }
     // Day 12 part 2 ke baad: ek generic `ad_events` table (serve/impression/click type column ke saath) jaan-boojh kar hai.

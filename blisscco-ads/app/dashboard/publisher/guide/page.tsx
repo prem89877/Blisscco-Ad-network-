@@ -46,6 +46,35 @@ const SUCCESS_EXAMPLE = [
 
 const NO_FILL_EXAMPLE = '{ "fill": false }';
 
+// Optional tracking token (opt-in header). Example values only: the token below is NOT a real token.
+const TRACKING_CURL_EXAMPLE = [
+  'curl -i -X POST "https://YOUR-BLISSCCO-API-HOST/api/v1/ads/match" \\',
+  '  -H "Authorization: Bearer $BLISSCCO_PUBLISHER_API_KEY" \\',
+  '  -H "Content-Type: application/json" \\',
+  '  -H "Idempotency-Key: 7b0e3c1a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" \\',
+  '  -H "X-Blisscco-Tracking: 1" \\',
+  "  -d '{\"topic\":\"gaming\"}'",
+].join("\n");
+
+const TRACKING_SUCCESS_EXAMPLE = [
+  "{",
+  '  "fill": true,',
+  '  "sponsored": true,',
+  '  "ad": {',
+  '    "id": "3f2b8c1e-5a47-4d9e-9b62-7c1d8e4a6f10",',
+  '    "headline": "Level up your game nights",',
+  '    "body": "Compare gaming laptops built for long sessions.",',
+  '    "cta_text": "Shop now",',
+  '    "destination_url": "https://example.com/gaming-laptops"',
+  "  },",
+  '  "tracking": {',
+  '    "token": "bt1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE",',
+  '    "expires_at": "2026-10-28T11:00:00.000Z",',
+  '    "events": ["impression", "click"]',
+  "  }",
+  "}",
+].join("\n");
+
 const SERVER_EXAMPLE = [
   "// Runs on YOUR backend only. Never import this file into browser or frontend code.",
   "type SponsoredAd = {",
@@ -163,7 +192,7 @@ const PROXY_EXAMPLE = [
 ].join("\n");
 
 const ERRORS: Array<{ status: string; body: string; meaning: string; action: string }> = [
-  { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, or an Idempotency-Key that is not 8 to 64 letters, digits, _ or -; the reason is invalid_idempotency_key).", action: "Do not retry. Fix the request." },
+  { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, an Idempotency-Key that is not 8 to 64 letters, digits, _ or - (reason invalid_idempotency_key), or an X-Blisscco-Tracking header whose value is not exactly 1 (reason invalid_tracking_header)).", action: "Do not retry. Fix the request." },
   { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked or expired, or the publisher account is not active (pending or suspended). All of these look identical on purpose.", action: "Do not retry. Check the key and the account status on the Publisher page, then create a new key or contact Blisscco." },
   { status: "405", body: "(empty)", meaning: "Any method other than POST. This answer comes from the hosting platform, so it has no JSON body.", action: "Do not retry. Use POST." },
   { status: "413", body: "payload_too_large", meaning: "Body is over 2048 bytes.", action: "Do not retry. Send only topic, fallback_topics and exclude_ad_ids." },
@@ -340,6 +369,45 @@ export default async function PublisherGuidePage() {
           </p>
         </Panel>
 
+        <Panel
+          title="4a. Optional tracking token"
+          note="Opt-in and backward compatible. It prepares later impression and click reporting; it does not report anything today."
+        >
+          <p className="text-sm text-mist/75">
+            Add the header <code>X-Blisscco-Tracking: 1</code> to your server&apos;s request and a successful match also returns a{" "}
+            <code>tracking</code> object next to the ad. Without that header the response is exactly the one in section 4, with the same
+            five ad fields. Any other value for the header returns 400 with reason <code>invalid_tracking_header</code>.
+          </p>
+          <div className="mt-3 grid gap-3">
+            <CodeBlock code={TRACKING_CURL_EXAMPLE} label="Request with tracking opt-in" />
+            <CodeBlock code={TRACKING_SUCCESS_EXAMPLE} label="Successful match with tracking (example values, not a real token)" />
+          </div>
+          <p className="mt-4 text-sm font-medium">Fields</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li><code>token</code>: an opaque, signed string that refers to this one ad delivery. Treat it as a sealed value: do not decode, edit, shorten or guess it. It never contains your API key.</li>
+            <li><code>expires_at</code>: ISO 8601 time in UTC. It is counted from the moment the ad was served (default one hour), and a retry never extends it.</li>
+            <li><code>events</code>: the event types this token may later be used for: <code>impression</code> and <code>click</code>.</li>
+          </ul>
+          <p className="mt-4 text-sm font-medium">What a token does and does not mean</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>Receiving a token does <strong>not</strong> mean the ad was shown, seen or clicked. A serve, an impression and a click are three different things, and a token is only permission to report the later two.</li>
+            <li>There is no endpoint to send tokens to yet, and Blisscco counts no impressions or clicks. Do not use a token for billing, payouts or your own impression counts, and do not call anything that claims otherwise.</li>
+            <li>The token is not your API key and not a secret you must hide like the key, but anyone who holds it can try to report events for that one ad delivery until it expires. Keep it with that ad only, and do not log it next to a person, session or conversation id.</li>
+            <li>Your API key, <code>Idempotency-Key</code> and any other credential stay on your server. The browser may receive the five ad fields and, if you need it, the token for that same ad.</li>
+          </ul>
+          <p className="mt-4 text-sm font-medium">When <code>tracking</code> is absent</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>You did not send the opt-in header.</li>
+            <li>The response is a no-fill, an error (400, 401, 429, 503) or anything other than a successfully recorded ad. These never carry a token.</li>
+            <li>Tracking is not switched on at Blisscco, or the ad delivery is older than the token lifetime (for example a very late retry), or it was served before this feature existed.</li>
+            <li>Your code must treat a missing <code>tracking</code> as normal: show the ad exactly as before.</li>
+          </ul>
+          <p className="mt-4 text-sm font-medium">Retries</p>
+          <p className="mt-1 text-sm text-mist/75">
+            Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical token. It does not create a second delivery or a second token. Use a different key for every new placement, never the same key for two ads.
+          </p>
+        </Panel>
+
         <Panel title="5. Errors and retries">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[34rem] text-left text-sm">
@@ -441,6 +509,11 @@ export default async function PublisherGuidePage() {
                   <td className="py-2 pr-3">Public. They are meant to be displayed.</td>
                   <td className="py-2">Your server may send them to the browser.</td>
                 </tr>
+                <tr className="border-b border-line/60 align-top text-mist/75">
+                  <td className="py-2 pr-3">Tracking <code>token</code> (section 4a)</td>
+                  <td className="py-2 pr-3">Not your key, but treat it as a bearer value until it expires.</td>
+                  <td className="py-2">Your server; the browser only with its own ad, if you need it there.</td>
+                </tr>
                 <tr className="align-top text-mist/75">
                   <td className="py-2 pr-3"><code>Idempotency-Key</code></td>
                   <td className="py-2 pr-3">Not a credential, but keep it random and unlinked to a person.</td>
@@ -477,7 +550,7 @@ export default async function PublisherGuidePage() {
           <ul className="list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li>Accounts are approved by hand by the Blisscco team, so approval can take time.</li>
             <li>Advertiser budgets are enforced, and spend is counted when an ad is handed to you, not when a person sees it.</li>
-            <li>A request is counted as an ad serve. There is no impression or click reporting, and nothing here should be used for billing or payouts. Retries are safe only when you send the same <code>Idempotency-Key</code>.</li>
+            <li>A request is counted as an ad serve. There is no impression or click reporting, and nothing here should be used for billing or payouts. The optional tracking token (section 4a) does not change that: it does not prove that an ad was shown or clicked. Retries are safe only when you send the same <code>Idempotency-Key</code>.</li>
             <li>Rate limiting is per key, plus a best-effort guard against repeated wrong keys from one IP. Add your own edge protection too.</li>
             <li>Database calls time out after 8 seconds. A Blisscco outage returns 503 with error unavailable, while a plain no-fill (200) means no matching ad.</li>
             <li>No staging environment is published.</li>

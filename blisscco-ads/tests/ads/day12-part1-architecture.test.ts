@@ -54,21 +54,30 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
     assert.match(report, /PROPOSED, abhi koi nahi chali/);
     // Part 2 ne sirf 2 migration files + 1 read-only verify file joddi (ad_events + serve_ref). Writer function (record_ad_event) abhi bhi nahi hai.
     const withEventSql = sql.filter((f) => /ad_events|serve_ref/i.test(read(f))).map((f) => f.replace(/\\/g, "/")).sort();
+    // Part 3 ne 2 aur files joddi (serve_ref ko record/retry se wapas laana + uski read-only jaanch). Writer ab bhi nahi.
     assert.deepEqual(withEventSql, [
       "supabase/sql/day-12-1-serve-ref.sql",
       "supabase/sql/day-12-2-ad-events.sql",
       "supabase/sql/day-12-3-event-verify.sql",
+      "supabase/sql/day-12-5-serve-ref-return.sql",
+      "supabase/sql/day-12-6-serve-ref-return-verify.sql",
     ]);
     assert.equal(/record_ad_event/i.test(sqlText), false, "a record_ad_event writer slipped into supabase/sql");
   });
 });
 
 describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
-  it("no event ingestion code, route, pixel, beacon or serve_ref exists yet", () => {
+  // Day 12 part 3 ne serve_ref ko (sirf token banane ke liye) in files me aane diya. Koi aur file serve_ref nahi chhuti.
+  const SERVE_REF_FILES = [
+    "lib/ads/serve.ts", "lib/ads/serve-db.ts", "lib/ads/service.ts", "lib/ads/types.ts", "lib/ads/tracking-token.ts",
+  ];
+  it("no event ingestion code, route, pixel or beacon exists yet; serve_ref appears only in the token-issuing files", () => {
     for (const f of code) {
       const src = read(f);
-      assert.equal(/serve_ref|serveRef|record_ad_event|recordAdEvent|sendBeacon|tracking pixel/i.test(src), false, f);
-      assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `file name: ${f}`);
+      assert.equal(/record_ad_event|recordAdEvent|sendBeacon|tracking pixel/i.test(src), false, f);
+      if (!SERVE_REF_FILES.includes(f.replace(/\\/g, "/"))) assert.equal(/serve_ref|serveRef/i.test(src), false, `${f}: serve_ref outside the token-issuing files`);
+      // Part 3: sirf EK file ka naam allowed hai (token banane/jaanchne ka pure module). Koi route/pixel/beacon/impression/click file nahi.
+      if (f.replace(/\\/g, "/") !== "lib/ads/tracking-token.ts") assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `file name: ${f}`);
     }
     const apiRoutes = walk("app/api", [".ts"]).map((f) => f.replace(/\\/g, "/")).sort();
     assert.deepEqual(apiRoutes, [

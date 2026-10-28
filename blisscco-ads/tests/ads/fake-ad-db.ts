@@ -42,7 +42,15 @@ type Campaign = {
 };
 type Advertiser = { id: string; status: "pending" | "active" | "suspended"; profileStatus: ProfileStatus };
 
-export type ServeLogRow = { publisherId: string; creativeId: string; campaignId: string; topic: string };
+export type ServeLogRow = {
+  publisherId: string;
+  creativeId: string;
+  campaignId: string;
+  topic: string;
+  /** day-12-1 default jaisa: "bsr_" + 40 hex (yahan deterministic, taaki test repeatable rahe). */
+  serveRef: string;
+  servedAtMs: number;
+};
 export type RpcCall = { name: string; args: Record<string, unknown> };
 
 type Reply = { data: unknown; error: { code?: string; message?: string } | null };
@@ -72,8 +80,12 @@ export class FakeAdDb {
   serveLog: ServeLogRow[] = [];
   /** (campaign_id) -> kul kharch (USD) */
   spend = new Map<string, number>();
-  /** (publisher_id|idempotency_key) -> creative id (ad_serve_requests table jaisa) */
-  private serveRequests = new Map<string, string>();
+  /** (publisher_id|idempotency_key) -> creative id + serve row ka index (ad_serve_requests table jaisa; serveIndex = serve_id) */
+  private serveRequests = new Map<string, { creativeId: string; serveIndex: number | null }>();
+  /** Test knob: serve ke samay (ms). null = abhi (asli clock). Purani serve / expiry tests ke liye. */
+  serveTimeMs: number | null = null;
+  /** Test knob: true => day-12-5 SQL se pehle jaisa behaviour (record/replay me serve_ref + served_at nahi). */
+  legacyNoServeRef = false;
   private rateHits = new Map<string, number>(); // `${keyId}|${minute}` -> hits
   private publishers = new Map<string, Publisher>();
   private keys: KeyRow[] = [];
@@ -272,14 +284,17 @@ export class FakeAdDb {
   }
 
   private replayFor(publisherId: string, idem: string): Record<string, unknown> | null {
-    const creativeId = this.serveRequests.get(`${publisherId}|${idem}`);
-    if (!creativeId) return null;
+    const linked = this.serveRequests.get(`${publisherId}|${idem}`);
+    if (!linked) return null;
+    const creativeId = linked.creativeId;
     const cr = this.creatives.get(creativeId);
     const camp = cr ? this.campaigns.get(cr.campaignId) : undefined;
     if (!cr || !camp || cr.status !== "approved" || camp.status !== "active") return { outcome: "rejected", replayed: true };
+    const row = linked.serveIndex === null || this.legacyNoServeRef ? undefined : this.serveLog[linked.serveIndex];
     return {
       outcome: "ok",
       replayed: true,
+      ...(row ? { serve_ref: row.serveRef, served_at: new Date(row.servedAtMs).toISOString() } : {}),
       ad: { id: cr.id, headline: cr.headline, body: cr.body, cta_text: cr.ctaText, destination_url: cr.destinationUrl },
     };
   }
@@ -290,7 +305,9 @@ export class FakeAdDb {
     if (typeof idem !== "string" || !IDEM_RE.test(idem)) return { outcome: "none" };
     const replay = this.replayFor(found.publisher.id, idem);
     if (!replay) return { outcome: "none" };
-    return replay.outcome === "ok" ? { outcome: "found", ad: replay.ad } : { outcome: "rejected" };
+    return replay.outcome === "ok"
+      ? { outcome: "found", ad: replay.ad, serve_ref: replay.serve_ref ?? null, served_at: replay.served_at ?? null }
+      : { outcome: "rejected" };
   }
 
   private recordServe(args: Record<string, unknown>): Record<string, unknown> {
@@ -326,8 +343,12 @@ export class FakeAdDb {
     this.spend.set(camp.id, total + unit);
     this.spentToday.set(dayKey, day + unit);
     this.serveCountToday.set(cr.id, (this.serveCountToday.get(cr.id) ?? 0) + 1);
-    this.serveLog.push({ publisherId: found.publisher.id, creativeId: cr.id, campaignId: camp.id, topic });
-    if (hasIdem) this.serveRequests.set(`${found.publisher.id}|${String(idem)}`, cr.id);
-    return { outcome: "ok" };
+    const serveIndex = this.serveLog.length;
+    const servedAtMs = this.serveTimeMs ?? Date.now();
+    const serveRef = `bsr_${sha256(`serve-${serveIndex}-${found.publisher.id}`).slice(0, 40)}`;
+    this.serveLog.push({ publisherId: found.publisher.id, creativeId: cr.id, campaignId: camp.id, topic, serveRef, servedAtMs });
+    if (hasIdem) this.serveRequests.set(`${found.publisher.id}|${String(idem)}`, { creativeId: cr.id, serveIndex });
+    if (this.legacyNoServeRef) return { outcome: "ok" };
+    return { outcome: "ok", serve_ref: serveRef, served_at: new Date(servedAtMs).toISOString() };
   }
 }

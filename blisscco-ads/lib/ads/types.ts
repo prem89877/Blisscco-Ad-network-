@@ -23,7 +23,18 @@ export type MatchRequest = {
    * wahi ad milta hai. Header na ho toh pehle jaisa behaviour.
    */
   idempotencyKey?: string;
+  /**
+   * Optional (Day 12 Part 3): publisher ne header `X-Blisscco-Tracking: 1` bheja ho. Tabhi (aur sirf kamyab serve par) jawab me
+   * `tracking` aata hai. Body me nahi (body ke sirf 3 fields hain). Header na ho toh key hi nahi hoti: jawab pehle jaisa.
+   */
+  trackingRequested?: boolean;
 };
+
+/**
+ * Database ka serve receipt (ad_serve_log ki ek row ke bare me, sirf wahi jo token ko chahiye). serveRef opaque hai (bsr_ + 40 hex);
+ * sequential id kabhi yahan nahi aati. Purani (migration se pehle ki) serve ka receipt hota hi nahi.
+ */
+export type ServeReceipt = { serveRef: string; servedAtMs: number };
 
 /** Database function match_contextual_ad ka nateeja. */
 export type MatchOutcome =

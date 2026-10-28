@@ -3,7 +3,8 @@ import { isUuid } from "@/lib/campaigns/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargedUnitCostUsd } from "./category-matching";
 import type { CategorySlug } from "./taxonomy";
-import type { MatchedAd } from "./types";
+import { SERVE_REF_RE } from "./tracking-token";
+import type { MatchedAd, ServeReceipt } from "./types";
 
 // Serve ke liye database pul (server-side). Service-role key SIRF createAdminClient() ke andar hai.
 // Yahan sirf 3 rpc chalte hain: authorize_publisher_key aur record_ad_serve (day-5-8 / day-7-1 / day-9-5) aur find_idempotent_serve (day-9-5).
@@ -78,10 +79,24 @@ export type RecordOutcome =
    * replayedAd: sirf tab, jab wahi Idempotency-Key pehle charge ho chuki thi (is baar DOBARA charge nahi hua):
    * publisher ko wahi pehle wala ad milna chahiye.
    */
-  | { outcome: "recorded"; replayedAd?: MatchedAd }
+  | { outcome: "recorded"; replayedAd?: MatchedAd; serve?: ServeReceipt }
   /** Creative ab eligible nahi (ya key ab valid nahi): ad MAT do, no-fill do. */
   | { outcome: "rejected" }
   | { outcome: "error" };
+
+/**
+ * Database ke jawab se serve receipt (serve_ref + served_at). Dono sahi shape ke na hon toh undefined: ad phir bhi diya jaata hai
+ * (serve record ho chuki hai) par token nahi banta. Isse code day-12-5 SQL se pehle deploy hone par bhi tootta nahi.
+ */
+export function parseServeReceipt(data: Record<string, unknown>): ServeReceipt | undefined {
+  const ref = data.serve_ref;
+  const at = data.served_at;
+  if (typeof ref !== "string" || !SERVE_REF_RE.test(ref)) return undefined;
+  if (typeof at !== "string") return undefined;
+  const servedAtMs = Date.parse(at);
+  if (!Number.isFinite(servedAtMs)) return undefined;
+  return { serveRef: ref, servedAtMs };
+}
 
 function parsePublicAd(v: unknown): MatchedAd | null {
   if (!isRecord(v)) return null;
@@ -99,9 +114,11 @@ export function parseRecordResult(data: unknown): RecordOutcome {
       if (data.replayed === true) {
         // Retry: database ne pehle charge hui creative bheji hai. Shape galat ho toh "error" (galat ad kabhi nahi).
         const ad = parsePublicAd(data.ad);
-        return ad ? { outcome: "recorded", replayedAd: ad } : { outcome: "error" };
+        const serve = parseServeReceipt(data);
+        return ad ? { outcome: "recorded", replayedAd: ad, ...(serve ? { serve } : {}) } : { outcome: "error" };
       }
-      return { outcome: "recorded" };
+      const serve = parseServeReceipt(data);
+      return serve ? { outcome: "recorded", serve } : { outcome: "recorded" };
     }
     case "rejected":
     case "unauthorized":
@@ -145,7 +162,7 @@ export async function recordServe(
 
 export type ReplayLookup =
   /** Ye key pehle charge ho chuki hai: wahi ad wapas do, dobara charge mat karo. */
-  | { outcome: "found"; ad: MatchedAd }
+  | { outcome: "found"; ad: MatchedAd; serve?: ServeReceipt }
   /** Key naya hai: normal flow. */
   | { outcome: "none" }
   /** Pehle charge hua tha par ab creative eligible nahi: no-fill (kharch wapas nahi aata). */
@@ -164,7 +181,8 @@ export function parseReplayResult(data: unknown): ReplayLookup {
       return { outcome: "unauthorized" };
     case "found": {
       const ad = parsePublicAd(data.ad);
-      return ad ? { outcome: "found", ad } : { outcome: "error" };
+      const serve = parseServeReceipt(data);
+      return ad ? { outcome: "found", ad, ...(serve ? { serve } : {}) } : { outcome: "error" };
     }
     default:
       return { outcome: "error" };

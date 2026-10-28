@@ -3,7 +3,7 @@ import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { buildAdResponse, type MatchResponseBody } from "@/lib/ads/contract";
 import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
 import { serveAdForPublisher } from "@/lib/ads/service";
-import { MAX_BODY_BYTES, parseIdempotencyKey, parseMatchRequest } from "@/lib/ads/validation";
+import { MAX_BODY_BYTES, parseIdempotencyKey, parseMatchRequest, parseTrackingOptIn } from "@/lib/ads/validation";
 
 // Ad-match ka SHARED handler. Do routes isi ko chalate hain:
 //   POST /api/ads/match      (purana, jaisa tha waisa; behaviour same)
@@ -133,7 +133,14 @@ async function processMatch(request: Request, options: MatchHandlerOptions): Pro
   //     warna publisher sochega retry safe hai aur dobara charge ho jayega). Header na ho => pehle jaisa behaviour.
   const idem = parseIdempotencyKey(request.headers.get("idempotency-key"));
   if (!idem.ok) return json({ error: "invalid_request", reason: "invalid_idempotency_key" }, 400);
-  const matchRequest = idem.value === undefined ? parsed.value : { ...parsed.value, idempotencyKey: idem.value };
+  // 2c. Optional `X-Blisscco-Tracking: 1` (opt-in). Header ho par "1" na ho => 400. Header na ho => jawab bilkul pehle jaisa.
+  const tracking = parseTrackingOptIn(request.headers.get("x-blisscco-tracking"));
+  if (!tracking.ok) return json({ error: "invalid_request", reason: "invalid_tracking_header" }, 400);
+  const matchRequest = {
+    ...parsed.value,
+    ...(idem.value === undefined ? {} : { idempotencyKey: idem.value }),
+    ...(tracking.value ? { trackingRequested: true } : {}),
+  };
 
   // 3. Service: authorize + rate limit + category match + selection + serve record
   const result = await serveAdForPublisher(hashApiKey(key), matchRequest);
@@ -149,6 +156,6 @@ async function processMatch(request: Request, options: MatchHandlerOptions): Pro
     case "unavailable":
       return json({ fill: false, error: "unavailable" }, 503);
     case "ad":
-      return json(buildAdResponse(result.ad), 200);
+      return json(buildAdResponse(result.ad, result.tracking), 200);
   }
 }

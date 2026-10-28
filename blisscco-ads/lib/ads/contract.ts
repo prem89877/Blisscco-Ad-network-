@@ -1,4 +1,5 @@
 import type { MatchedAd } from "./types";
+import type { TrackingEvent, TrackingGrant } from "./tracking-token";
 import type { ParseFailure } from "./validation";
 
 // POST /api/v1/ads/match (aur purana /api/ads/match) ka PUBLIC request/response contract.
@@ -42,11 +43,29 @@ export type PublicAd = {
 /** PublicAd ke exact keys (tests inhi se check karte hain ki koi extra key na ho). */
 export const PUBLIC_AD_FIELDS = ["id", "headline", "body", "cta_text", "destination_url"] as const;
 
+/**
+ * Sirf tab (opt-in header `X-Blisscco-Tracking: 1` + kamyab serve + server par tracking secret set). Serve ka reference token ke ANDAR hai
+ * (opaque, signed). Token milna impression/click ka saboot nahi hai.
+ */
+export type PublicTracking = {
+  /** Opaque, signed, time-limited token. Publisher ki API key nahi hai; iske saath key kabhi mat bhejo. */
+  token: string;
+  /** ISO 8601 UTC. Ye samay SERVE ke samay se bandha hai (retry se badhta nahi). */
+  expires_at: string;
+  /** Is token se kaun se events report ho sakte hain. */
+  events: TrackingEvent[];
+};
+
+/** `tracking` ke exact keys (tests inhi se check karte hain). */
+export const PUBLIC_TRACKING_FIELDS = ["token", "expires_at", "events"] as const;
+
 /** 200: ad mila. `sponsored` literal `true` hai: type level par bhi false ya missing ho nahi sakta. */
 export type MatchSuccessResponse = {
   fill: true;
   sponsored: true;
   ad: PublicAd;
+  /** Optional, backward-compatible addition. Opt-in na ho toh key hoti hi nahi. */
+  tracking?: PublicTracking;
 };
 
 /** 200: koi eligible ad nahi (topic unsupported/sensitive, ya candidate nahi). Wajah kabhi nahi batate. */
@@ -59,7 +78,7 @@ export type MatchNoFillResponse = {
 // ---------------------------------------------------------------------------
 
 /** 400 `reason` values. `unreadable_body` aur `invalid_idempotency_key` handler se aate hain, baaki validation.ts se. */
-export type InvalidRequestReason = ParseFailure | "unreadable_body" | "invalid_idempotency_key";
+export type InvalidRequestReason = ParseFailure | "unreadable_body" | "invalid_idempotency_key" | "invalid_tracking_header";
 
 export type InvalidRequestResponse = { error: "invalid_request"; reason: InvalidRequestReason };
 export type UnauthorizedResponse = { error: "unauthorized" };
@@ -95,6 +114,16 @@ export function toPublicAd(ad: MatchedAd): PublicAd {
 }
 
 /** Har ad response yahin se banta hai, isliye `sponsored: true` kabhi chhoot nahi sakta. */
-export function buildAdResponse(ad: MatchedAd): MatchSuccessResponse {
-  return { fill: true, sponsored: true, ad: toPublicAd(ad) };
+export function buildAdResponse(ad: MatchedAd, tracking?: TrackingGrant): MatchSuccessResponse {
+  const base: MatchSuccessResponse = { fill: true, sponsored: true, ad: toPublicAd(ad) };
+  if (!tracking) return base;
+  // Explicit whitelist: grant ke extra fields (agar kabhi aaye) bahar nahi jaate.
+  return {
+    ...base,
+    tracking: {
+      token: tracking.token,
+      expires_at: new Date(tracking.expiresAtMs).toISOString(),
+      events: [...tracking.events],
+    },
+  };
 }

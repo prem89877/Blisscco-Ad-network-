@@ -26,6 +26,15 @@ export function parseIdempotencyKey(header: string | null): IdempotencyKeyResult
   return { ok: true, value };
 }
 
+// Tracking opt-in header (Day 12 Part 3): `X-Blisscco-Tracking: 1`. Sirf "1" maana jaata hai; header ho par kuch aur ho => ok:false
+// (handler 400 deta hai: chup-chaap ignore nahi, warna publisher sochega ki tracking chalu hai jabki token mila hi nahi).
+export type TrackingOptInResult = { ok: true; value: boolean } | { ok: false };
+
+export function parseTrackingOptIn(header: string | null): TrackingOptInResult {
+  if (header === null) return { ok: true, value: false };
+  return header.trim() === "1" ? { ok: true, value: true } : { ok: false };
+}
+
 export type ParseFailure =
   | "invalid_json"
   | "invalid_body"

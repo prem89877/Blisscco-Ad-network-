@@ -27,7 +27,11 @@ function code(f: string): string {
 describe("Day 12 part 2: migrations are additive and safe", () => {
   it("the four Day 12 files exist and follow the project's day-N-K naming (migration 1 sorts before 2)", () => {
     const files = readdirSync(path.join(ROOT, SQL)).filter((f) => /^day-12-/.test(f)).sort();
-    assert.deepEqual(files, ["day-12-1-serve-ref.sql", "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql"]);
+    // Part 3 ne day-12-5 (serve_ref wapas lana) aur day-12-6 (uski read-only jaanch) joda. Part 2 ke chaar files jas ke tas.
+    assert.deepEqual(files, [
+      "day-12-1-serve-ref.sql", "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql",
+      "day-12-5-serve-ref-return.sql", "day-12-6-serve-ref-return-verify.sql",
+    ]);
   });
 
   it("migrations never drop, truncate or rewrite existing data, never disable RLS, never grant to app roles", () => {
@@ -139,13 +143,15 @@ describe("Day 12 part 2: billing, serve and the API contract are untouched", () 
     assert.doesNotMatch(code(M2), /after insert on public\.ad_serve_log/);
   });
 
-  it("no application code, route or response mentions serve_ref / ad_events yet (public API contract unchanged)", () => {
+  it("no application code mentions ad_events / record_ad_event; serve_ref only in the token-issuing files (Day 12 part 3)", () => {
     const walk = (dir: string): string[] =>
       readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
         e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}/${e.name}`] : [],
       );
+    const SERVE_REF_FILES = ["lib/ads/serve.ts", "lib/ads/serve-db.ts", "lib/ads/service.ts", "lib/ads/types.ts", "lib/ads/tracking-token.ts"];
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
-      assert.doesNotMatch(read(f), /serve_ref|serveRef|ad_events|record_ad_event/, f);
+      assert.doesNotMatch(read(f), /ad_events|record_ad_event/, f);
+      if (!SERVE_REF_FILES.includes(f)) assert.doesNotMatch(read(f), /serve_ref|serveRef/, `${f}: serve_ref outside the token-issuing files`);
     }
   });
 });

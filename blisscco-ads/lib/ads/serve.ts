@@ -1,7 +1,8 @@
 import { resolveCategory } from "./category-matching";
 import type { CategorySlug } from "./taxonomy";
 import type { SelectionOutcome, SelectionRequest } from "./selection";
-import type { MatchedAd, MatchRequest } from "./types";
+import type { MatchedAd, MatchRequest, ServeReceipt } from "./types";
+import type { TrackingGrant } from "./tracking-token";
 // NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
 // Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
 
@@ -26,12 +27,12 @@ export type AuthorizeResult =
   | { outcome: "error" };
 
 export type RecordResult =
-  | { outcome: "recorded"; replayedAd?: MatchedAd }
+  | { outcome: "recorded"; replayedAd?: MatchedAd; serve?: ServeReceipt }
   | { outcome: "rejected" }
   | { outcome: "error" };
 
 export type ReplayResult =
-  | { outcome: "found"; ad: MatchedAd }
+  | { outcome: "found"; ad: MatchedAd; serve?: ServeReceipt }
   | { outcome: "none" }
   | { outcome: "rejected" }
   | { outcome: "unauthorized" }
@@ -45,10 +46,15 @@ export type ServeDeps = {
   record: (keyHash: string, creativeId: string, category: CategorySlug, idempotencyKey?: string) => Promise<RecordResult>;
   /** Optional: selection se PEHLE "ye key pehle charge ho chuki hai?" (retry me wahi ad, dobara charge nahi). */
   lookupReplay?: (keyHash: string, idempotencyKey: string) => Promise<ReplayResult>;
+  /**
+   * Optional (Day 12 Part 3): tracking token banata hai. Sirf KAMYAB (database me record ho chuki) serve ke liye bulaya jaata hai,
+   * aur sirf tab jab publisher ne opt-in kiya ho. null/throw => ad bina `tracking` ke (serve phir bhi hui hai, bas token nahi).
+   */
+  issueTracking?: (input: { publisherId: string; serveRef: string; servedAtMs: number }) => TrackingGrant | null;
 };
 
 export type ServeResult =
-  | { kind: "ad"; ad: MatchedAd }
+  | { kind: "ad"; ad: MatchedAd; tracking?: TrackingGrant }
   | { kind: "no_fill" }
   | { kind: "unauthorized" }
   | { kind: "rate_limited" }
@@ -58,6 +64,24 @@ export type ServeResult =
 function publicFields(ad: MatchedAd): MatchedAd {
   const { id, headline, body, ctaText, destinationUrl } = ad;
   return { id, headline, body, ctaText, destinationUrl };
+}
+
+/**
+ * Token sirf tab: opt-in + record ho chuki serve ka receipt + issuer maujood. Kisi bhi gadbad (issuer throw/null) par undefined:
+ * ad pehle jaisa jaata hai, bas `tracking` nahi. Rejected/no-fill/unauthorized/error raaste yahan tak pahunchte hi nahi.
+ */
+function grantFor(
+  request: MatchRequest,
+  deps: ServeDeps,
+  publisherId: string,
+  serve: ServeReceipt | undefined,
+): TrackingGrant | undefined {
+  if (request.trackingRequested !== true || !serve || !deps.issueTracking) return undefined;
+  try {
+    return deps.issueTracking({ publisherId, serveRef: serve.serveRef, servedAtMs: serve.servedAtMs }) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Kabhi throw nahi karta: kuch bhi anjaana => "unavailable" (route 503 + fill:false deta hai). */
@@ -84,8 +108,11 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
     if (request.idempotencyKey !== undefined && deps.lookupReplay) {
       const replay = await deps.lookupReplay(keyHash, request.idempotencyKey);
       switch (replay.outcome) {
-        case "found":
-          return { kind: "ad", ad: publicFields(replay.ad) };
+        case "found": {
+          // Retry: wahi serve, wahi receipt => wahi token (naya serve/naya token nahi). Receipt na ho (purani serve) => token nahi.
+          const grant = grantFor(request, deps, auth.publisher.id, replay.serve);
+          return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}) };
+        }
         case "rejected":
           return { kind: "no_fill" };
         case "unauthorized":
@@ -142,8 +169,9 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
             ? await deps.record(keyHash, attempt.id, category)
             : await deps.record(keyHash, attempt.id, category, request.idempotencyKey);
         if (recorded.outcome === "recorded") {
-          // 5. Sirf 5 public fields
-          return { kind: "ad", ad: publicFields(recorded.replayedAd ?? attempt) };
+          // 5. Sirf 5 public fields (+ opt-in par tracking, sirf is record ho chuki serve ke liye)
+          const grant = grantFor(request, deps, auth.publisher.id, recorded.serve);
+          return { kind: "ad", ad: publicFields(recorded.replayedAd ?? attempt), ...(grant ? { tracking: grant } : {}) };
         }
         if (recorded.outcome !== "rejected") return { kind: "unavailable" };
       }
