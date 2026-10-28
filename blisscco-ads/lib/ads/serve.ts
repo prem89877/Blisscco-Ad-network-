@@ -9,7 +9,7 @@ import type { MatchedAd, MatchRequest } from "./types";
 //
 // Flow (har kadam fail-closed):
 //   1. authorize   : publisher key + publisher/profile active + rate limit           (database)
-//   2. category    : signal ko canonical slug me badlo; invalid/sensitive/unsupported => no-fill
+//   2. category    : topic (+ publisher ke optional fallback_topics) ko canonical slugs me badlo; sensitive topic => no-fill, fallback nahi
 //   3. select      : candidates load + eligibility + EK creative                      (TypeScript selection layer)
 //   4. record      : creative dobara verify + serve log + daily counter               (database)
 //   5. respond     : record hone ke BAAD hi ad wapas; warna no-fill
@@ -97,42 +97,56 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
       }
     }
 
-    // 2. Category signal: sirf ek chhota supported category (alias/sensitive/unsupported ka faisla taxonomy karti hai)
-    const resolved = resolveCategory(request.topic);
-    if (!resolved.ok) return { kind: "no_fill" };
-
-    // 3. Selection (publisher ka status authorize se aaya hai, caller ne nahi bheja)
-    const outcome = await deps.select(
-      {
-        publisher: auth.publisher,
-        category: resolved.category,
-        excludeCreativeIds: request.excludeAdIds,
-      },
-      auth.unitCostUsd,
-    );
-    if (!outcome.fill) {
-      // Database padhne me dikkat = outage (503), "koi ad nahi" (200 no-fill) nahi: dono me farak dikhna chahiye.
-      if (outcome.reason === "candidate_load_failed") return { kind: "unavailable" };
-      return { kind: "no_fill" };
+    // 2. Category plan: `topic` pehle, phir publisher ke diye `fallbackTopics` (max 2, priority order). Sab kuch exact slug/alias
+    //    hai (substring/fuzzy nahi), koi category infer nahi hoti. Sensitive `topic` => seedha no-fill: us par fallback se bhi ad nahi.
+    //    Sensitive/unsupported/duplicate fallback entry chup-chaap chhod di jaati hai. `topic` khud unsupported ho (jaise legacy beauty)
+    //    toh fallbacks try ho sakte hain: publisher ne unhe khud bheja hai.
+    const primary = resolveCategory(request.topic);
+    if (!primary.ok && primary.reason === "sensitive_category") return { kind: "no_fill" };
+    const plan: CategorySlug[] = primary.ok ? [primary.category] : [];
+    for (const raw of request.fallbackTopics ?? []) {
+      const next = resolveCategory(raw);
+      if (next.ok && !plan.includes(next.category)) plan.push(next.category);
     }
+    if (plan.length === 0) return { kind: "no_fill" };
 
-    // 4. Record: database creative ko dobara verify karta hai. Record na ho toh ad nahi dete.
+    // 3 + 4. Har category me: selection, phir record. Record calls ki kul seema poori request ke liye ek hi hai (latency bounded).
+    //    Database creative ko dobara verify karta hai. Record na ho toh ad nahi dete.
     //    Retry-key hone par wahi key do requests ek saath aayein toh database ek hi baar charge karta hai; doosri ko
     //    pehle charge hue creative ka ad milta hai (replayedAd), selection ne kuch bhi chuna ho.
     //    Agar DB chune hue creative ko reject kare (budget khatam / race / paused), toh selection ke agle eligible
-    //    creatives (max 2) try hote hain: kul MAX_RECORD_ATTEMPTS record calls. Reject par kuch likha nahi jaata
-    //    (na spend, na idempotency key), isliye agla try safe hai. Error par ruk jaate hain (503), koi guess nahi.
-    const attempts = [outcome.ad, ...(outcome.nextAds ?? [])].slice(0, MAX_RECORD_ATTEMPTS);
-    for (const attempt of attempts) {
-      const recorded =
-        request.idempotencyKey === undefined
-          ? await deps.record(keyHash, attempt.id, resolved.category)
-          : await deps.record(keyHash, attempt.id, resolved.category, request.idempotencyKey);
-      if (recorded.outcome === "recorded") {
-        // 5. Sirf 5 public fields
-        return { kind: "ad", ad: publicFields(recorded.replayedAd ?? attempt) };
+    //    creatives (max 2) try hote hain. Reject par kuch likha nahi jaata (na spend, na idempotency key), isliye agla try safe hai.
+    //    Category me koi ad na mile (ya sab reject) toh agli category. Error par ruk jaate hain (503), koi guess nahi.
+    //    Sirf EK ad charge hota hai: pehla jo record ho jaye.
+    let recordsLeft = MAX_RECORD_ATTEMPTS;
+    for (const category of plan) {
+      if (recordsLeft <= 0) break;
+      const outcome = await deps.select(
+        {
+          publisher: auth.publisher,
+          category,
+          excludeCreativeIds: request.excludeAdIds,
+        },
+        auth.unitCostUsd,
+      );
+      if (!outcome.fill) {
+        // Database padhne me dikkat = outage (503), "koi ad nahi" (200 no-fill) nahi: dono me farak dikhna chahiye.
+        if (outcome.reason === "candidate_load_failed") return { kind: "unavailable" };
+        continue;
       }
-      if (recorded.outcome !== "rejected") return { kind: "unavailable" };
+      const attempts = [outcome.ad, ...(outcome.nextAds ?? [])].slice(0, recordsLeft);
+      for (const attempt of attempts) {
+        recordsLeft -= 1;
+        const recorded =
+          request.idempotencyKey === undefined
+            ? await deps.record(keyHash, attempt.id, category)
+            : await deps.record(keyHash, attempt.id, category, request.idempotencyKey);
+        if (recorded.outcome === "recorded") {
+          // 5. Sirf 5 public fields
+          return { kind: "ad", ad: publicFields(recorded.replayedAd ?? attempt) };
+        }
+        if (recorded.outcome !== "rejected") return { kind: "unavailable" };
+      }
     }
     return { kind: "no_fill" };
   } catch {

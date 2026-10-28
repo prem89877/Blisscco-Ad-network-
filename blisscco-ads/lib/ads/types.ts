@@ -13,6 +13,12 @@ export type MatchRequest = {
   topic: string;
   excludeAdIds: string[];
   /**
+   * Optional (Day 11 Part 3): publisher ke khud diye 1-2 aur topic slugs, priority order me. `topic` par koi ad na mile
+   * (unsupported / eligible nahi / DB ne reject kiya) tabhi agla try hota hai. Insaan ya page ke baare me kuch infer nahi hota.
+   * Sensitive `topic` par fallback kabhi nahi chalta (seedha no-fill).
+   */
+  fallbackTopics?: string[];
+  /**
    * Optional retry-key (HTTP header `Idempotency-Key`, body me nahi). Wahi key dobara aaye toh dobara charge nahi hota,
    * wahi ad milta hai. Header na ho toh pehle jaisa behaviour.
    */

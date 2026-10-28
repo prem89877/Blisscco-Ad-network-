@@ -2,14 +2,16 @@ import { isUuid } from "@/lib/campaigns/constants";
 import type { MatchRequest } from "./types";
 
 // Publisher ki request ki strict jaanch. Pure functions (database/network nahi).
-// Privacy: sirf do fields allowed hain. Koi bhi aur field (prompt, messages, user, ...) = reject,
-// taaki galti se bhi conversation text hum tak na pahunche.
+// Privacy: sirf teen fields allowed hain (topic, fallback_topics, exclude_ad_ids). Koi bhi aur field (prompt, question,
+// messages, context, keywords, user, ...) = reject, taaki galti se bhi conversation text hum tak na pahunche.
+// `fallback_topics` (Day 11 Part 3) bhi free text nahi hai: har entry wahi strict slug hai jo `topic` hai.
 
 export const MAX_BODY_BYTES = 2048;
 export const MAX_EXCLUDE_IDS = 20;
+export const MAX_FALLBACK_TOPICS = 2;
 
 const TOPIC_RE = /^[a-z0-9_]{1,50}$/;
-const ALLOWED_KEYS: readonly string[] = ["topic", "exclude_ad_ids"];
+const ALLOWED_KEYS: readonly string[] = ["topic", "fallback_topics", "exclude_ad_ids"];
 
 // Idempotency-Key header: 8-64 characters, sirf letters/digits/underscore/hyphen (UUID bhi chalta hai). SQL ka CHECK bhi yahi hai.
 export const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -55,6 +57,25 @@ export function parseMatchRequest(raw: string): ParseResult {
     return { ok: false, reason: "invalid_topic" };
   }
 
+  // Optional: publisher ke apne diye 0-2 aur topic slugs (priority order). Sirf tab try hote hain jab `topic` par ad na mile.
+  // Galat type/shape/slug => wahi 400 `invalid_topic` (naya reason nahi, taaki purane clients ka error-handling na tute).
+  // Khali array = field na bhejne jaisa. Duplicate (topic ke barabar bhi) chup-chaap hata diye jaate hain.
+  const fallbackTopics: string[] = [];
+  const fallback = obj.fallback_topics;
+  if (fallback !== undefined) {
+    if (!Array.isArray(fallback) || fallback.length > MAX_FALLBACK_TOPICS) {
+      return { ok: false, reason: "invalid_topic" };
+    }
+    const seenTopics = new Set<string>([topic]);
+    for (const item of fallback) {
+      if (typeof item !== "string" || !TOPIC_RE.test(item)) return { ok: false, reason: "invalid_topic" };
+      if (!seenTopics.has(item)) {
+        seenTopics.add(item);
+        fallbackTopics.push(item);
+      }
+    }
+  }
+
   let excludeAdIds: string[] = [];
   const exclude = obj.exclude_ad_ids;
   if (exclude !== undefined) {
@@ -71,5 +92,6 @@ export function parseMatchRequest(raw: string): ParseResult {
     excludeAdIds = Array.from(seen);
   }
 
-  return { ok: true, value: { topic, excludeAdIds } };
+  // `fallbackTopics` key tabhi aati hai jab sach me kuch ho: purani requests ka parsed shape bilkul pehle jaisa rehta hai.
+  return { ok: true, value: { topic, excludeAdIds, ...(fallbackTopics.length > 0 ? { fallbackTopics } : {}) } };
 }

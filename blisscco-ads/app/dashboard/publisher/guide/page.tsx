@@ -166,7 +166,7 @@ const ERRORS: Array<{ status: string; body: string; meaning: string; action: str
   { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, or an Idempotency-Key that is not 8 to 64 letters, digits, _ or -; the reason is invalid_idempotency_key).", action: "Do not retry. Fix the request." },
   { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked or expired, or the publisher account is not active (pending or suspended). All of these look identical on purpose.", action: "Do not retry. Check the key and the account status on the Publisher page, then create a new key or contact Blisscco." },
   { status: "405", body: "(empty)", meaning: "Any method other than POST. This answer comes from the hosting platform, so it has no JSON body.", action: "Do not retry. Use POST." },
-  { status: "413", body: "payload_too_large", meaning: "Body is over 2048 bytes.", action: "Do not retry. Send only topic and exclude_ad_ids." },
+  { status: "413", body: "payload_too_large", meaning: "Body is over 2048 bytes.", action: "Do not retry. Send only topic, fallback_topics and exclude_ad_ids." },
   { status: "415", body: "unsupported_media_type", meaning: "Content-Type is not application/json.", action: "Do not retry. Fix the header." },
   { status: "429", body: "rate_limited", meaning: "Too many requests for this key in the current minute, or too many wrong keys from your IP address. The response carries Retry-After: 60.", action: "Stop asking for ads until Retry-After has passed, then retry once. If it keeps happening with a correct key, you are over your limit: slow down." },
   { status: "503 (or any 5xx)", body: "fill:false + error:unavailable", meaning: "Temporary failure on Blisscco's side.", action: "Retry at most once or twice, after 1 second or more with jitter, and send the SAME Idempotency-Key. Then continue without an ad." },
@@ -289,6 +289,7 @@ export default async function PublisherGuidePage() {
           <p className="mt-3 text-sm font-medium">JSON body</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li><code>topic</code> (required): lowercase slug, 1 to 50 characters of a-z, 0-9 and underscore. Not free text.</li>
+            <li><code>fallback_topics</code> (optional): up to 2 more topic slugs, in your order of preference, in the same format as <code>topic</code>. They are tried only if there is no eligible ad for <code>topic</code>. Nothing is guessed from page text. If <code>topic</code> is a sensitive subject (for example health, religion or politics) no ad is served and the fallbacks are not used.</li>
             <li><code>exclude_ad_ids</code> (optional): up to 20 ad ids you already showed, as UUIDs. This is best-effort: if there is no other eligible ad, the same ad can come back.</li>
             <li>No other field is accepted. The body must be 2048 bytes or smaller.</li>
             <li>The key is not a body field: it goes only in the <code>Authorization</code> header, and only the format <code>Bearer</code> + a space + the key is accepted.</li>

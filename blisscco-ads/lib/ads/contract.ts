@@ -13,10 +13,15 @@ import type { ParseFailure } from "./validation";
 // Request
 // ---------------------------------------------------------------------------
 
-/** JSON body. Sirf yahi do fields allowed hain; baaki sab 400 `unknown_field`. */
+/** JSON body. Sirf yahi teen fields allowed hain; baaki sab 400 `unknown_field`. */
 export type MatchRequestBody = {
   /** Lowercase slug: ^[a-z0-9_]{1,50}$ (jaise "gaming"). Free text/prompt nahi. */
   topic: string;
+  /**
+   * Optional. Max 2 aur topic slugs (wahi format jo `topic` ka hai), priority order me. Sirf tab try hote hain jab `topic` par
+   * ad na mile. Galat entry => 400 `invalid_topic`. Free text/prompt nahi.
+   */
+  fallback_topics?: string[];
   /** Optional. Pichhle dikhaye ad ids (UUID), max 20. */
   exclude_ad_ids?: string[];
 };

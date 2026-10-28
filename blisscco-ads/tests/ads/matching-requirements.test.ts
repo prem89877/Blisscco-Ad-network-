@@ -174,7 +174,7 @@ describe("R2: coding tools category matches an eligible Developer Tools campaign
 });
 
 // ===========================================================================
-describe("R3: gaming topic never returns an unrelated category (no fallback policy exists)", () => {
+describe("R3: gaming topic never returns an unrelated category (no implicit fallback; only the publisher's explicit fallback_topics, Day 11 Part 3)", () => {
   it("only technology + developer tools campaigns exist -> no-fill for gaming", async () => {
     useDb({ rows: [techRow(), devRow()] });
     const { res, json } = await call({ topic: "gaming" });
@@ -196,11 +196,15 @@ describe("R3: gaming topic never returns an unrelated category (no fallback poli
     assert.equal(adOf(json).id, CR_GAME);
   });
 
-  it("no fallback policy is present in the matching sources", () => {
-    for (const f of ["lib/ads/category-matching.ts", "lib/ads/selection.ts", "lib/ads/serve.ts"]) {
+  it("no IMPLICIT fallback policy is present in the matching sources (only the publisher's explicit fallbackTopics field)", () => {
+    // category-matching.ts and selection.ts: ab bhi koi fallback shabd/policy nahi.
+    for (const f of ["lib/ads/category-matching.ts", "lib/ads/selection.ts"]) {
       const src = readFileSync(path.join(ROOT, f), "utf8").replace(/\/\/.*$/gm, "");
       assert.equal(/fallback|default_?category|any_?category/i.test(src), false, f);
     }
+    // serve.ts: sirf request ka explicit `fallbackTopics` field (publisher ke diye slugs); koi default/any/related category nahi.
+    const serve = readFileSync(path.join(ROOT, "lib/ads/serve.ts"), "utf8").replace(/\/\/.*$/gm, "");
+    assert.equal(/fallback|default_?category|any_?category|related/i.test(serve.replace(/fallbackTopics/g, "")), false, "serve.ts");
   });
 });
 
