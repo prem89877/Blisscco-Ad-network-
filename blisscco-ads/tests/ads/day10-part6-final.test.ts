@@ -182,7 +182,8 @@ describe("Day 10 part 6: Revive Adserver and tracking are not claimed or duplica
 
   it("no impression / click / conversion route, table, pixel or beacon exists", () => {
     const sql = walk("supabase/sql", [".sql"]).filter((f) => !/-tests?\.sql$/.test(f)).map((f) => read(f)).join("\n");
-    assert.equal(/create table[^;]*(impression|click|conversion)/i.test(sql), false);
+    // Day 12 part 2: generic `ad_events` table ab hai (jaan-boojh kar). Rok sirf impression/click/conversion NAAM wali alag tables par hai.
+    assert.equal(/create table\s+(if not exists\s+)?(public\.)?\w*(impression|click|conversion)\w*/i.test(sql), false);
     for (const f of sourceFiles.filter((x) => !x.includes("demo-data") && !x.includes("components/dashboard"))) {
       const src = read(f);
       assert.equal(/sendBeacon|tracking pixel|new Image\(\)\.src|\/api\/(click|impression|track)/i.test(src), false, f);

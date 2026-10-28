@@ -25,8 +25,10 @@ Security policies (RLS, grants, guard triggers) bhi pehle se `day-3-5-security.s
 | 11 | `day-9-3-budget-rules.sql` | `total_budget <= 10,000,000` check, trigger `campaigns_guard_budget` (budget kharch se neeche nahi) |
 | 12 | `day-9-5-atomic-spend-idempotency.sql` | `ad_serve_requests`, 4-arg `record_ad_serve` (`Idempotency-Key`), `find_idempotent_serve`, trigger `campaign_spend_guard_limits` |
 | 13 | `day-9-7-lifecycle-guards.sql` | resume budget guard, admin approve checks, `replay_serve` schedule check, `load_ad_candidates` exhausted filter |
+| 14 | `day-12-1-serve-ref.sql` | `ad_serve_log.serve_ref` (auto default), unique index, format/required CHECKs, attribution unique key |
+| 15 | `day-12-2-ad-events.sql` | `ad_events` (serve / impression / click), dedupe unique rules, composite attribution FK, guard trigger, RLS + revoke, `purge_old_ad_logs` ab events bhi hatata hai |
 
-Day 9 ka order **9-3 -> 9-5 -> 9-7** hi hona chahiye (har file pichli par depend karti hai). Rollback-only test files: `day-9-2`, `day-9-4`, `day-9-6`, `day-9-8` (kuch save nahi karte). Impression/click ka koi table/column abhi nahi hai; kharch sirf `record_ad_serve` likhta hai.
+Day 9 ka order **9-3 -> 9-5 -> 9-7** hi hona chahiye (har file pichli par depend karti hai). Rollback-only test files: `day-9-2`, `day-9-4`, `day-9-6`, `day-9-8` (kuch save nahi karte). Day 12 ke `ad_events` table me abhi koi function nahi likhta (writer baad me), aur kharch ab bhi sirf `record_ad_serve` likhta hai (serve ko impression nahi ginte). Day 12 order: **12-1 -> 12-2** (verify: `day-12-3`, rollback-only tests: `day-12-4`).
 
 Test files (`day-3-6`, `day-4-2`, `day-4-4`, `day-4-5`, `day-5-5`) schema nahi badalte, sirf jaanchte hain.
 
@@ -45,7 +47,7 @@ Test files (`day-3-6`, `day-4-2`, `day-4-4`, `day-4-5`, `day-5-5`) schema nahi b
 - **campaigns**: advertiser ke campaigns: name, optional description, category, status (`draft | pending_review | active | paused | completed | rejected | archived`), budget, schedule (start_date, end_date). `advertiser_id -> advertisers`.
 - **ad_creatives**: campaign se jude ad text (headline, body, cta_text), https destination_url, review status (`draft | pending_review | approved | rejected | paused | archived`), rejection_reason, reviewed_by/at. `campaign_id -> campaigns`.
 
-Day 5 ke extra tables (core 5 ke upar): `ad_categories` (controlled taxonomy), `publisher_api_keys` (sirf hash), `ad_platform_settings`, `ad_serve_log`, `creative_serve_daily`, `campaign_spend_daily`, `api_rate_limits`.
+Day 5 ke extra tables (core 5 ke upar): `ad_categories` (controlled taxonomy), `publisher_api_keys` (sirf hash), `ad_platform_settings`, `ad_serve_log`, `creative_serve_daily`, `campaign_spend_daily`, `api_rate_limits`. Baad ke: `ad_serve_requests` (Day 9) aur `ad_events` (Day 12, serve/impression/click, sirf attribution + dedupe data).
 
 ## 3. Requirement checklist (purani files se)
 

@@ -50,9 +50,16 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
     assert.doesNotMatch(report, /Revive (is|hai) integrated(?! NAHI)/i);
   });
 
-  it("report says migrations are proposed only, and no migration for it exists in supabase/sql", () => {
+  it("report says migrations were proposed only; Day 12 part 2 later added exactly the two DB-foundation migrations, nothing else", () => {
     assert.match(report, /PROPOSED, abhi koi nahi chali/);
-    assert.equal(/ad_events|record_ad_event|serve_ref/i.test(sqlText), false, "an event/serve_ref migration slipped into supabase/sql");
+    // Part 2 ne sirf 2 migration files + 1 read-only verify file joddi (ad_events + serve_ref). Writer function (record_ad_event) abhi bhi nahi hai.
+    const withEventSql = sql.filter((f) => /ad_events|serve_ref/i.test(read(f))).map((f) => f.replace(/\\/g, "/")).sort();
+    assert.deepEqual(withEventSql, [
+      "supabase/sql/day-12-1-serve-ref.sql",
+      "supabase/sql/day-12-2-ad-events.sql",
+      "supabase/sql/day-12-3-event-verify.sql",
+    ]);
+    assert.equal(/record_ad_event/i.test(sqlText), false, "a record_ad_event writer slipped into supabase/sql");
   });
 });
 

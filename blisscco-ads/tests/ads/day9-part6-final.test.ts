@@ -158,12 +158,15 @@ describe("Day 9 part 6: spend accounting stays separate from impression/click tr
     for (const f of code) {
       assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `route/file naam: ${f}`);
     }
+    // Day 12 part 2 ke baad: ek generic `ad_events` table (serve/impression/click type column ke saath) jaan-boojh kar hai.
+    // Isliye ab rok sirf us par hai jo table KA NAAM impression/click rakhe (alag-alag tracking tables), table ke andar ke shabd par nahi.
+    const separateTrackingTable = /create\s+table\s+(if\s+not\s+exists\s+)?(public\.)?\w*(impression|click)\w*/;
     for (const f of DAY9_MIGRATIONS) {
       const sql = read(`${SQL_DIR}/${f}`).toLowerCase();
-      assert.doesNotMatch(sql, /create\s+table[^;]*(impression|click)/, f);
+      assert.doesNotMatch(sql, separateTrackingTable, f);
     }
     for (const f of allSql) {
-      assert.doesNotMatch(read(`${SQL_DIR}/${f}`).toLowerCase(), /create\s+table[^;]*(impression|click)/, f);
+      assert.doesNotMatch(read(`${SQL_DIR}/${f}`).toLowerCase(), separateTrackingTable, f);
     }
   });
 
