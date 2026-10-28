@@ -1,3 +1,4 @@
+import { normalizeCategoryToken } from "../ads/category-matching";
 import { isCampaignStatus, type CampaignDbStatus } from "./constants";
 
 // Campaign list ke search/filter. URL ?q=&status=&category= se aate hain, isliye har value ko
@@ -17,6 +18,15 @@ function first(v: string | string[] | undefined): string {
   return v ?? "";
 }
 
+/**
+ * ?category= ko wahi safai (casing, spaces, hyphen) jo matching me hoti hai, taaki "Gaming " filter chup-chaap gayab na ho.
+ * Alias nahi lagta (tech -> technology nahi): filter DB ki asli category par chalta hai, purani legacy (beauty) par bhi.
+ */
+function cleanCategory(raw: string): string {
+  const n = normalizeCategoryToken(raw);
+  return n.ok && CATEGORY_SLUG_RE.test(n.token) ? n.token : "";
+}
+
 export function parseFilters(sp: RawParams): CampaignFilters {
   const q = first(sp.q)
     .replace(/[\u0000-\u001f*]/g, " ") // control chars aur '*' (PostgREST wildcard) hata do
@@ -28,7 +38,7 @@ export function parseFilters(sp: RawParams): CampaignFilters {
   return {
     q,
     status: isCampaignStatus(status) ? status : "",
-    category: CATEGORY_SLUG_RE.test(category) ? category : "",
+    category: cleanCategory(category),
   };
 }
 
