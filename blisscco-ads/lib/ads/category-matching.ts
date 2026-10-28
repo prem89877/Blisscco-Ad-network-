@@ -242,13 +242,26 @@ function isWellFormed(c: AdCandidate): boolean {
  * (userinfo wali rok day-5-11 migration se aati hai), par server-side snapshot par bharosa nahi karte:
  * adhoora ya shaky creative kabhi publisher tak nahi jaana chahiye.
  */
+// Day 11 Part 5: control characters (NUL, BEL, ESC, DEL, C1) aur bidi-override characters (text ko ulta/chhupa dikhate hain) creative text me
+// nahi chalte. Body me sirf tab / newline / carriage return allowed hain. ZWJ/ZWNJ (emoji, Indic scripts) allowed hain.
+const CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/;
+const CONTROL_EXCEPT_WHITESPACE_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+const BIDI_OVERRIDE_RE = /[\u202a-\u202e\u2066-\u2069]/;
+// URL me host ko chhupane wale invisible characters bhi nahi chalte (zero-width space, word joiner, BOM, soft hyphen, LRM/RLM).
+const URL_INVISIBLE_RE = /[\u00ad\u200b-\u200f\u2060-\u2064\ufeff]/;
+
 function isCompleteCreative(ad: MatchedAd): boolean {
-  const textOk = (v: unknown, max: number): boolean =>
-    typeof v === "string" && v.trim().length >= 1 && v.trim().length <= max;
-  if (!textOk(ad.headline, 90) || !textOk(ad.body, 300)) return false;
+  const textOk = (v: unknown, max: number, allowWhitespaceControls = false): boolean =>
+    typeof v === "string" &&
+    v.trim().length >= 1 &&
+    v.trim().length <= max &&
+    !(allowWhitespaceControls ? CONTROL_EXCEPT_WHITESPACE_RE : CONTROL_RE).test(v) &&
+    !BIDI_OVERRIDE_RE.test(v);
+  if (!textOk(ad.headline, 90) || !textOk(ad.body, 300, true)) return false;
   if (!(ad.ctaText === null || textOk(ad.ctaText, 30))) return false;
   const url = ad.destinationUrl;
   if (typeof url !== "string" || url.length > 2048 || !/^https:\/\/[^\s]+$/i.test(url)) return false;
+  if (CONTROL_RE.test(url) || BIDI_OVERRIDE_RE.test(url) || URL_INVISIBLE_RE.test(url)) return false;
   // "https://trusted.com@evil.com" jaise URL (userinfo) phishing me kaam aate hain: browser asli host evil.com ko jaata hai.
   // "@" path/query me theek hai (https://example.com/a@b); sirf host se pehle wala "@" reject hota hai.
   return !/^https:\/\/[^/?#]*@/i.test(url);
