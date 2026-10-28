@@ -104,6 +104,31 @@ export type PublicSelectionResponse =
   | { fill: true; sponsored: true; ad: MatchedAd }
   | { fill: false };
 
+/**
+ * Record reject hone par try hone wale agle creatives (Day 11 Part 4). Ranking order bachta hai, bas ek farak:
+ * pehle ALAG campaigns ke best creatives, phir (jagah bachi ho toh) usi campaign ke siblings.
+ * Kyun: DB campaign-level wajah se reject karta hai (total/daily budget khatam, campaign usi pal pause) toh us campaign ke saare
+ * siblings bhi reject honge; agar agle 2 attempts siblings par kharch ho jayein toh doosra eligible campaign kabhi try hi nahi hota
+ * (eligible ad hote hue no-fill). Sirf creative-level wajah (jaise ek creative pause) ho toh bhi sahi chalta hai: sibling tab try hota hai
+ * jab alag campaign ke candidates kam hon. Input array ko badalta nahi.
+ */
+export function pickNextCandidates(ranked: readonly AdCandidate[], max: number): AdCandidate[] {
+  if (ranked.length < 2 || max <= 0) return [];
+  const seenCampaigns = new Set<string>([ranked[0].campaignId.toLowerCase()]);
+  const otherCampaigns: AdCandidate[] = [];
+  const siblings: AdCandidate[] = [];
+  for (const c of ranked.slice(1)) {
+    const key = c.campaignId.toLowerCase();
+    if (seenCampaigns.has(key)) {
+      siblings.push(c);
+    } else {
+      seenCampaigns.add(key);
+      otherCampaigns.push(c);
+    }
+  }
+  return [...otherCampaigns, ...siblings].slice(0, max);
+}
+
 function noFill(reason: NoFillReason): SelectionOutcome {
   return { fill: false, reason };
 }
@@ -152,7 +177,7 @@ export async function selectAd(request: SelectionRequest, deps: SelectionDeps): 
     if (result.status === "rejected") return noFill(result.reason);
     if (result.status === "no_match") return noFill("no_eligible_candidates");
 
-    const nextAds = result.candidates.slice(1, 1 + MAX_NEXT_ADS).map(toPublicAd);
+    const nextAds = pickNextCandidates(result.candidates, MAX_NEXT_ADS).map(toPublicAd);
     return {
       fill: true,
       ad: toPublicAd(result.selected),
