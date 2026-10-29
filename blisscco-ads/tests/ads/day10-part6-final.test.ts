@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import * as legacyRoute from "@/app/api/ads/match/route";
 import * as v1Route from "@/app/api/v1/ads/match/route";
+import * as impressionRoute from "@/app/api/v1/ads/impression/route";
 import { FAILURE_LIMIT } from "@/lib/ads/ip-guard";
 import { MAX_BODY_BYTES, MAX_EXCLUDE_IDS } from "@/lib/ads/validation";
 import { KEY_PREFIX, buildKeyParts } from "@/lib/publisher/keys";
@@ -99,6 +100,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
     const importers = sourceFiles.filter((f) => /from "@\/lib\/supabase\/admin"/.test(read(f))).sort();
     assert.deepEqual(importers.map((f) => f.split(path.sep).join("/")), [
       "lib/ads/candidate-loader.ts",
+      "lib/ads/impression-db.ts",
       "lib/ads/match.ts",
       "lib/ads/serve-db.ts",
       "lib/publisher/keys-db.ts",
@@ -135,10 +137,10 @@ describe("Day 10 part 6: secrets are not exposed", () => {
 });
 
 describe("Day 10 part 6: API surface and docs match the code", () => {
-  it("only the two match routes exist under app/api (plus the health check) and both export only POST", () => {
+  it("only the two match routes and the impression route exist under app/api (plus the health check) and all export only POST", () => {
     const routes = walk("app/api", [".ts"]).map((f) => f.split(path.sep).join("/")).sort();
-    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/match/route.ts"]);
-    for (const mod of [legacyRoute, v1Route]) {
+    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
+    for (const mod of [legacyRoute, v1Route, impressionRoute]) {
       assert.deepEqual(Object.keys(mod).filter((k) => /^[A-Z]+$/.test(k)), ["POST"]);
     }
   });

@@ -528,7 +528,10 @@ for (const route of ROUTES) {
 
 // ---------------------------------------------------------------------------------------------------------------------
 describe("day 11 part 4 | responsibilities stay separated (serving here; tracking elsewhere)", () => {
-  const files = readdirSync(path.join(ROOT, "lib/ads")).filter((f) => f.endsWith(".ts"));
+  // Day 12 part 4: impression ingestion (alag layer, serve se alag) ke teen files yahan "serving code" nahi hain. Serving code ab bhi impression se bilkul alag hai
+  // (tests/ads/day12-part4-impression.test.ts ye static check karta hai).
+  const IMPRESSION_LAYER = ["impression.ts", "impression-db.ts", "impression-handler.ts"];
+  const files = readdirSync(path.join(ROOT, "lib/ads")).filter((f) => f.endsWith(".ts") && !IMPRESSION_LAYER.includes(f));
   const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
   it("no randomness anywhere in the serving code", () => {

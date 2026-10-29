@@ -29,7 +29,7 @@ export const MAX_TTL_SECONDS = 86_400;
 export const MAX_TOKEN_LENGTH = 512;
 export const MIN_SECRET_LENGTH = 32;
 const MAX_SECRET_LENGTH = 512;
-const CLOCK_SKEW_SECONDS = 60;
+export const CLOCK_SKEW_SECONDS = 60;
 
 export const SERVE_REF_RE = /^bsr_[0-9a-f]{40}$/;
 const PUBLISHER_TAG_RE = /^[0-9a-f]{32}$/;
@@ -81,7 +81,7 @@ export function readTrackingConfig(env: Record<string, string | undefined>): Tra
 // Helpers
 // ---------------------------------------------------------------------------
 
-function hmac(secret: string, data: string): Buffer {
+export function hmac(secret: string, data: string): Buffer {
   return createHmac("sha256", secret).update(data, "utf8").digest();
 }
 
@@ -94,12 +94,12 @@ function sign(secret: string, payloadB64: string): Buffer {
   return hmac(secret, `blisscco:tracking:${TRACKING_TOKEN_PREFIX}:${payloadB64}`);
 }
 
-function safeEqual(a: Buffer, b: Buffer): boolean {
+export function safeEqual(a: Buffer, b: Buffer): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /** Sirf canonical base64url (padding/extra characters/alag encoding wale "dusre roop" reject): token malleability band. */
-function decodeCanonicalB64Url(s: string): Buffer | null {
+export function decodeCanonicalB64Url(s: string): Buffer | null {
   if (s.length === 0 || !B64URL_RE.test(s)) return null;
   const buf = Buffer.from(s, "base64url");
   return buf.toString("base64url") === s ? buf : null;

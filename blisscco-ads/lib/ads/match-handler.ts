@@ -48,7 +48,7 @@ export function isJsonContentType(header: string | null): boolean {
 }
 
 /** Body ko limit ke andar padhta hai (chunked body se memory na bhare). Limit paar ho toh null. */
-async function readBodyLimited(request: Request, maxBytes: number): Promise<string | null> {
+export async function readBodyLimited(request: Request, maxBytes: number): Promise<string | null> {
   if (!request.body) return "";
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];

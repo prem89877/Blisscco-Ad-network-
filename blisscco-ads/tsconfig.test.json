@@ -43,6 +43,7 @@
     "app/dashboard/publisher/actions.ts",
     "app/api/ads/match/route.ts",
     "app/api/v1/ads/match/route.ts",
+    "app/api/v1/ads/impression/route.ts",
     "tests/**/*.ts"
   ],
   "exclude": [

@@ -1,5 +1,7 @@
 import "server-only";
 import { loadAdCandidates } from "./candidate-loader";
+import { acceptImpression, type ImpressionResult } from "./impression";
+import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { selectAd } from "./selection";
 import { serveAd, type ServeDeps, type ServeResult } from "./serve";
 import { authorizePublisher, findIdempotentServe, recordServe } from "./serve-db";
@@ -47,4 +49,15 @@ const productionDeps: ServeDeps = {
 
 export function serveAdForPublisher(keyHash: string, request: MatchRequest): Promise<ServeResult> {
   return serveAd(keyHash, request, productionDeps);
+}
+
+// Day 12 Part 4: impression. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Token + serve ka milan + atomic write
+// (day-12-7 SQL: record_ad_impression). Serve ki charge/spend ka isse koi lena-dena nahi: impression par doosri baar charge nahi hota.
+export function acceptImpressionForToken(token: unknown, event: unknown): Promise<ImpressionResult> {
+  return acceptImpression(token, event, {
+    config: trackingConfig(),
+    nowMs: () => Date.now(),
+    lookupServe: lookupServeForEvent,
+    record: recordImpressionEvent,
+  });
 }

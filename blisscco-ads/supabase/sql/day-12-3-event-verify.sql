@@ -92,10 +92,10 @@ with checks(check_name, passed, detail) as (
     (select count(*) = 2 and bool_and(position('ad_events' in prosrc) = 0)
        from pg_proc where pronamespace = 'public'::regnamespace and proname = 'record_ad_serve'),
     'both overloads present; none touches ad_events'),
-  ('no function writes to ad_events yet (writer comes in a later part)',
+  ('only the impression writer (day-12-7, record_ad_impression) may write to ad_events; nothing else does',
     (select count(*) = 0 from pg_proc where pronamespace in ('public'::regnamespace, 'private'::regnamespace)
-       and proname <> 'purge_old_ad_logs' and prosrc ilike '%insert into public.ad_events%'),
-    'ad_events has no writer function in this part'),
+       and proname not in ('purge_old_ad_logs', 'record_ad_impression') and prosrc ilike '%insert into public.ad_events%'),
+    'single writer (day-12-7); before day-12-7 there is none'),
 
   -- ---- data sanity (read-only) ----
   ('every event matches its serve (publisher/campaign/creative)',
