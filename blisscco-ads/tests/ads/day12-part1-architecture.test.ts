@@ -69,6 +69,8 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
       // Part 4: impression ka eklauta writer + uski read-only jaanch.
       "supabase/sql/day-12-7-record-ad-impression.sql",
       "supabase/sql/day-12-8-impression-verify.sql",
+      // Day 13 part 2: ledger migration serve_ref ko sirf aage pass karti hai (record_ad_serve ke andar). ad_events ko kabhi nahi chhuti. (*-tests.sql is list se bahar hain.)
+      "supabase/sql/day-13-4-ledger-service.sql",
     ]);
     assert.equal(/record_ad_event/i.test(sqlText), false, "a record_ad_event writer slipped into supabase/sql");
   });

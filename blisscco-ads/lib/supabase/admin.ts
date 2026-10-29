@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // SIRF server ke liye. Secret key RLS bypass karti hai.
 // "server-only" ki wajah se ise client component me import karoge toh build fail hoga.
 // Sirf lib/ads/match.ts (purana single-call bridge), lib/ads/candidate-loader.ts (read-only loader), lib/ads/serve-db.ts (authorize + serve record)
-// aur lib/publisher/keys-db.ts (publisher key self-service) isse use karte hain. Aur kahin import mat karna.
+// lib/publisher/keys-db.ts (publisher key self-service) aur lib/ledger/ledger-db.ts (ledger ka admin reversal / adjustment, Day 13) isse use karte hain. Aur kahin import mat karna.
 // Har database call ka time-out (Day 7): Supabase atak jaye toh function latka nahi rehta, jaldi 503 milta hai.
 const DB_TIMEOUT_MS = 8000;
 

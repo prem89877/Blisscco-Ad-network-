@@ -16,6 +16,7 @@
   },
   "include": [
     "lib/ads/**/*.ts",
+    "lib/ledger/**/*.ts",
     "lib/campaigns/constants.ts",
     "lib/campaigns/validation.ts",
     "lib/campaigns/filters.ts",

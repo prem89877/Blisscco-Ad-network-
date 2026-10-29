@@ -24,9 +24,10 @@ const noStrings = (t: string) => t.replace(/'(?:[^']|'')*'/g, "''");
 const sql = code(M);
 
 describe("day 13 part 1 | files and dependencies", () => {
-  it("exactly the three Day 13 SQL files exist, named day-N-K, migration sorts first", () => {
+  it("the three Part 1 Day 13 SQL files exist, named day-N-K, migration sorts first (Part 2 adds day-13-4..6 after them)", () => {
     const files = readdirSync(SQL_DIR).filter((f) => /^day-13-/.test(f)).sort();
-    assert.deepEqual(files, [M, VERIFY, TESTS]);
+    assert.deepEqual(files.slice(0, 3), [M, VERIFY, TESTS]);
+    assert.ok(files.slice(3).every((f) => /^day-13-[4-9]-/.test(f)), files.join(", "));
   });
   it("migration documents its dependencies and that it was not run anywhere", () => {
     const text = read(M);

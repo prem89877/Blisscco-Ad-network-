@@ -104,6 +104,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
       "lib/ads/impression-db.ts",
       "lib/ads/match.ts",
       "lib/ads/serve-db.ts",
+      "lib/ledger/ledger-db.ts", // Day 13 part 2: ledger ka server-only service (admin reversal / adjustment rpc)
       "lib/publisher/keys-db.ts",
     ]);
   });
