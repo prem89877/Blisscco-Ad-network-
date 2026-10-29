@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentAccount } from "@/lib/auth/session";
 import { validateAdjustment, validateReversal, type AdjustmentInput, type ReversalInput } from "./validation";
 
 // Financial ledger ki server-side service (service-role SIRF createAdminClient() ke andar).
@@ -11,7 +12,9 @@ import { validateAdjustment, validateReversal, type AdjustmentInput, type Revers
 // KYA YAHAN HOTA HAI: admin ke do kaam, dono SIRF nayi entry (purana kabhi nahi badalta):
 //   * reverseLedgerEntry : kisi entry ka poora ulta.
 //   * addLedgerAdjustment: signed adjustment (wajah + insaan ke naam par).
-// Caller (server action) PEHLE khud admin session check kare aur actorProfileId session se de; DB phir bhi dobara check karta hai (active admin profile).
+// ACTOR KA BHAROSA CALLER PAR NAHI (Day 13 Part 5): ye service har kaam se PEHLE khud login session dekhti hai (getCurrentAccount: role / status database se, token verify ke baad)
+// aur actorProfileId ko session ke user id se milati hai. Session admin + active nahi, ya id match nahi => "forbidden", database ko call hi nahi jaati.
+// Isliye koi bhi (aaj ya kal ka) caller kisi aur admin ke naam par entry nahi likh sakta. DB phir bhi dobara check karta hai (active admin profile).
 // Amount sirf decimal TEXT me jaati hai (float nahi). Log me sirf error code jaata hai: amount, reason, ids kuch nahi.
 
 export type LedgerWriteOutcome =
@@ -46,6 +49,17 @@ export function parseLedgerWrite(data: unknown): LedgerWriteOutcome {
   }
 }
 
+/** Session ka user abhi ACTIVE ADMIN hai aur wahi actorProfileId hai? Koi bhi shaq / error => false (fail closed). */
+async function actorIsVerifiedAdmin(actorProfileId: unknown): Promise<boolean> {
+  if (typeof actorProfileId !== "string") return false;
+  try {
+    const account = await getCurrentAccount();
+    return account !== null && account.role === "admin" && account.status === "active" && account.user.id === actorProfileId;
+  } catch {
+    return false;
+  }
+}
+
 async function callWriter(name: string, args: Record<string, unknown>): Promise<LedgerWriteOutcome> {
   try {
     const { data, error } = await createAdminClient().rpc(name, args);
@@ -62,6 +76,10 @@ async function callWriter(name: string, args: Record<string, unknown>): Promise<
 
 /** Kisi entry ka poora ulta. Wahi idempotencyKey dobara => "duplicate" (nayi row nahi). Campaign ka budget / spend NAHI chhuta. */
 export async function reverseLedgerEntry(input: ReversalInput): Promise<LedgerWriteOutcome> {
+  if (!(await actorIsVerifiedAdmin(input?.actorProfileId))) {
+    console.error("[ledger] blocked: caller is not the signed-in active admin");
+    return { outcome: "forbidden" };
+  }
   const v = validateReversal(input);
   if (!v.ok) return { outcome: "invalid", field: v.field };
   return callWriter("ledger_reverse_entry", {
@@ -74,6 +92,10 @@ export async function reverseLedgerEntry(input: ReversalInput): Promise<LedgerWr
 
 /** Signed adjustment (nayi row). Amount decimal text; 4 se zyada decimal ya 0 => "invalid" (kabhi chupchap round nahi). */
 export async function addLedgerAdjustment(input: AdjustmentInput): Promise<LedgerWriteOutcome> {
+  if (!(await actorIsVerifiedAdmin(input?.actorProfileId))) {
+    console.error("[ledger] blocked: caller is not the signed-in active admin");
+    return { outcome: "forbidden" };
+  }
   const v = validateAdjustment(input);
   if (!v.ok) return { outcome: "invalid", field: v.field };
   const a = v.value;

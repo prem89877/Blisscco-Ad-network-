@@ -6,6 +6,7 @@ import { chargedUnitCostUsd } from "@/lib/ads/category-matching";
 import { addMoney, formatMoney, negateMoney, parseMoney, serveChargeUnitsFromCpm } from "@/lib/ledger/decimal";
 import { isValidShareBps, splitCharge } from "@/lib/ledger/revenue-share";
 import { validateAdjustment, validateReversal } from "@/lib/ledger/validation";
+import "./ledger-session-stub"; // Day 13 Part 5: ledger service ab login session se actor verify karti hai (nakli active admin)
 import { addLedgerAdjustment, parseLedgerWrite, reverseLedgerEntry } from "@/lib/ledger/ledger-db";
 
 // Day 13 Part 2: ledger service. Pure paise ka hisab, input validation, server service (nakli supabase client) aur SQL migration ke TEXT checks.

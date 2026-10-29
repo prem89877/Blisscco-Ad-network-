@@ -102,7 +102,7 @@ export default async function PublisherEarningsPage() {
           <StatCard
             label="Ledger balance"
             value={formatUsdUnits(s.balance)}
-            hint="Earned + adjustments + reversals. This is a record total, not a payout. Payments are not tracked yet."
+            hint="Earned + adjustments + reversals. This is a record total, not a payout. Payout requests are on the Payouts page."
           />
         </section>
 

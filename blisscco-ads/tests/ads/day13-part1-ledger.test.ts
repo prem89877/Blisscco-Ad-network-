@@ -25,7 +25,7 @@ const sql = code(M);
 
 describe("day 13 part 1 | files and dependencies", () => {
   it("the three Part 1 Day 13 SQL files exist, named day-N-K, migration sorts first (Part 2 adds day-13-4..6 after them)", () => {
-    const files = readdirSync(SQL_DIR).filter((f) => /^day-13-/.test(f)).sort();
+    const files = readdirSync(SQL_DIR).filter((f) => /^day-13-\d-/.test(f)).sort(); // Part 4 ki day-13-10 / 11 files alag test me
     assert.deepEqual(files.slice(0, 3), [M, VERIFY, TESTS]);
     assert.ok(files.slice(3).every((f) => /^day-13-[4-9]-/.test(f)), files.join(", "));
   });

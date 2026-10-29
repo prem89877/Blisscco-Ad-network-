@@ -271,7 +271,7 @@ describe("day 13 part 3 | publisher data isolation (fake database that mirrors t
 describe("day 13 part 3 | SQL migration (text checks; real behaviour = day-13-8 on denim)", () => {
   const sql = codeOnly(readSql(MIGRATION));
   it("files exist, sort after Part 2, and say they were not run anywhere", () => {
-    const files = readdirSync(SQL_DIR).filter((f) => /^day-13-[7-9]-/.test(f)).sort();
+    const files = readdirSync(SQL_DIR).filter((f) => /^day-13-[7-8]-/.test(f)).sort(); // day-13-9+ Part 4 (payouts) ki files alag test me
     assert.deepEqual(files, [MIGRATION, SQL_TESTS]);
     assert.match(readSql(MIGRATION), /chalayi NAHI gayi/);
     assert.match(readSql(MIGRATION), /PEHLE TEST project/);

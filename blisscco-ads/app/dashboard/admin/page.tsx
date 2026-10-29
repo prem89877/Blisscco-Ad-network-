@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import AdminDecisionButton from "@/components/admin/AdminDecisionButton";
+import PayoutRequestsPanel from "@/components/admin/PayoutRequestsPanel";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/campaigns/constants";
@@ -209,6 +210,8 @@ export default async function AdminPage() {
         <Panel title="Publishers" note="Latest 30. A publisher's API key works only while the account is active.">
           <AccountList kind="publisher" rows={data.publishers} />
         </Panel>
+
+        <PayoutRequestsPanel />
       </div>
     </>
   );

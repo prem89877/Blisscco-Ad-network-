@@ -41,7 +41,7 @@ export type EarningsRpcClient = {
 export const UNSUPPORTED_BALANCES: readonly { key: "pending" | "approved" | "paid"; label: string }[] = [
   { key: "pending", label: "Pending earnings" },
   { key: "approved", label: "Approved earnings" },
-  { key: "paid", label: "Paid out" },
+  { key: "paid", label: "Earnings marked as paid" },
 ];
 
 function isRecord(v: unknown): v is Record<string, unknown> {

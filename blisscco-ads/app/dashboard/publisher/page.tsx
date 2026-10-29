@@ -111,9 +111,14 @@ export default async function PublisherPage({ searchParams }: Props) {
 
         {pub && (
           <Panel title="Earnings" note="What Blisscco has recorded for your platform, in US dollars.">
-            <Button href="/dashboard/publisher/earnings" variant="secondary">
-              View earnings
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button href="/dashboard/publisher/earnings" variant="secondary">
+                View earnings
+              </Button>
+              <Button href="/dashboard/publisher/payouts" variant="secondary">
+                Payouts
+              </Button>
+            </div>
           </Panel>
         )}
 
