@@ -60,6 +60,8 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
       // Day 12 prompt 5 part 3: click ka doosra writer + uski read-only jaanch (sort order: 12-10 aur 12-11, 12-2 se pehle).
       "supabase/sql/day-12-10-record-ad-click.sql",
       "supabase/sql/day-12-11-click-verify.sql",
+      // Day 12 prompt 6 part 2: analytics ke liye read-only functions (ad_events par koi grant nahi, isliye ye zaroori hain). Sirf padhte hain.
+      "supabase/sql/day-12-12-campaign-analytics.sql",
       "supabase/sql/day-12-2-ad-events.sql",
       "supabase/sql/day-12-3-event-verify.sql",
       "supabase/sql/day-12-5-serve-ref-return.sql",

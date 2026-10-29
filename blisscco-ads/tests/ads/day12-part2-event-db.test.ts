@@ -29,7 +29,10 @@ describe("Day 12 part 2: migrations are additive and safe", () => {
     const files = readdirSync(path.join(ROOT, SQL)).filter((f) => /^day-12-/.test(f)).sort();
     // Part 3 ne day-12-5 (serve_ref wapas lana) aur day-12-6 (uski read-only jaanch) joda. Part 2 ke chaar files jas ke tas.
     assert.deepEqual(files, [
-      "day-12-1-serve-ref.sql", "day-12-10-record-ad-click.sql", "day-12-11-click-verify.sql", /* Day 12 prompt 5 part 3: click writer + read-only jaanch (sort order) */ "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql",
+      "day-12-1-serve-ref.sql", "day-12-10-record-ad-click.sql", "day-12-11-click-verify.sql", /* Day 12 prompt 5 part 3: click writer + read-only jaanch (sort order) */
+      // Day 12 prompt 6 part 2: analytics read-only functions + rollback-only SQL tests
+      "day-12-12-campaign-analytics.sql", "day-12-13-campaign-analytics-tests.sql",
+      "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql",
       "day-12-5-serve-ref-return.sql", "day-12-6-serve-ref-return-verify.sql",
       // Part 4: impression writer, uski read-only jaanch aur rollback-only SQL tests
       "day-12-7-record-ad-impression.sql", "day-12-8-impression-verify.sql", "day-12-9-impression-tests.sql",
