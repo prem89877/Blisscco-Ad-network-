@@ -109,6 +109,14 @@ export default async function PublisherPage({ searchParams }: Props) {
           </Panel>
         )}
 
+        {pub && (
+          <Panel title="Earnings" note="What Blisscco has recorded for your platform, in US dollars.">
+            <Button href="/dashboard/publisher/earnings" variant="secondary">
+              View earnings
+            </Button>
+          </Panel>
+        )}
+
         <Panel title="Integration Guide" note="Covers requests, errors, the Sponsored label and known limitations.">
           <IntegrationSteps />
           <div className="mt-6">

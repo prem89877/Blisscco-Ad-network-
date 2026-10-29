@@ -320,7 +320,7 @@ describe("day 13 part 2 | SQL migration (text checks; SQL not executed)", () => 
       .replace(/\n\n\n+/g, "\n\n");
 
   it("the three Part 2 SQL files exist and sort after the Part 1 files", () => {
-    const files = readdirSync(SQL_DIR).filter((f) => /^day-13-/.test(f)).sort();
+    const files = readdirSync(SQL_DIR).filter((f) => /^day-13-[1-6]-/.test(f)).sort(); // Part 3 ki day-13-7+ files alag test me
     assert.deepEqual(files, ["day-13-1-financial-ledger.sql", "day-13-2-ledger-verify.sql", "day-13-3-ledger-tests.sql", M, VERIFY, TESTS].sort());
     const header = read(M);
     assert.match(header, /chalayi NAHI gayi/);
