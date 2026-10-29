@@ -29,7 +29,7 @@ describe("Day 12 part 2: migrations are additive and safe", () => {
     const files = readdirSync(path.join(ROOT, SQL)).filter((f) => /^day-12-/.test(f)).sort();
     // Part 3 ne day-12-5 (serve_ref wapas lana) aur day-12-6 (uski read-only jaanch) joda. Part 2 ke chaar files jas ke tas.
     assert.deepEqual(files, [
-      "day-12-1-serve-ref.sql", "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql",
+      "day-12-1-serve-ref.sql", "day-12-10-record-ad-click.sql", "day-12-11-click-verify.sql", /* Day 12 prompt 5 part 3: click writer + read-only jaanch (sort order) */ "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql",
       "day-12-5-serve-ref-return.sql", "day-12-6-serve-ref-return-verify.sql",
       // Part 4: impression writer, uski read-only jaanch aur rollback-only SQL tests
       "day-12-7-record-ad-impression.sql", "day-12-8-impression-verify.sql", "day-12-9-impression-tests.sql",
@@ -141,7 +141,7 @@ describe("Day 12 part 2: billing, serve and the API contract are untouched", () 
     // (verify file sirf SELECT hai; uske andar ka "insert into" text ek string literal hai jo dusre functions me ye dhoondta hai.)
     for (const f of readdirSync(path.join(ROOT, SQL)).filter((x) => /^day-/.test(x) && !/-tests?\.sql$/.test(x) && x !== "day-12-3-event-verify.sql")) {
       // Part 4: sirf day-12-7 (record_ad_impression, sirf 'impression') ad_events me likh sakti hai; usse day12-part4 test bandhta hai.
-      if (f === "day-12-7-record-ad-impression.sql" || f === "day-12-8-impression-verify.sql") continue; // (12-8: sirf SELECT, "insert into" ek string literal)
+      if (f === "day-12-7-record-ad-impression.sql" || f === "day-12-8-impression-verify.sql" || f === "day-12-10-record-ad-click.sql" || f === "day-12-11-click-verify.sql") continue; // (12-10: click ka doosra writer, usse day12-prompt5-part3 test bandhta hai) // (12-8: sirf SELECT, "insert into" ek string literal)
       assert.doesNotMatch(code(`${SQL}/${f}`), /insert\s+into\s+public\.ad_events/, f);
     }
     assert.doesNotMatch(code(M2), /after insert on public\.ad_serve_log/);
@@ -152,7 +152,7 @@ describe("Day 12 part 2: billing, serve and the API contract are untouched", () 
       readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
         e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}/${e.name}`] : [],
       );
-    const SERVE_REF_FILES = ["lib/ads/serve.ts", "lib/ads/serve-db.ts", "lib/ads/service.ts", "lib/ads/types.ts", "lib/ads/tracking-token.ts", "lib/ads/impression.ts", "lib/ads/impression-db.ts", "lib/ads/impression-handler.ts", "lib/ads/click-ref.ts"];
+    const SERVE_REF_FILES = ["lib/ads/serve.ts", "lib/ads/serve-db.ts", "lib/ads/service.ts", "lib/ads/types.ts", "lib/ads/tracking-token.ts", "lib/ads/impression.ts", "lib/ads/impression-db.ts", "lib/ads/impression-handler.ts", "lib/ads/click-ref.ts", "lib/ads/click.ts", "lib/ads/click-db.ts", "lib/ads/provider-adapter.ts"];
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
       // Part 4: ad_events / serve_ref sirf impression layer me (impression-db.ts ke rpc ke comments)
       if (!f.startsWith("lib/ads/impression")) assert.doesNotMatch(read(f), /ad_events|record_ad_event/, f);

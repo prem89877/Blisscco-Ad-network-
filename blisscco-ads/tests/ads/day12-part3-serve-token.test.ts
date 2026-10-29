@@ -931,8 +931,9 @@ describe("day 12 part 3 | source safety", () => {
 
   it("no new route, table writer, beacon or pixel was added", () => {
     const routes = walk("app/api").map((f) => f.replace(/\\/g, "/")).sort();
+    // Day 12 prompt 5 part 3 ne jaan-boojh kar click route joda (tests/ads/day12-prompt5-part3-click.test.ts usse bandhta hai).
     // Day 12 part 4 ne jaan-boojh kar ek impression route joda (tests/ads/day12-part4-impression.test.ts usse bandhta hai).
-    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
+    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/click/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
       if (/^lib\/ads\/impression(-db|-handler)?\.ts$/.test(f.replace(/\\/g, "/"))) continue; // impression layer ke comments me ad_events ka naam aata hai
       assert.equal(/sendBeacon|tracking pixel|record_ad_event|\bad_events\b/.test(read(f)), false, f);

@@ -172,6 +172,7 @@ describe("part3: every server action checks auth BEFORE touching the database", 
 describe("part3: service-role key and publisher API keys stay server-side", () => {
   const ADMIN_USERS = new Set([
     "lib/supabase/admin.ts", "lib/publisher/keys-db.ts", "lib/ads/candidate-loader.ts", "lib/ads/match.ts", "lib/ads/serve-db.ts", "lib/ads/impression-db.ts",
+    "lib/ads/click-db.ts", // Day 12 prompt 5 part 3
   ]);
   it("only the known server modules import the service-role client, and each is server-only", () => {
     const users = sourceFiles.filter((f) => /@\/lib\/supabase\/admin|createAdminClient/.test(read(f)));

@@ -44,6 +44,7 @@
     "app/api/ads/match/route.ts",
     "app/api/v1/ads/match/route.ts",
     "app/api/v1/ads/impression/route.ts",
+    "app/api/v1/ads/click/route.ts",
     "tests/**/*.ts"
   ],
   "exclude": [

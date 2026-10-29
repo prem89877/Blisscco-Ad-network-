@@ -50,9 +50,9 @@ with checks(check_name, passed, detail) as (
     (select count(*) = 2 and bool_and(position('ad_events' in prosrc) = 0)
        from pg_proc where pronamespace = 'public'::regnamespace and proname = 'record_ad_serve'),
     'both overloads present; none touches ad_events'),
-  ('the only function that inserts into ad_events (besides none) is record_ad_impression',
+  ('the only functions that insert into ad_events are record_ad_impression (and, after day-12-10, record_ad_click)',
     (select count(*) = 0 from pg_proc where pronamespace in ('public'::regnamespace, 'private'::regnamespace)
-       and proname <> 'record_ad_impression' and prosrc ilike '%insert into public.ad_events%'),
+       and proname not in ('record_ad_impression', 'record_ad_click') and prosrc ilike '%insert into public.ad_events%'),
     'single writer'),
   ('ad_events keeps the one-impression-per-serve unique constraint',
     exists (select 1 from pg_constraint where conrelid = to_regclass('public.ad_events') and conname = 'ad_events_one_per_type_key' and contype = 'u'),

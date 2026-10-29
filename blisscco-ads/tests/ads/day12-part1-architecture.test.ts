@@ -57,6 +57,9 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
     // Part 3 ne 2 aur files joddi (serve_ref ko record/retry se wapas laana + uski read-only jaanch). Writer ab bhi nahi.
     assert.deepEqual(withEventSql, [
       "supabase/sql/day-12-1-serve-ref.sql",
+      // Day 12 prompt 5 part 3: click ka doosra writer + uski read-only jaanch (sort order: 12-10 aur 12-11, 12-2 se pehle).
+      "supabase/sql/day-12-10-record-ad-click.sql",
+      "supabase/sql/day-12-11-click-verify.sql",
       "supabase/sql/day-12-2-ad-events.sql",
       "supabase/sql/day-12-3-event-verify.sql",
       "supabase/sql/day-12-5-serve-ref-return.sql",
@@ -77,6 +80,10 @@ describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
     "lib/ads/impression.ts", "lib/ads/impression-db.ts", "lib/ads/impression-handler.ts",
     // Day 12 prompt 5 part 2: click reference helper (pure; route/redirect/writer nahi)
     "lib/ads/click-ref.ts",
+    // Day 12 prompt 5 part 3: click redirect (ref se serve_ref padhta hai)
+    "lib/ads/click.ts", "lib/ads/click-db.ts",
+    // Day 12 prompt 5 part 4: provider adapter boundary (event me Blisscco ka internal serve ref jaata hai; provider code nahi)
+    "lib/ads/provider-adapter.ts",
   ];
   it("no event ingestion code, route, pixel or beacon exists yet; serve_ref appears only in the token-issuing files", () => {
     for (const f of code) {
@@ -84,12 +91,13 @@ describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
       assert.equal(/record_ad_event|recordAdEvent|sendBeacon|tracking pixel/i.test(src), false, f);
       if (!SERVE_REF_FILES.includes(f.replace(/\\/g, "/"))) assert.equal(/serve_ref|serveRef/i.test(src), false, `${f}: serve_ref outside the token-issuing files`);
       // Part 3: sirf EK file ka naam allowed hai (token banane/jaanchne ka pure module). Koi route/pixel/beacon/impression/click file nahi.
-      if (!["lib/ads/tracking-token.ts", "lib/ads/impression.ts", "lib/ads/impression-db.ts", "lib/ads/impression-handler.ts", "app/api/v1/ads/impression/route.ts", "lib/ads/click-ref.ts"].includes(f.replace(/\\/g, "/"))) assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `file name: ${f}`);
+      if (!["lib/ads/tracking-token.ts", "lib/ads/impression.ts", "lib/ads/impression-db.ts", "lib/ads/impression-handler.ts", "app/api/v1/ads/impression/route.ts", "lib/ads/click-ref.ts", "lib/ads/click.ts", "lib/ads/click-db.ts", "lib/ads/click-handler.ts", "app/api/v1/ads/click/route.ts"].includes(f.replace(/\\/g, "/"))) assert.doesNotMatch(f, /track|pixel|beacon|impression|click/i, `file name: ${f}`);
     }
     const apiRoutes = walk("app/api", [".ts"]).map((f) => f.replace(/\\/g, "/")).sort();
     assert.deepEqual(apiRoutes, [
       "app/api/ads/match/route.ts",
       "app/api/supabase-health/route.ts",
+      "app/api/v1/ads/click/route.ts", // Day 12 prompt 5 part 3
       "app/api/v1/ads/impression/route.ts",
       "app/api/v1/ads/match/route.ts",
     ]);

@@ -840,7 +840,7 @@ describe("day 12 part 4 | SQL (static check; the SQL was NOT run)", () => {
   it("it is the ONLY SQL that inserts into ad_events (no other file, trigger or function writes events)", () => {
     for (const f of readdirSync(path.join(ROOT, SQL)).filter((x) => /^day-/.test(x) && !/-tests?\.sql$/.test(x) && !/verify/.test(x))) {
       const c = code(`${SQL}/${f}`);
-      if (f !== "day-12-7-record-ad-impression.sql") assert.doesNotMatch(c, /insert\s+into\s+public\.ad_events/, f);
+      if (f !== "day-12-7-record-ad-impression.sql" && f !== "day-12-10-record-ad-click.sql") assert.doesNotMatch(c, /insert\s+into\s+public\.ad_events/, f); // 12-10: click ka doosra writer (day12-prompt5-part3 test)
       assert.doesNotMatch(c, /after insert on public\.ad_serve_log/, f);
     }
   });
@@ -849,7 +849,7 @@ describe("day 12 part 4 | SQL (static check; the SQL was NOT run)", () => {
       const c = code(`${SQL}/${f}`).replace(/'[^']*'/g, "''");
       assert.equal(/\b(insert\s+into|update\s+\w|delete\s+from|drop\s|alter\s|create\s|truncate|grant\s|revoke\s)/i.test(c), false, f);
     }
-    assert.match(read(`${SQL}/day-12-3-event-verify.sql`), /proname not in \('purge_old_ad_logs', 'record_ad_impression'\)/);
+    assert.match(read(`${SQL}/day-12-3-event-verify.sql`), /proname not in \('purge_old_ad_logs', 'record_ad_impression', 'record_ad_click'\)/);
     const v = read(`${SQL}/day-12-8-impression-verify.sql`);
     for (const needle of ["security definer", "only service_role may execute", "ON CONFLICT DO NOTHING", "never touches spend", "database clock", "duplicate impressions must be 0", "impressions <= serves"]) assert.ok(v.includes(needle), needle);
   });

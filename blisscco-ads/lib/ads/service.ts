@@ -1,5 +1,7 @@
 import "server-only";
 import { loadAdCandidates } from "./candidate-loader";
+import { acceptClick, type ClickResult } from "./click";
+import { lookupServeForClick, recordClickEvent } from "./click-db";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { selectAd } from "./selection";
@@ -59,5 +61,16 @@ export function acceptImpressionForToken(token: unknown, event: unknown): Promis
     nowMs: () => Date.now(),
     lookupServe: lookupServeForEvent,
     record: recordImpressionEvent,
+  });
+}
+
+// Day 12 Prompt 5 Part 3: click redirect. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Ref + serve + creative + destination
+// (day-12-10 SQL: lookup_serve_for_click, record_ad_click). Charge/spend ka isse koi lena-dena nahi.
+export function acceptClickForRef(ref: unknown): Promise<ClickResult> {
+  return acceptClick(ref, {
+    config: trackingConfig(),
+    nowMs: () => Date.now(),
+    lookupServe: lookupServeForClick,
+    record: recordClickEvent,
   });
 }
