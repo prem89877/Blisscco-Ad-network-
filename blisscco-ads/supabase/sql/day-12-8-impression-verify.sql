@@ -8,7 +8,7 @@
 with checks(check_name, passed, detail) as (
   values
   ('both functions exist and are security definer with an empty search_path',
-    (select count(*) = 2 and bool_and(prosecdef) and bool_and(coalesce(proconfig::text, '') like '%search_path=""%')
+    (select count(*) = 2 and bool_and(prosecdef) and bool_and(coalesce('search_path=""' = any(proconfig), false))
        from pg_proc where pronamespace = 'public'::regnamespace and proname in ('lookup_serve_for_event', 'record_ad_impression')),
     'lookup_serve_for_event(text), record_ad_impression(text, uuid)'),
   ('only service_role may execute them (PUBLIC, anon, authenticated have no EXECUTE)',
