@@ -10,7 +10,10 @@ import RunStateButton from "@/components/campaigns/RunStateButton";
 import CreativeForm from "@/components/campaigns/CreativeForm";
 import CreativeActionButton from "@/components/campaigns/CreativeActionButton";
 import CampaignReviewButton from "@/components/campaigns/CampaignReviewButton";
+import CampaignPerformancePanel from "@/components/dashboard/CampaignPerformancePanel";
 import { requireRole } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import { loadCampaignPerformance } from "@/lib/ads/campaign-performance";
 import {
   getCampaignSpend,
   getCreativeSummary,
@@ -69,11 +72,13 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   if (failed) throw new Error("Campaign could not be loaded");
   if (!campaign) notFound();
 
-  // Teeno queries ek dusre par nirbhar nahi: saath chalao (page tezi se khulta hai). Ownership upar campaign load se pakki hai.
-  const [creatives, creativeList, spend] = await Promise.all([
+  // Chaaron queries ek dusre par nirbhar nahi: saath chalao (page tezi se khulta hai). Ownership upar campaign load se pakki hai;
+  // analytics me bhi database auth.uid() se dobara jaanchta hai (doosre advertiser ka campaign => koi row nahi).
+  const [creatives, creativeList, spend, performance] = await Promise.all([
     getCreativeSummary(campaign.id),
     listCampaignCreatives(campaign.id),
     getCampaignSpend(campaign.id),
+    loadCampaignPerformance(() => createClient(), campaign.id),
   ]);
   const locked = EDIT_LOCKED_STATUSES.includes(campaign.status);
   const canChange = adv.status === "active";
@@ -179,9 +184,10 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
               {spend ? formatMoney(remainingBudget(campaign.totalBudget, spend.spentTotal)) : "Could not be loaded"}
             </Row>
             <Row label="Ads served">{spend ? `${spend.servesTotal} (handed to chatbots; older counts may be removed after about 90 days)` : "Could not be loaded"}</Row>
-            <Row label="Impressions, clicks">Not tracked yet. Spend is counted each time your ad is handed to a chatbot.</Row>
           </dl>
         </Panel>
+
+        <CampaignPerformancePanel performance={performance} />
 
         <Panel
           title="Ads"

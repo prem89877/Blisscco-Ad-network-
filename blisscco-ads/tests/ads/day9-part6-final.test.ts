@@ -183,10 +183,11 @@ describe("Day 9 part 6: spend accounting stays separate from impression/click tr
     assert.deepEqual(rpcUsers, ["lib/ads/serve-db.ts"]);
   });
 
-  it("advertiser-facing copy does not promise impression/click numbers that do not exist", () => {
+  it("advertiser-facing impression/click numbers come only from the real analytics layer (Day 15), never hard-coded", () => {
     const detail = read("app/dashboard/advertiser/campaigns/[id]/page.tsx");
-    assert.match(detail, /Not tracked yet/);
-    assert.match(read("app/dashboard/analytics/page.tsx"), /not tracked yet/i);
+    assert.match(detail, /loadCampaignPerformance\(/);
+    assert.doesNotMatch(detail, /Not tracked yet/);
+    assert.match(read("app/dashboard/analytics/page.tsx"), /loadAdvertiserOverview\(/);
   });
 });
 

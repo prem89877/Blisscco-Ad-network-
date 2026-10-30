@@ -133,17 +133,16 @@ describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
 describe("Day 12 part 1: user-facing wording does not call a serve a view", () => {
   const norm = (f: string) => read(f).replace(/\s+/g, " ");
 
-  it("advertiser campaign page says Ads served, not Ads shown, and still says not tracked yet", () => {
+  it("advertiser campaign page says Ads served, not Ads shown, and shows real performance (Day 15)", () => {
     const page = norm("app/dashboard/advertiser/campaigns/[id]/page.tsx");
     assert.match(page, /label="Ads served"/);
     assert.doesNotMatch(page, /label="Ads shown"/);
-    assert.match(page, /Not tracked yet/);
+    assert.match(page, /CampaignPerformancePanel/);
   });
 
-  it("analytics page says ads served and still says impressions and clicks are not tracked yet", () => {
+  it("analytics page shows real impressions and clicks (Day 15) and never calls a serve a view", () => {
     const page = norm("app/dashboard/analytics/page.tsx");
-    assert.match(page, /number of ads served/);
+    assert.match(page, /loadAdvertiserOverview\(/);
     assert.doesNotMatch(page, /number of ads shown/);
-    assert.match(page, /not tracked yet/);
   });
 });

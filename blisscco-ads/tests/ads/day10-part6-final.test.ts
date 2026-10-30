@@ -194,15 +194,15 @@ describe("Day 10 part 6: Revive Adserver and tracking are not claimed or duplica
     }
   });
 
-  it("user-facing pages say plainly that impressions and clicks are not tracked (no false claim)", () => {
+  it("publisher guide still says no impression/click reporting; advertiser pages use real analytics (Day 15)", () => {
     const pages = [
       "app/dashboard/publisher/guide/page.tsx",
       "app/dashboard/analytics/page.tsx",
       "app/dashboard/advertiser/campaigns/[id]/page.tsx",
     ].map((f) => read(f).replace(/\s+/g, " "));
     assert.match(pages[0], /no impression or click reporting/);
-    assert.match(pages[1], /not tracked yet/);
-    assert.match(pages[2], /Not tracked yet/);
+    assert.match(pages[1], /loadAdvertiserOverview\(/);
+    assert.match(pages[2], /loadCampaignPerformance\(/);
     assert.match(read("DAY9-COMPLETION-REPORT.md"), /Revive Adserver:\*\* koi reference ya duplicate tracking nahi/);
   });
 });
