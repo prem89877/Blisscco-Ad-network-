@@ -1089,7 +1089,10 @@ describe("day 12 part 3 | publisher guide matches the real contract", () => {
     for (const needle of [
       "4a. Optional tracking: token and click_ref", "X-Blisscco-Tracking: 1", "invalid_tracking_header", "tracking</code> object", "When <code>tracking</code> or <code>click_ref</code> is absent",
       "does <strong>not</strong> mean the ad was shown, seen or clicked", "POST /api/v1/ads/impression",
-      "Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical <code>token</code> and <code>click_ref</code>",
+      // Day 18 Part 2: purana unconditional "identical token" claim galat tha (expiry ke baad credentials nahi milte); ab expiry-aware wording.
+      "Retrying with the same <code>Idempotency-Key</code> reuses the original ad and the original serve",
+      "While the original tracking lifetime is still valid</strong> (before the <code>expires_at</code> of the first response), the retry returns the identical <code>tracking.token</code> and <code>tracking.click_ref</code>",
+      "At or after that <code>expires_at</code></strong>, the retry still returns the original ad, but with no <code>tracking</code> object",
     ]) assert.ok(g.includes(needle), needle);
     assert.doesNotMatch(g, /There is no endpoint to send tokens to yet/, "stale claim removed");
     assert.match(g, /does not prove that an ad was shown or clicked/);

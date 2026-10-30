@@ -253,8 +253,38 @@ describe("Day 17 part 3: the guide documents the real click_ref response contrac
     assert.match(g, /so do not roll this out to real users yet/);
     assert.match(g, /no integration with ChatGPT or any other third-party chatbot/);
     assert.match(g, /If you retry that same placement after a timeout or a 5xx,\s*send the same key/);
-    assert.match(g, /the same <code>Idempotency-Key<\/code> returns the same ad, the same delivery and the identical <code>token<\/code> and <code>click_ref<\/code>/);
+    assert.match(g, /reuses the original ad and the original serve/);
     assert.match(g, /Match retries are safe only when you send the same <code>Idempotency-Key<\/code>/);
+  });
+
+  it("Day 18 part 2: the retry text is expiry-aware (original serve reused; credentials only while the original lifetime is valid)", () => {
+    const g = flat(GUIDE);
+    // original ad + serve reused, no second serve / charge / click, still eligibility-bound
+    assert.match(g, /reuses the original ad and the original serve \(the delivery\)/);
+    assert.match(g, /does not create a second delivery or a second charge, and it does not create a second click/);
+    assert.match(g, /if it is no longer eligible, the retry is a no-fill and Blisscco does not pick a different ad/);
+    // before expiry: identical credentials, same expires_at, never extended
+    assert.match(g, /While the original tracking lifetime is still valid<\/strong> \(before the <code>expires_at<\/code> of the first response\), the retry returns the identical <code>tracking\.token<\/code> and <code>tracking\.click_ref<\/code>, with the same <code>expires_at<\/code>/);
+    assert.match(g, /so a retry never extends it/);
+    // at / after expiry: original ad, no tracking object, no fresh credentials
+    assert.match(g, /At or after that <code>expires_at<\/code><\/strong>, the retry still returns the original ad, but with no <code>tracking<\/code> object, so there is no <code>tracking\.token<\/code> and no <code>tracking\.click_ref<\/code>/);
+    assert.match(g, /does not issue a fresh token or click reference for an old serve/);
+    assert.match(g, /An expired credential can never be refreshed by replaying an old serve/);
+    assert.match(g, /new ad request with a new <code>Idempotency-Key<\/code>. That is a new serve and it is charged as a new serve/);
+    // the old unconditional claim is gone
+    assert.doesNotMatch(g, /returns the same ad, the same delivery and the identical <code>token<\/code> and <code>click_ref<\/code>, with the same <code>expires_at<\/code>\. It does not create/);
+    assert.doesNotMatch(g, /Blisscco then returns the same ad and does not count a second serve\. Keys/);
+  });
+
+  it("Day 18 part 2: a missing tracking object or click_ref is documented as normal and must be handled safely", () => {
+    const g = flat(GUIDE);
+    assert.match(g, /you retried an earlier request with the same <code>Idempotency-Key<\/code> after <code>expires_at<\/code> of the first response had passed/);
+    assert.match(g, /show the ad with the Sponsored label, do not report an impression, and show no Blisscco click link/);
+    assert.match(g, /Do not generate your own tracking reference, and do not reuse a token or <code>click_ref<\/code> after its <code>expires_at<\/code>/);
+    assert.match(g, /never make up a tracking reference yourself, and never keep an old one to use after its <code>expires_at<\/code>/);
+    assert.match(g, /Never replace a missing <code>click_ref<\/code> with your own link or with the token/);
+    assert.match(g, /a late retry returns the ad without <code>tracking<\/code>/);
+    assert.match(g, /never refreshes expired tracking credentials/);
   });
 
   describe("buildClickUrl() in the server example (runs for real)", () => {

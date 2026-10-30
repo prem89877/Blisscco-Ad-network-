@@ -651,14 +651,21 @@ export default async function PublisherGuidePage() {
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li>You did not send the opt-in header.</li>
             <li>The response is a no-fill, an error (400, 401, 429, 503) or anything other than a successfully recorded ad. These never carry a token.</li>
-            <li>Tracking is not switched on at Blisscco, or the ad delivery is older than the token lifetime (for example a very late retry), or it was served before this feature existed.</li>
+            <li>Tracking is not switched on at Blisscco, or it was served before this feature existed.</li>
+            <li>The ad delivery is already older than the tracking lifetime. For example, you retried an earlier request with the same <code>Idempotency-Key</code> after <code>expires_at</code> of the first response had passed. You still get the original ad, but without a <code>tracking</code> object (see Retries below).</li>
             <li>Blisscco could not sign a click reference for that delivery. Then <code>tracking</code> has only <code>token</code>, <code>expires_at</code> and <code>events</code>, with no <code>click_ref</code> key.</li>
-            <li>Your code must treat a missing <code>tracking</code>, or a missing <code>click_ref</code>, as normal: show the ad, with no Blisscco click link. Never replace a missing <code>click_ref</code> with your own link or with the token.</li>
+            <li>Your code must treat a missing <code>tracking</code>, or a missing <code>click_ref</code>, as normal: show the ad, with no Blisscco click link and no impression report. Never replace a missing <code>click_ref</code> with your own link or with the token, never make up a tracking reference yourself, and never keep an old one to use after its <code>expires_at</code>.</li>
           </ul>
           <p className="mt-4 text-sm font-medium">Retries</p>
           <p className="mt-1 text-sm text-mist/75">
-            Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical <code>token</code> and <code>click_ref</code>, with the same <code>expires_at</code>. It does not create a second delivery, a second token or a second click reference. Use a different key for every new placement, never the same key for two ads.
+            Retrying with the same <code>Idempotency-Key</code> reuses the original ad and the original serve (the delivery). It does not create a second delivery or a second charge, and it does not create a second click. The ad is the one that was first served, as long as it is still eligible; if it is no longer eligible, the retry is a no-fill and Blisscco does not pick a different ad. Use a different key for every new placement, never the same key for two ads.
           </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li><strong>While the original tracking lifetime is still valid</strong> (before the <code>expires_at</code> of the first response), the retry returns the identical <code>tracking.token</code> and <code>tracking.click_ref</code>, with the same <code>expires_at</code>. The lifetime is counted from the original serve, so a retry never extends it.</li>
+            <li><strong>At or after that <code>expires_at</code></strong>, the retry still returns the original ad, but with no <code>tracking</code> object, so there is no <code>tracking.token</code> and no <code>tracking.click_ref</code>. Blisscco does not issue a fresh token or click reference for an old serve.</li>
+            <li>An expired credential can never be refreshed by replaying an old serve, and a retry is not a way to get new tracking. To get new credentials, make a new ad request with a new <code>Idempotency-Key</code>. That is a new serve and it is charged as a new serve.</li>
+            <li>So a retry can return an ad without tracking. Handle that safely: show the ad with the Sponsored label, do not report an impression, and show no Blisscco click link. Do not generate your own tracking reference, and do not reuse a token or <code>click_ref</code> after its <code>expires_at</code>.</li>
+          </ul>
         </Panel>
 
         <Panel
@@ -813,7 +820,7 @@ export default async function PublisherGuidePage() {
             <li>
               Send an <code>Idempotency-Key</code> header on every request: a new random value (a UUID works) per ad placement, 8 to 64
               characters of letters, digits, <code>_</code> or <code>-</code>. If you retry that same placement after a timeout or a 5xx,
-              send the same key. The value must be random: never put a user id, an email or any text from the conversation in it. Blisscco then returns the same ad and does not count a second serve. Keys are remembered for 48 hours.
+              send the same key. The value must be random: never put a user id, an email or any text from the conversation in it. Blisscco then reuses the original ad and serve and does not count a second serve. Tracking credentials come back with that retry only while their original lifetime is still valid (section 4a); a late retry returns the ad without <code>tracking</code>. Keys are remembered for 48 hours.
               Without the header, a retry after a lost response can be counted as a second serve.
             </li>
             <li>Never loop. No retries inside a single chat turn beyond what the table says, and never block the chatbot&apos;s answer while waiting.</li>
@@ -945,7 +952,7 @@ export default async function PublisherGuidePage() {
           <ul className="list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li>Accounts are approved by hand by the Blisscco team, so approval can take time.</li>
             <li>Advertiser budgets are enforced, and spend is counted when an ad is handed to you, not when a person sees it.</li>
-            <li>A match request is counted as an ad serve, and that is the only charged event. Impressions and clicks are reporting counts that you or the person trigger; they do not change spend. A tracking token does not prove that an ad was shown or clicked. Match retries are safe only when you send the same <code>Idempotency-Key</code>.</li>
+            <li>A match request is counted as an ad serve, and that is the only charged event. Impressions and clicks are reporting counts that you or the person trigger; they do not change spend. A tracking token does not prove that an ad was shown or clicked. Match retries are safe only when you send the same <code>Idempotency-Key</code>. A retry reuses the original serve but never refreshes expired tracking credentials.</li>
             <li><code>click_ref</code> is optional and appears only when you opt in and Blisscco could sign it. Without it there is no Blisscco click link, and a link straight to <code>destination_url</code> is not reported (section 4d).</li>
             <li>The impression endpoint has no CORS, so impressions must be reported from your server. A click is counted only after its impression was recorded.</li>
             <li>Impression and click counts depend on your integration reporting honestly. Do not use them on their own for billing or payouts.</li>
