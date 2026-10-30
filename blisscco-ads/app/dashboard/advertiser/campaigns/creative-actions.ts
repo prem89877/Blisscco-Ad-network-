@@ -112,6 +112,11 @@ export async function changeCreativeStatus(_prev: RunStateResult, formData: Form
   if (loaded.failed) return { status: "error", message: "Something went wrong. Please try again." };
   if (!loaded.campaign) return { status: "error", message: "Ad not found." };
 
+  // Band (archived/completed) campaign ka ad review ke liye nahi bheja ja sakta: admin function band campaign par decide nahi karta, ad atak jata.
+  if (action === "submit" && (loaded.campaign.status === "archived" || loaded.campaign.status === "completed")) {
+    return { status: "error", message: "Ads cannot be sent for review in a closed campaign." };
+  }
+
   if (!rule.from.includes(found.status)) {
     return { status: "error", message: "This ad cannot be changed that way right now. Refresh the page to see the latest status." };
   }
