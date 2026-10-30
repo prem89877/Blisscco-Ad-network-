@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import StatCard from "@/components/dashboard/StatCard";
+import PublisherAnalyticsView from "@/components/dashboard/PublisherAnalyticsView";
 import Notice from "@/components/auth/Notice";
 import Button from "@/components/ui/Button";
 import { requireAccount } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { loadAdvertiserOverview } from "@/lib/ads/analytics-overview";
+import { loadPublisherOverview } from "@/lib/ads/publisher-overview";
 import { formatCtr, formatNumber } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Analytics | Blisscco Dashboard" };
@@ -14,6 +16,19 @@ export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
   const account = await requireAccount();
+
+  // Role ke hisaab se alag raaste: publisher => sirf apni traffic ke totals (get_my_publisher_analytics); baaki => advertiser overview.
+  // Publisher ke raaste me campaign / advertiser ka koi data kabhi load nahi hota.
+  if (account.role === "publisher") {
+    const publisherOverview = await loadPublisherOverview(account.role, () => createClient());
+    return (
+      <>
+        <PageHeader demo={false} title="Analytics" description="Impressions, clicks and click-through rate (CTR) recorded for your platform." />
+        <PublisherAnalyticsView overview={publisherOverview} />
+      </>
+    );
+  }
+
   // Ownership DATABASE me hai: function caller ki apni session (auth.uid()) se campaigns nikalta hai. Yahan koi id bheji nahi jaati.
   const overview = await loadAdvertiserOverview(account.role, () => createClient());
 

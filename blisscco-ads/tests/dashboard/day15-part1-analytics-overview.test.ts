@@ -135,7 +135,7 @@ describe("page source contract", () => {
     assert.match(page, /createClient/);
   });
   it("no demo data, no service-role client, no demo badge", () => {
-    assert.doesNotMatch(page, /demo-data|AnalyticsView|supabase\/admin|service_role|SERVICE_ROLE/);
+    assert.doesNotMatch(page, /demo-data|(?<!Publisher)AnalyticsView|supabase\/admin|service_role|SERVICE_ROLE/);
     assert.match(page, /demo=\{false\}/);
   });
   it("shows no spend or revenue figures", () => {
