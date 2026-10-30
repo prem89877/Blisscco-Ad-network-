@@ -1,38 +1,77 @@
 name: CI
 
-# Har push par: type check, tests, build. Bina laptop ke GitHub khud chalata hai.
-# Pehli baar chalne par "package-lock" naam ka file Artifacts me milta hai: use download karke repo me daal do.
+# Har push / pull request par: type check, tests, ESLint, production build.
+# Koi bhi check fail ho toh job laal (fail) hoga. Koi step skip hone par "passed" nahi dikhaya jata.
+# Secrets ya asli Supabase credentials yahan use nahi hote (build ke liye sirf dummy values).
 on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-      # package-lock.json repo me ho toh npm ci (pakka, same versions); nahi ho toh pehle jaisa npm install.
-      - name: Install
+          node-version-file: .nvmrc
+
+      - name: Detect lockfile
+        id: lock
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f package-lock.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "package-lock.json mila: npm ci use hoga."
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=package-lock.json missing::Reproducible install nahi hai. 'npm install' fallback chalega aur generated lockfile artifact me milega. Usse repo me commit karo."
+          fi
+
+      - name: Install (npm ci)
+        if: steps.lock.outputs.present == 'true'
+        run: npm ci
+
+      - name: Install (npm install fallback, lockfile missing)
+        if: steps.lock.outputs.present != 'true'
+        run: npm install
+
       - name: Installed versions (next, react)
         run: npm ls next react react-dom
-      - run: npm run lint
-      - run: npm test
-      - name: ESLint (warning only for now)
+
+      # Neeche ke checks `!cancelled()` se chalte hain: ek fail hone par bhi baaki chalte hain,
+      # taaki saari asli failures ek hi run me dikhein. Job phir bhi fail rehta hai.
+      - name: Type check (npm run lint = tsc --noEmit)
+        run: npm run lint
+
+      - name: Tests (npm test)
+        if: ${{ !cancelled() }}
+        run: npm test
+
+      - name: ESLint (npm run lint:eslint)
+        if: ${{ !cancelled() }}
         run: npm run lint:eslint
-        continue-on-error: true
-      - name: Build
+
+      - name: Production build (npm run build)
+        if: ${{ !cancelled() }}
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_dummy
           SUPABASE_SECRET_KEY: sb_secret_dummy
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload generated package-lock.json (only when it was missing)
+        if: ${{ !cancelled() && steps.lock.outputs.present != 'true' }}
+        uses: actions/upload-artifact@v4
         with:
           name: package-lock
           path: package-lock.json
-          if-no-files-found: ignore
+          if-no-files-found: warn

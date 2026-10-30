@@ -32,3 +32,9 @@ components/     Header, Hero, Sections
 tailwind.config.ts, tsconfig.json (strict), next.config.mjs
 ```
 Aage: `app/api/` (ad match), `app/dashboard/`, `lib/supabase/`.
+
+## Day 14: CI aur lockfile
+- `package-lock.json` abhi repo me nahi hai (sandbox me npm registry band thi, isliye generate nahi hua).
+- Lockfile banane ke liye (Node 22): `npm install --package-lock-only` ya Codespaces me `npm install`, phir `package-lock.json` commit karo.
+- Lockfile milte hi CI `npm ci` use karega. Tab tak CI `npm install` fallback + warning dega.
+- CI me type check, tests, ESLint, build — sab real failures par job fail hota hai (koi continue-on-error nahi).

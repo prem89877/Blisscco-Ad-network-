@@ -13,10 +13,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       - name: Install
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "::warning title=package-lock.json missing::npm install fallback (not reproducible)"
+            npm install
+          fi
       - name: Integration tests (TEST database)
         run: npm run test:integration
         env:
