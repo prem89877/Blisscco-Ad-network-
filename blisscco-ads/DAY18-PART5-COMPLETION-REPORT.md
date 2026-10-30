@@ -50,6 +50,9 @@ Covered by tests: identical token/click_ref/expires_at one ms before exp; exactl
 S1-signed token and click_ref accepted when S1 is previous; previous-secret credentials keep original expiry (valid 1 ms before, refused at exp); new serves signed with current secret; Idempotency-Key retry after rotation re-signs with the new secret with one serve/impression/click; retry after expiry gets no credentials even after rotation; old refs after rotation: 401/404, nothing recorded; only one previous generation honoured; weak or duplicate previous secret ignored; never-configured secret rejected; no secret configured: 503, nothing recorded; no response/log contains a secret or credential; only the three existing env variables are used.
 
 ## 5. Database integration status
+**Update (user-reported):** the three TEST variables (`TEST_DATABASE_URL`, `TEST_SUPABASE_PROJECT_REF`, `TEST_DB_CONFIRM`) are stated to be added in the user's own environment (CI/local). They are **not present in this sandbox**, so this report cannot verify them and the integration result below is unchanged (SKIPPED here).
+**Value check:** the guard (`tests/integration/test-db-guard.ts`) accepts only `TEST_DB_CONFIRM=blisscco-test-db`. The value written in the update, `blisscco-test-g`, does **not** match, and with it every real-PostgreSQL suite will SKIP. Confirm the exact value is `blisscco-test-db`.
+
 `checkTestDatabase()` requires `TEST_DATABASE_URL`, `TEST_SUPABASE_PROJECT_REF`, `TEST_DB_CONFIRM=blisscco-test-db`. **No TEST configuration values were available in this sandbox**, so every real-PostgreSQL suite **SKIPPED** (not passed):
 
 | Suite (real PostgreSQL) | Status |
@@ -67,6 +70,6 @@ No SQL was executed, no production database or Supabase was touched, no secret o
 ## 6. Unresolved issues / next steps (manual, on your machine)
 1. `npm ci`, then `npm run lint`, `npm test`, `npm run lint:eslint`, `npm run build`; report any failure.
 2. Confirm `publisher-examples` passes once `@types/node` is installed.
-3. `npm i -D pg` if absent, set the three TEST variables, apply Day 12 SQL on the TEST project only, then `npm run test:integration`.
+3. `npm i -D pg` if absent, confirm the three TEST variables (with `TEST_DB_CONFIRM=blisscco-test-db` exactly), apply Day 12 SQL on the TEST project only, then `npm run test:integration`.
 4. `tests/integration/day18-part4-click-ref-db.test.ts` has never been executed or fully type-checked; first real run may need small fixes.
 5. Mocked tests alone do not establish production readiness. Ledger, revenue share, payout rules and deployment were not touched.
