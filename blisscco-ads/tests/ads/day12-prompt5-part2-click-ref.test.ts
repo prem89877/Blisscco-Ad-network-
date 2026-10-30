@@ -312,8 +312,8 @@ describe("day 12 prompt 5 part 2 | secret and browser safety (static)", () => {
 
   it("only the existing server-only secret name is used and no route imports the click helper yet", () => {
     assert.ok(/AD_TRACKING_SECRET/.test(read("lib/ads/service.ts")));
-    for (const f of ["app/api/ads/match/route.ts", "app/api/v1/ads/match/route.ts", "app/api/v1/ads/impression/route.ts", "lib/ads/match-handler.ts", "lib/ads/service.ts", "lib/ads/contract.ts"]) {
-      assert.ok(!/click-ref/.test(read(f)), `${f} must not import click-ref yet`);
+    for (const f of ["app/api/ads/match/route.ts", "app/api/v1/ads/match/route.ts", "app/api/v1/ads/impression/route.ts", "lib/ads/match-handler.ts"]) {
+      assert.ok(!/click-ref/.test(read(f)), `${f} must not import click-ref (Day 17: only service.ts + contract.ts do)`);
     }
   });
 
@@ -321,5 +321,43 @@ describe("day 12 prompt 5 part 2 | secret and browser safety (static)", () => {
     const tt = read("lib/ads/tracking-token.ts");
     assert.ok(/export function hmac\(/.test(tt) && /export function safeEqual\(/.test(tt) && /export function decodeCanonicalB64Url\(/.test(tt));
     assert.ok(/export const CLOCK_SKEW_SECONDS = 60/.test(tt));
+  });
+});
+
+// Day 17 Part 2: tracking token (bt1) aur click ref (bc1) ek hi serve se, ek hi secret se; integration ke niyam.
+describe("day 17 part 2 | tracking token and click ref issued together", () => {
+  it("same serve + publisher + served_at: same expiry and publisher tag, but different prefix, signature label and payload shape", () => {
+    const input = { serveRef: REF, publisherId: PUB, servedAtMs: NOW, nowMs: NOW + 5_000 };
+    const bt = mintTrackingToken(config(), input)!;
+    const bc = mintClickRef(config(), { ...input, creativeId: CREATIVE })!;
+    assert.ok(bt && bc);
+    assert.equal(bt.expiresAtMs, bc.expiresAtMs);
+    assert.ok(bt.token.startsWith("bt1.") && bc.ref.startsWith(`${CLICK_REF_PREFIX}.`));
+    assert.notEqual(bt.token.split(".")[2], bc.ref.split(".")[2]);
+    const tp = payloadOf(bt.token);
+    const cp = payloadOf(bc.ref);
+    assert.equal(tp.p, cp.p);
+    assert.equal(tp.r, cp.r);
+    assert.equal("c" in tp, false, "the token never carries a creative tag");
+    assert.equal("e" in cp, false, "the click ref never carries an events list");
+  });
+
+  it("minting a tracking token never produces a click ref (the grant has no clickRef; only service.ts adds it)", () => {
+    const bt = mintTrackingToken(config(), { serveRef: REF, publisherId: PUB, servedAtMs: NOW, nowMs: NOW + 5_000 })!;
+    assert.deepEqual(Object.keys(bt).sort(), ["events", "expiresAtMs", "token"]);
+  });
+
+  it("a click ref minted for one creative cannot be reused for another creative of the same serve", async () => {
+    const ref = mustMint({ creativeId: CREATIVE });
+    const lookup: ClickServeLookup = async () => serveRow({ creativeId: CREATIVE_2 });
+    assert.deepEqual(await verifyClickRefForServe(ref, { config: config(), nowMs: NOW + 1000, lookupServe: lookup }), { ok: false, reason: "creative_mismatch" });
+  });
+
+  it("only service.ts and contract.ts import click-ref (plus tests); tracking-token.ts stays free of it (no import cycle)", () => {
+    const importers = ["lib/ads/tracking-token.ts", "lib/ads/serve.ts", "lib/ads/match-handler.ts", "lib/ads/serve-db.ts", "lib/ads/click.ts"].filter((f) => /["']\.\/click-ref["']/.test(read(f)));
+    assert.deepEqual(importers.filter((f) => f !== "lib/ads/click.ts"), []);
+    for (const f of ["lib/ads/service.ts", "lib/ads/contract.ts"]) assert.match(read(f), /["']\.\/click-ref["']/, f);
+    assert.match(read("lib/ads/service.ts"), /mintClickRef\(config,/, "service.ts reuses the existing mintClickRef with the shared tracking config");
+    assert.equal(/createHmac|createHash/.test(read("lib/ads/service.ts") + read("lib/ads/contract.ts") + read("lib/ads/serve.ts")), false, "no second signing algorithm");
   });
 });

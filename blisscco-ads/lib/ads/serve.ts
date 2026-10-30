@@ -50,7 +50,7 @@ export type ServeDeps = {
    * Optional (Day 12 Part 3): tracking token banata hai. Sirf KAMYAB (database me record ho chuki) serve ke liye bulaya jaata hai,
    * aur sirf tab jab publisher ne opt-in kiya ho. null/throw => ad bina `tracking` ke (serve phir bhi hui hai, bas token nahi).
    */
-  issueTracking?: (input: { publisherId: string; serveRef: string; servedAtMs: number }) => TrackingGrant | null;
+  issueTracking?: (input: { publisherId: string; serveRef: string; servedAtMs: number; creativeId: string }) => TrackingGrant | null;
 };
 
 export type ServeResult =
@@ -75,10 +75,12 @@ function grantFor(
   deps: ServeDeps,
   publisherId: string,
   serve: ServeReceipt | undefined,
+  creativeId: string,
 ): TrackingGrant | undefined {
   if (request.trackingRequested !== true || !serve || !deps.issueTracking) return undefined;
   try {
-    return deps.issueTracking({ publisherId, serveRef: serve.serveRef, servedAtMs: serve.servedAtMs }) ?? undefined;
+    // creativeId hamesha wahi hai jo asal me serve hua (replay me original creative), caller/publisher ka diya hua nahi.
+    return deps.issueTracking({ publisherId, serveRef: serve.serveRef, servedAtMs: serve.servedAtMs, creativeId }) ?? undefined;
   } catch {
     return undefined;
   }
@@ -110,7 +112,7 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
       switch (replay.outcome) {
         case "found": {
           // Retry: wahi serve, wahi receipt => wahi token (naya serve/naya token nahi). Receipt na ho (purani serve) => token nahi.
-          const grant = grantFor(request, deps, auth.publisher.id, replay.serve);
+          const grant = grantFor(request, deps, auth.publisher.id, replay.serve, replay.ad.id);
           return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}) };
         }
         case "rejected":
@@ -170,8 +172,10 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
             : await deps.record(keyHash, attempt.id, category, request.idempotencyKey);
         if (recorded.outcome === "recorded") {
           // 5. Sirf 5 public fields (+ opt-in par tracking, sirf is record ho chuki serve ke liye)
-          const grant = grantFor(request, deps, auth.publisher.id, recorded.serve);
-          return { kind: "ad", ad: publicFields(recorded.replayedAd ?? attempt), ...(grant ? { tracking: grant } : {}) };
+          // Concurrent retry me DB pehle charge hue creative (replayedAd) ka ad deta hai: click ref bhi usi original creative se bandhta hai.
+          const served = recorded.replayedAd ?? attempt;
+          const grant = grantFor(request, deps, auth.publisher.id, recorded.serve, served.id);
+          return { kind: "ad", ad: publicFields(served), ...(grant ? { tracking: grant } : {}) };
         }
         if (recorded.outcome !== "rejected") return { kind: "unavailable" };
       }

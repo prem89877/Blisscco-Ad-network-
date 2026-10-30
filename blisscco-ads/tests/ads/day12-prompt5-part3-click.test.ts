@@ -497,7 +497,8 @@ describe("day 12 prompt 5 part 3 | static safety", () => {
   });
 
   it("the match API response and serve code are untouched (no click ref issued yet)", () => {
-    for (const f of ["lib/ads/contract.ts", "lib/ads/serve.ts", "lib/ads/match-handler.ts", "lib/ads/serve-db.ts"]) {
+    // Day 17 Part 1: contract.ts/service.ts ab click ref issue karte hain; serve.ts sirf creativeId pass karta hai (signing nahi).
+    for (const f of ["lib/ads/serve.ts", "lib/ads/match-handler.ts", "lib/ads/serve-db.ts"]) {
       assert.ok(!/click-ref|mintClickRef/.test(read(f)), f);
     }
   });

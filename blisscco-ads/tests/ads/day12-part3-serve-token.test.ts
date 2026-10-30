@@ -7,7 +7,8 @@ import * as legacyRoute from "@/app/api/ads/match/route";
 import * as v1Route from "@/app/api/v1/ads/match/route";
 import { handleMatchPost } from "@/lib/ads/match-handler";
 import { createIpGuard } from "@/lib/ads/ip-guard";
-import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS, buildAdResponse } from "@/lib/ads/contract";
+import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS, PUBLIC_TRACKING_OPTIONAL_FIELDS, buildAdResponse } from "@/lib/ads/contract";
+import { verifyClickRef } from "@/lib/ads/click-ref";
 import { parseTrackingOptIn } from "@/lib/ads/validation";
 import { serveAd, type ServeDeps } from "@/lib/ads/serve";
 import { parseRecordResult, parseReplayResult, parseServeReceipt } from "@/lib/ads/serve-db";
@@ -330,7 +331,7 @@ describe("day 12 part 3 | serveAd orchestration (token only for a recorded serve
   const ad = { id: "11111111-1111-4111-8111-111111111111", headline: "h", body: "b", ctaText: null, destinationUrl: "https://example.com" };
   const receipt = { serveRef: REF, servedAtMs: NOW };
   const request = { topic: "gaming", excludeAdIds: [] as string[], trackingRequested: true };
-  const issued: Array<{ publisherId: string; serveRef: string; servedAtMs: number }> = [];
+  const issued: Array<{ publisherId: string; serveRef: string; servedAtMs: number; creativeId: string }> = [];
 
   function deps(over: Partial<ServeDeps> = {}): ServeDeps {
     issued.length = 0;
@@ -347,7 +348,7 @@ describe("day 12 part 3 | serveAd orchestration (token only for a recorded serve
     const r = await serveAd("h".repeat(64), request, deps());
     assert.equal(r.kind, "ad");
     assert.ok(r.kind === "ad" && r.tracking);
-    assert.deepEqual(issued, [{ publisherId: PUB, serveRef: REF, servedAtMs: NOW }]);
+    assert.deepEqual(issued, [{ publisherId: PUB, serveRef: REF, servedAtMs: NOW, creativeId: ad.id }]);
   });
 
   it("no opt-in, no issuer, or no receipt => no tracking (the ad is still served)", async () => {
@@ -397,7 +398,7 @@ describe("day 12 part 3 | serveAd orchestration (token only for a recorded serve
     const withReceipt = deps({ lookupReplay: async () => ({ outcome: "found", ad, serve: receipt }) });
     const r1 = await serveAd("h".repeat(64), { ...request, idempotencyKey: "idem-key-0001" }, withReceipt);
     assert.ok(r1.kind === "ad" && r1.tracking);
-    assert.deepEqual(issued, [{ publisherId: PUB, serveRef: REF, servedAtMs: NOW }]);
+    assert.deepEqual(issued, [{ publisherId: PUB, serveRef: REF, servedAtMs: NOW, creativeId: ad.id }]);
 
     const legacy = deps({ lookupReplay: async () => ({ outcome: "found", ad }) });
     const r2 = await serveAd("h".repeat(64), { ...request, idempotencyKey: "idem-key-0001" }, legacy);
@@ -514,7 +515,7 @@ describe("day 12 part 3 | success with opt-in", () => {
       assert.equal((s.body.ad as { id: string }).id, ad.creativeId);
 
       const t = tracking(s)!;
-      assert.deepEqual(Object.keys(t).sort(), [...PUBLIC_TRACKING_FIELDS].sort());
+      assert.deepEqual(Object.keys(t).sort(), [...PUBLIC_TRACKING_FIELDS, "click_ref"].sort());
       assert.deepEqual(t.events, ["impression", "click"]);
       assert.equal(db.servesFor(pub.id).length, 1, "exactly one serve row");
       const serve = db.serveLog[0];
@@ -1058,14 +1059,15 @@ describe("day 12 part 3 | publisher guide matches the real contract", () => {
     return (new Function(`return ${m[1]}`)() as string[]).join("\n");
   }
 
-  it("the tracking success example has exactly the real shape: 5 ad fields + tracking{token, expires_at, events}", () => {
+  it("the tracking success example has exactly the real shape: 5 ad fields + tracking{token, expires_at, events, click_ref}", () => {
     const body = JSON.parse(lines("TRACKING_SUCCESS_EXAMPLE")) as Record<string, unknown>;
     assert.deepEqual(Object.keys(body).sort(), ["ad", "fill", "sponsored", "tracking"]);
     assert.strictEqual(body.sponsored, true);
     assert.deepEqual(Object.keys(body.ad as object).sort(), [...PUBLIC_AD_FIELDS].sort());
-    const t = body.tracking as { token: string; expires_at: string; events: string[] };
-    assert.deepEqual(Object.keys(t).sort(), [...PUBLIC_TRACKING_FIELDS].sort());
+    const t = body.tracking as { token: string; expires_at: string; events: string[]; click_ref: string };
+    assert.deepEqual(Object.keys(t).sort(), [...PUBLIC_TRACKING_FIELDS, ...PUBLIC_TRACKING_OPTIONAL_FIELDS].sort());
     assert.match(t.token, /^bt1\./);
+    assert.match(t.click_ref, /^bc1\./);
     assert.equal(new Date(t.expires_at).toISOString(), t.expires_at);
     assert.deepEqual(t.events, ["impression", "click"]);
     assert.equal(/blc_live_[0-9a-f]{8,}/.test(JSON.stringify(body)), false);
@@ -1085,9 +1087,9 @@ describe("day 12 part 3 | publisher guide matches the real contract", () => {
   it("documents opt-in, the 400 reason, absence cases, retries, and that a token is NOT an impression/click (Day 15: it is sent to the impression endpoint)", () => {
     const g = flat(GUIDE);
     for (const needle of [
-      "4a. Optional tracking token", "X-Blisscco-Tracking: 1", "invalid_tracking_header", "tracking</code> object", "When <code>tracking</code> is absent",
+      "4a. Optional tracking: token and click_ref", "X-Blisscco-Tracking: 1", "invalid_tracking_header", "tracking</code> object", "When <code>tracking</code> or <code>click_ref</code> is absent",
       "does <strong>not</strong> mean the ad was shown, seen or clicked", "POST /api/v1/ads/impression",
-      "Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical token",
+      "Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical <code>token</code> and <code>click_ref</code>",
     ]) assert.ok(g.includes(needle), needle);
     assert.doesNotMatch(g, /There is no endpoint to send tokens to yet/, "stale claim removed");
     assert.match(g, /does not prove that an ad was shown or clicked/);
@@ -1096,11 +1098,35 @@ describe("day 12 part 3 | publisher guide matches the real contract", () => {
   it("the guide never tells anyone to put the API key or the signing secret in the browser, and never mentions the signing secret at all", () => {
     const g = read(GUIDE);
     assert.equal(/AD_TRACKING_SECRET|signing secret|service[_ -]role/i.test(g), false);
-    assert.match(flat(GUIDE), /Your API key, <code>Idempotency-Key<\/code> and any other credential stay on your server/);
+    assert.match(flat(GUIDE), /Your API key, <code>Idempotency-Key<\/code> and any other credential stay on your server, and never go into a click link/);
     assert.equal(/production[- ]ready/i.test(flat(GUIDE).replace(/Not ready for production use/gi, "")), false);
   });
 
   it("the error table mentions the new 400 reason", () => {
     assert.match(read(GUIDE), /invalid_tracking_header/);
+  });
+});
+
+// ===========================================================================================================================
+// Day 17 Part 2: token + click_ref ek saath (Part 3 ke token behaviour me koi dhila nahi; sirf naye integration ki jaanch).
+describe("day 17 part 2 | the token's serve is also the click ref's serve", () => {
+  it("token and click_ref decode to the same serve_ref and publisher tag; a failed/absent serve gives neither", async () => {
+    const { pub } = world();
+    const s = await send({ topic: "gaming" }, { headers: TRACK });
+    const t = tracking(s) as { token: string; click_ref?: string };
+    assert.ok(t.click_ref && t.click_ref.startsWith("bc1.") && t.token.startsWith("bt1."));
+    const config = readTrackingConfig(process.env)!;
+    const tv = verifyTrackingToken(t.token, "impression", config, Date.now());
+    const cv = verifyClickRef(t.click_ref, config, Date.now());
+    assert.ok(tv.ok && cv.ok);
+    assert.equal(tv.ok && cv.ok && tv.claims.serveRef, cv.ok ? cv.claims.serveRef : "");
+    assert.equal(tv.ok && tv.claims.publisherTag, publisherTag(SECRET, pub.id));
+    assert.equal(cv.ok && cv.claims.publisherTag, publisherTag(SECRET, pub.id));
+    assert.equal(db.serveLog.length, 1);
+
+    db.failRpc.record_ad_serve = { data: null, error: { code: "XX000", message: "boom" } };
+    const failed = await send({ topic: "gaming" }, { headers: TRACK });
+    assert.equal(failed.text.includes("bt1."), false);
+    assert.equal(failed.text.includes("bc1."), false);
   });
 });

@@ -1,5 +1,6 @@
 import type { MatchedAd } from "./types";
-import type { TrackingEvent, TrackingGrant } from "./tracking-token";
+import { CLICK_REF_PREFIX } from "./click-ref";
+import { MAX_TOKEN_LENGTH, type TrackingEvent, type TrackingGrant } from "./tracking-token";
 import type { ParseFailure } from "./validation";
 
 // POST /api/v1/ads/match (aur purana /api/ads/match) ka PUBLIC request/response contract.
@@ -54,10 +55,14 @@ export type PublicTracking = {
   expires_at: string;
   /** Is token se kaun se events report ho sakte hain. */
   events: TrackingEvent[];
+  /** Optional: signed click reference (bc1...). Sirf tab jab sahi se ban sake. Isme publisher/creative/serve id ya secret nahi hai. Destination yahan nahi. */
+  click_ref?: string;
 };
 
 /** `tracking` ke exact keys (tests inhi se check karte hain). */
 export const PUBLIC_TRACKING_FIELDS = ["token", "expires_at", "events"] as const;
+/** Optional extra key (sirf valid click ref ban jaane par). */
+export const PUBLIC_TRACKING_OPTIONAL_FIELDS = ["click_ref"] as const;
 
 /** 200: ad mila. `sponsored` literal `true` hai: type level par bhi false ya missing ho nahi sakta. */
 export type MatchSuccessResponse = {
@@ -118,12 +123,28 @@ export function buildAdResponse(ad: MatchedAd, tracking?: TrackingGrant): MatchS
   const base: MatchSuccessResponse = { fill: true, sponsored: true, ad: toPublicAd(ad) };
   if (!tracking) return base;
   // Explicit whitelist: grant ke extra fields (agar kabhi aaye) bahar nahi jaate.
+  // click_ref sirf tab: non-empty string jo `bc1.<payload>.<sig>` shape ka ho (warna chup-chaap hata diya jaata hai).
+  const clickRef = isWellFormedClickRef(tracking.clickRef) ? tracking.clickRef : undefined;
   return {
     ...base,
     tracking: {
       token: tracking.token,
       expires_at: new Date(tracking.expiresAtMs).toISOString(),
       events: [...tracking.events],
+      ...(clickRef ? { click_ref: clickRef } : {}),
     },
   };
+}
+
+const CLICK_REF_SHAPE_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+
+/** Sirf shape check (signature server ne mint ke waqt hi banayi hai). Galat/khali/bahut lamba => click_ref nahi. */
+function isWellFormedClickRef(ref: unknown): ref is string {
+  return (
+    typeof ref === "string" &&
+    ref.length > 0 &&
+    ref.length <= MAX_TOKEN_LENGTH &&
+    ref.startsWith(`${CLICK_REF_PREFIX}.`) &&
+    CLICK_REF_SHAPE_RE.test(ref)
+  );
 }

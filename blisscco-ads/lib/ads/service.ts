@@ -1,6 +1,7 @@
 import "server-only";
 import { loadAdCandidates } from "./candidate-loader";
 import { acceptClick, type ClickResult } from "./click";
+import { mintClickRef } from "./click-ref";
 import { lookupServeForClick, recordClickEvent } from "./click-db";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
@@ -47,7 +48,18 @@ const productionDeps: ServeDeps = {
   lookupReplay: findIdempotentServe,
   issueTracking: (input) => {
     const config = trackingConfig();
-    return config ? mintTrackingToken(config, { ...input, nowMs: Date.now() }) : null;
+    if (!config) return null;
+    const { creativeId, ...tokenInput } = input;
+    const nowMs = Date.now();
+    const grant = mintTrackingToken(config, { ...tokenInput, nowMs });
+    if (!grant) return null;
+    // Day 17 Part 1: wahi config/secret, wahi mintClickRef(). Fail (null/throw) => grant bina click_ref ke; serve aur token par asar nahi.
+    try {
+      const click = mintClickRef(config, { ...tokenInput, creativeId, nowMs });
+      return click ? { ...grant, clickRef: click.ref } : grant;
+    } catch {
+      return grant;
+    }
   },
 };
 

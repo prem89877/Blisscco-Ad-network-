@@ -593,12 +593,13 @@ describe("day 14 part 4 / 5: successful serve", () => {
     const tracked = await match({ topic: "gaming" }, KEY, { "x-blisscco-tracking": "1" });
     assert.deepEqual(tracked.json.ad, plain.json.ad);
     const tracking = tracked.json.tracking as { token: string; expires_at: string; events: string[] };
-    assert.deepEqual(Object.keys(tracking).sort(), [...PUBLIC_TRACKING_FIELDS].sort());
+    assert.deepEqual(Object.keys(tracking).sort(), [...PUBLIC_TRACKING_FIELDS, "click_ref"].sort());
     assert.match(tracking.token, /^bt1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     assert.deepEqual(tracking.events, ["impression", "click"]);
     assert.ok(Date.parse(tracking.expires_at) > Date.now());
-    // Abhi ka sach: click ref match response me nahi aata (DAY12-PROMPT5-PART3-CLICK.md). Jab ye feature aaye, ye line jaan-boojh kar update karni hai.
-    assert.equal(tracked.text.includes("bc1."), false);
+    // Day 17 Part 1: opt-in par signed click_ref (bc1.) aata hai; bina opt-in kabhi nahi.
+    assert.match((tracking as { click_ref?: string }).click_ref ?? "", /^bc1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    assert.equal(plain.text.includes("bc1."), false);
   });
 
   it("tracking opt-in with no server secret still serves the ad (just without `tracking`); a bad opt-in header is 400 and serves nothing", async () => {

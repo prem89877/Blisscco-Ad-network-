@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import * as ts from "typescript";
-import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS } from "@/lib/ads/contract";
+import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS, PUBLIC_TRACKING_OPTIONAL_FIELDS, buildAdResponse } from "@/lib/ads/contract";
 import { parseMatchRequest } from "@/lib/ads/validation";
 import * as clickRoute from "@/app/api/v1/ads/click/route";
 import { handleClickGet, REQUESTS_PER_MINUTE_PER_IP as CLICK_REQ_LIMIT, FAILURES_PER_MINUTE_PER_IP as CLICK_FAIL_LIMIT } from "@/lib/ads/click-handler";
@@ -12,8 +12,8 @@ import { handleImpressionPost, REQUESTS_PER_MINUTE_PER_IP as IMP_REQ_LIMIT, FAIL
 import { MAX_IMPRESSION_BODY_BYTES, parseImpressionRequest } from "@/lib/ads/impression";
 import { CLICK_PARAM, parseClickQuery, type ClickResult } from "@/lib/ads/click";
 import { createIpGuard } from "@/lib/ads/ip-guard";
-import { CLICK_REF_PREFIX } from "@/lib/ads/click-ref";
-import { DEFAULT_TTL_SECONDS, MAX_TOKEN_LENGTH, MAX_TTL_SECONDS, TRACKING_EVENTS, TRACKING_TOKEN_PREFIX } from "@/lib/ads/tracking-token";
+import { CLICK_REF_PREFIX, mintClickRef, verifyClickRef } from "@/lib/ads/click-ref";
+import { DEFAULT_TTL_SECONDS, MAX_TOKEN_LENGTH, MAX_TTL_SECONDS, TRACKING_EVENTS, TRACKING_TOKEN_PREFIX, mintTrackingToken } from "@/lib/ads/tracking-token";
 
 // Day 6 (prompt 5): publisher guide (app/dashboard/publisher/guide/page.tsx) asli API contract se mel khata rahe,
 // aur wo security/honesty rules todhe nahi (key browser me nahi, koi jhootha URL/key nahi, koi overclaim nahi).
@@ -180,29 +180,194 @@ describe("Day 15 part 4: no outdated 'not implemented' claims", () => {
   });
 });
 
-describe("Day 15 part 4: no invented click reference in the match response", () => {
-  it("the real tracking object has exactly token, expires_at, events (no click ref, no click url)", () => {
+describe("Day 17 part 3: the guide documents the real click_ref response contract (and invents nothing)", () => {
+  const CFG = { secrets: ["k7f2-0123456789-abcdefghijklmnopqrstuvwxyz-primary"], ttlSeconds: 3600 };
+  it("the real tracking object is token, expires_at, events plus the optional click_ref; click_url exists nowhere", () => {
     assert.deepEqual([...PUBLIC_TRACKING_FIELDS], ["token", "expires_at", "events"]);
-    for (const f of ["lib/ads/contract.ts", "lib/ads/match-handler.ts", "lib/ads/serve.ts", "lib/ads/serve-db.ts"]) {
+    assert.deepEqual([...PUBLIC_TRACKING_OPTIONAL_FIELDS], ["click_ref"]);
+    assert.doesNotMatch(read("lib/ads/contract.ts"), /click_url/);
+    for (const f of ["lib/ads/match-handler.ts", "lib/ads/serve.ts", "lib/ads/serve-db.ts"]) {
       assert.doesNotMatch(read(f), /click-ref|mintClickRef|click_ref|click_url/, f);
     }
   });
-  it("the guide's tracking example keeps exactly the real shape and invents no field", () => {
-    const body = JSON.parse(lines("TRACKING_SUCCESS_EXAMPLE")) as { tracking: Record<string, unknown> };
-    assert.deepEqual(Object.keys(body.tracking).sort(), [...PUBLIC_TRACKING_FIELDS].sort());
-    assert.doesNotMatch(flat(GUIDE), /click_ref|click_url|clickRef|clickUrl|"click":/);
+
+  it("the guide's tracking example has exactly the real keys, an obvious bc1 placeholder, and equals what the real mapper builds", () => {
+    const body = JSON.parse(lines("TRACKING_SUCCESS_EXAMPLE")) as { ad: Record<string, unknown>; tracking: Record<string, unknown> };
+    assert.deepEqual(Object.keys(body.tracking), [...PUBLIC_TRACKING_FIELDS, ...PUBLIC_TRACKING_OPTIONAL_FIELDS]);
+    assert.match(String(body.tracking.token), /^bt1\.EXAMPLE-/);
+    assert.match(String(body.tracking.click_ref), /^bc1\.EXAMPLE-/);
+    assert.notEqual(body.tracking.token, body.tracking.click_ref);
+    const real = buildAdResponse(
+      { id: String(body.ad.id), headline: String(body.ad.headline), body: String(body.ad.body), ctaText: body.ad.cta_text as string, destinationUrl: String(body.ad.destination_url) },
+      { token: String(body.tracking.token), expiresAtMs: Date.parse(String(body.tracking.expires_at)), events: body.tracking.events as never, clickRef: String(body.tracking.click_ref) },
+    );
+    assert.deepEqual(plain(real), body, "the example is byte-for-byte what buildAdResponse produces");
+    assert.doesNotMatch(JSON.stringify(body), /click_url|clickUrl|publisher_id|creative_id|serve_ref|campaign/);
   });
-  it("the guide says plainly that no click reference is returned yet and not to send the token to the click endpoint", () => {
+
+  it("the plain (no opt-in) success example still has no tracking object and no click_ref", () => {
+    const body = JSON.parse(lines("SUCCESS_EXAMPLE")) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(body).sort(), ["ad", "fill", "sponsored"]);
+    assert.doesNotMatch(lines("SUCCESS_EXAMPLE"), /click_ref|bc1|bt1/);
+  });
+
+  it("every tracking.* field the guide or its examples mention is a real contract field", () => {
+    const allowed = new Set<string>([...PUBLIC_TRACKING_FIELDS, ...PUBLIC_TRACKING_OPTIONAL_FIELDS]);
+    for (const text of [flat(GUIDE), lines("TRACKED_SERVER_EXAMPLE")]) {
+      const used = new Set([...text.matchAll(/\btracking\??\.([A-Za-z_]+)/g)].map((m) => m[1]));
+      assert.ok(used.has("click_ref") && used.has("token"));
+      for (const f of used) assert.ok(allowed.has(f), `tracking.${f} is not part of the contract`);
+    }
+    assert.doesNotMatch(flat(GUIDE), /click_url|click_link|redirect_url|"click":/);
+  });
+
+  it("the guide keeps token (bt1, impression) and click_ref (bc1, click redirect) clearly apart", () => {
     const g = flat(GUIDE);
-    assert.match(g, /the match response does not give you a click reference yet/);
-    assert.match(g, /do not send the tracking token to the click endpoint/);
-    assert.match(g, /do not try to make a reference yourself/);
-  });
-  it("tracking tokens and click references really are different, non-interchangeable prefixes", () => {
     assert.equal(TRACKING_TOKEN_PREFIX, "bt1");
     assert.equal(CLICK_REF_PREFIX, "bc1");
-    assert.deepEqual([...TRACKING_EVENTS], ["impression", "click"]);
-    assert.match(flat(GUIDE), /"events": \["impression", "click"\]|events: \["impression", "click"\]|"impression", "click"/);
+    assert.match(g, /Two different values for two different jobs/);
+    assert.match(g, /tracking\.token<\/td> <td className="py-2 pr-3 font-mono text-xs">bt1\.<\/td> <td className="py-2 pr-3">Impression reporting/);
+    assert.match(g, /tracking\.click_ref<\/td> <td className="py-2 pr-3 font-mono text-xs">bc1\.<\/td> <td className="py-2 pr-3">The click redirect and click recording/);
+    assert.match(g, /the click endpoint refuses a <code>bt1<\/code> token, and the impression endpoint refuses a <code>bc1<\/code> reference/);
+    assert.match(g, /do not send the tracking token to the click endpoint/);
+    assert.match(g, /do not try to make a reference yourself/);
+    assert.match(g, /Never replace a missing <code>click_ref<\/code> with your own link or with the token/);
+    assert.doesNotMatch(g, /does not give you a click reference yet|cannot build a working Blisscco click link|do not return a click reference yet/i);
+  });
+
+  it("the guide says the click endpoint performs the redirect using the database-verified destination, and never to link destination_url", () => {
+    const g = flat(GUIDE);
+    assert.match(g, /looks up the ad&apos;s destination in Blisscco&apos;s own database, and only then redirects the person there/);
+    assert.match(g, /the endpoint never reads one from the link/);
+    assert.match(g, /destination it verified in its own database/);
+    assert.match(g, /Never link straight to <code>destination_url<\/code>, and never build a redirect address from it/);
+    assert.match(g, /With such a link the click is not reported to Blisscco/);
+    assert.match(g, /<code>encodeURIComponent\(\)<\/code>/);
+    assert.match(lines("TRACKED_SERVER_EXAMPLE"), /encodeURIComponent\(tracking\.click_ref\)/);
+  });
+
+  it("the production-readiness disclaimer, the Idempotency-Key retry guidance and the no-chatbot-integration statement are still there", () => {
+    const g = flat(GUIDE);
+    assert.match(g, /Not ready for production use/);
+    assert.match(g, /Known limitations/);
+    assert.match(g, /so do not roll this out to real users yet/);
+    assert.match(g, /no integration with ChatGPT or any other third-party chatbot/);
+    assert.match(g, /If you retry that same placement after a timeout or a 5xx,\s*send the same key/);
+    assert.match(g, /the same <code>Idempotency-Key<\/code> returns the same ad, the same delivery and the identical <code>token<\/code> and <code>click_ref<\/code>/);
+    assert.match(g, /Match retries are safe only when you send the same <code>Idempotency-Key<\/code>/);
+  });
+
+  describe("buildClickUrl() in the server example (runs for real)", () => {
+    type Tr = { token: string; expires_at: string; events: string[]; click_ref?: string };
+    const SRC = lines("TRACKED_SERVER_EXAMPLE");
+    const load = (env: Record<string, string | undefined>) => {
+      const js = ts.transpileModule(SRC, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, strict: true } }).outputText;
+      const mod = { exports: {} as Record<string, unknown> };
+      vm.runInNewContext(js, { module: mod, exports: mod.exports, process: { env }, crypto: globalThis.crypto, AbortSignal, Promise, Date, Math, Number, JSON, setTimeout, fetch: async () => { throw new Error("no network in this test"); } });
+      return mod.exports.buildClickUrl as (t: Tr | null) => string | null;
+    };
+    const ENV = { BLISSCCO_API_BASE_URL: "https://api.example.test", BLISSCCO_PUBLISHER_API_KEY: "test-key-not-real" };
+    const NOW = Date.now();
+    const SERVE = "bsr_" + "ab".repeat(20);
+    const PUB = "00000000-0000-4000-8000-0000000000a1";
+    const CREATIVE = "00000000-0000-4000-8000-0000000000c1";
+    const input = { serveRef: SERVE, publisherId: PUB, servedAtMs: NOW, nowMs: NOW };
+    const real = (): Tr => {
+      const bt = mintTrackingToken(CFG, input)!;
+      const bc = mintClickRef(CFG, { ...input, creativeId: CREATIVE })!;
+      return { token: bt.token, expires_at: new Date(bt.expiresAtMs).toISOString(), events: [...bt.events], click_ref: bc.ref };
+    };
+
+    it("builds API base + /api/v1/ads/click + one ref parameter; the real parser and the real verifier accept it", () => {
+      const tr = real();
+      const url = load(ENV)(tr)!;
+      assert.equal(url, "https://api.example.test/api/v1/ads/click?ref=" + encodeURIComponent(tr.click_ref!));
+      const parsed = new URL(url);
+      assert.equal(parsed.pathname, "/api/v1/ads/click");
+      assert.deepEqual([...parsed.searchParams.keys()], [CLICK_PARAM]);
+      assert.equal(parseClickQuery(parsed.searchParams).ok, true);
+      assert.equal(parsed.searchParams.get(CLICK_PARAM), tr.click_ref);
+      assert.ok(verifyClickRef(parsed.searchParams.get(CLICK_PARAM), CFG, NOW).ok, "a genuine signed reference survives the round trip");
+      assert.equal(url.includes(tr.token), false, "the bt1 token is never part of the click link");
+      assert.equal(url.includes("test-key-not-real"), false, "the API key is never part of the click link");
+    });
+
+    it("a trailing slash on the base URL does not double up; the reference is URL-encoded", () => {
+      const tr = real();
+      assert.equal(load({ ...ENV, BLISSCCO_API_BASE_URL: "https://api.example.test/" })(tr), "https://api.example.test/api/v1/ads/click?ref=" + encodeURIComponent(tr.click_ref!));
+    });
+
+    it("returns null (no link) for: no tracking, no click_ref, a bt1 token, junk, an oversized value, an expired one or no configured base URL", () => {
+      const tr = real();
+      const f = load(ENV);
+      assert.equal(f(null), null);
+      const { click_ref: _omit, ...without } = tr;
+      assert.equal(f(without), null);
+      for (const bad of [tr.token, "", "bc1.a", "bc1.a.b.c", "BC1.a.b", "https://evil.example/", "bc1.a b.c", "bc1.a.b&url=https://evil.example", `bc1.${"x".repeat(600)}.y`, 42 as never]) {
+        assert.equal(f({ ...tr, click_ref: bad }), null, String(bad).slice(0, 30));
+      }
+      assert.equal(f({ ...tr, expires_at: new Date(Date.now() - 1000).toISOString() }), null);
+      assert.equal(load({ ...ENV, BLISSCCO_API_BASE_URL: undefined })(tr), null);
+    });
+
+    it("never reads destination_url: the function does not mention it, and the link does not change with it", () => {
+      const fn = /export function buildClickUrl[\s\S]*?\n\}/.exec(SRC);
+      assert.ok(fn);
+      assert.doesNotMatch(fn[0], /destination/i);
+      assert.doesNotMatch(fn[0], /API_KEY/);
+    });
+  });
+
+  describe("the rendering example uses the click endpoint, not destination_url", () => {
+    type PublicAd = { id: string; headline: string; body: string; cta_text: string | null; destination_url: string };
+    const js = ts.transpileModule(lines("RENDER_EXAMPLE"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, strict: true } }).outputText;
+    const mod = { exports: {} as Record<string, unknown> };
+    vm.runInNewContext(js, { module: mod, exports: mod.exports });
+    const render = mod.exports.renderSponsoredAd as (ad: PublicAd, clickUrl: string | null) => string;
+    const ad: PublicAd = { id: "3f2b8c1e-5a47-4d9e-9b62-7c1d8e4a6f10", headline: "Level up", body: "Gaming laptops", cta_text: "Shop now", destination_url: "https://advertiser.example/landing" };
+    const CLICK = "https://api.example.test/api/v1/ads/click?ref=bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE";
+
+    it("the link is the Blisscco click URL with sponsored rel; the advertiser destination appears nowhere in the HTML", () => {
+      assert.match(render(ad, CLICK), /<a href="https:\/\/api\.example\.test\/api\/v1\/ads\/click\?ref=bc1\.EXAMPLE-PAYLOAD\.EXAMPLE-SIGNATURE" rel="sponsored noopener noreferrer">Shop now<\/a>/);
+      for (const a of [ad, { ...ad, destination_url: "javascript:alert(1)" }, { ...ad, destination_url: "http://evil.example" }]) {
+        assert.equal(render(a, CLICK).includes(a.destination_url), false, a.destination_url);
+      }
+    });
+    it("no click URL (no click_ref) means no link at all; destination_url is never promoted to a link", () => {
+      const out = render(ad, null);
+      assert.equal(out.includes("<a "), false);
+      assert.equal(out.includes("advertiser.example"), false);
+      assert.match(out, /<span>Sponsored<\/span>/);
+    });
+    it("only an https Blisscco click link with a bc1 ref is accepted; any other shape is dropped", () => {
+      for (const bad of [
+        ad.destination_url, "http://api.example.test/api/v1/ads/click?ref=bc1.a.b", "javascript:alert(1)", "//api.example.test/api/v1/ads/click?ref=bc1.a.b",
+        "https://api.example.test/api/v1/ads/click?ref=bt1.a.b", "https://api.example.test/api/v1/ads/click?ref=bc1.a.b&url=https://evil.example",
+        "https://api.example.test/other?ref=bc1.a.b", "https://api.example.test/api/v1/ads/click", "https://api.example.test/api/v1/ads/click?ref=bc1.a.b#x",
+        'https://api.example.test/api/v1/ads/click?ref=bc1.a"onmouseover="x', "https://api.example.test/api/v1/ads/click?ref=bc1.a b", "",
+      ]) {
+        assert.equal(render(ad, bad).includes("<a "), false, bad);
+      }
+    });
+    it("a real click_ref run through buildAdResponse and a click URL is accepted by the example", () => {
+      const ref = mintClickRef(CFG, { serveRef: "bsr_" + "cd".repeat(20), publisherId: "00000000-0000-4000-8000-0000000000a1", creativeId: "00000000-0000-4000-8000-0000000000c1", servedAtMs: Date.now(), nowMs: Date.now() })!;
+      const url = "https://api.example.test/api/v1/ads/click?ref=" + encodeURIComponent(ref.ref);
+      assert.match(render(ad, url), /<a href="https:\/\/api\.example\.test\/api\/v1\/ads\/click\?ref=bc1\./);
+    });
+    it("says that a direct destination link is not reported to Blisscco", () => {
+      assert.match(lines("RENDER_EXAMPLE"), /NOT reported to Blisscco/);
+      assert.match(flat(GUIDE), /the click is not reported to Blisscco/);
+    });
+  });
+
+  it("the server example is backend-only, keeps the key out of every link and does not send the key to the click endpoint", () => {
+    const SRC = lines("TRACKED_SERVER_EXAMPLE");
+    assert.match(SRC, /Runs on YOUR backend only/);
+    assert.match(SRC, /a CLICK link/);
+    assert.match(SRC, /NEVER from ad\.destination_url/);
+    const build = /export function buildClickUrl[\s\S]*?\n\}/.exec(SRC)![0];
+    assert.doesNotMatch(build.replace(/\/\/.*$/gm, ""), /Authorization|API_KEY|\.token\b/);
+    assert.doesNotMatch(SRC, /blc_live_|NEXT_PUBLIC|VITE_|REACT_APP/);
   });
 });
 
@@ -495,24 +660,27 @@ describe("Day 15 part 4: the Sponsored rendering example is safe", () => {
   const js = ts.transpileModule(lines("RENDER_EXAMPLE"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, strict: true } }).outputText;
   const mod = { exports: {} as Record<string, unknown> };
   vm.runInNewContext(js, { module: mod, exports: mod.exports });
-  const render = mod.exports.renderSponsoredAd as (ad: PublicAd) => string;
+  const render = mod.exports.renderSponsoredAd as (ad: PublicAd, clickUrl: string | null) => string;
   const ad: PublicAd = { id: "3f2b8c1e-5a47-4d9e-9b62-7c1d8e4a6f10", headline: "Level up", body: "Gaming laptops", cta_text: "Shop now", destination_url: "https://example.com/g" };
+  // Day 17 Part 3: link ab sirf Blisscco click URL hai (click_ref se bana); destination_url kabhi link nahi banta.
+  const CLICK = "https://api.example.test/api/v1/ads/click?ref=bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE";
 
-  it("always includes the visible Sponsored label, also when cta_text is null or the link is unsafe", () => {
-    for (const a of [ad, { ...ad, cta_text: null }, { ...ad, destination_url: "http://example.com/g" }, { ...ad, destination_url: "javascript:alert(1)" }]) {
-      assert.match(render(a), /<span>Sponsored<\/span>/);
+  it("always includes the visible Sponsored label, also when cta_text is null or there is no click link", () => {
+    for (const [a, url] of [[ad, CLICK], [{ ...ad, cta_text: null }, CLICK], [ad, null], [{ ...ad, destination_url: "javascript:alert(1)" }, null]] as const) {
+      assert.match(render(a, url), /<span>Sponsored<\/span>/);
     }
   });
   it("escapes HTML in every text field", () => {
-    const out = render({ ...ad, headline: "<script>alert(1)</script>", body: "a & b <img src=x onerror=1>", cta_text: "\"><b>" });
+    const out = render({ ...ad, headline: "<script>alert(1)</script>", body: "a & b <img src=x onerror=1>", cta_text: "\"><b>" }, CLICK);
     assert.equal(/<script|<img|<b>/.test(out), false);
     assert.match(out, /&lt;script&gt;/);
     assert.match(out, /&amp;/);
   });
-  it("links only https destinations, with rel sponsored noopener noreferrer", () => {
-    assert.match(render(ad), /<a href="https:\/\/example\.com\/g" rel="sponsored noopener noreferrer">Shop now<\/a>/);
-    for (const url of ["http://example.com/g", "javascript:alert(1)", "data:text/html,x", "//example.com"]) {
-      assert.equal(render({ ...ad, destination_url: url }).includes("<a "), false, url);
+  it("links only the Blisscco click URL, with rel sponsored noopener noreferrer, and never destination_url", () => {
+    assert.match(render(ad, CLICK), /<a href="https:\/\/api\.example\.test\/api\/v1\/ads\/click\?ref=bc1\.EXAMPLE-PAYLOAD\.EXAMPLE-SIGNATURE" rel="sponsored noopener noreferrer">Shop now<\/a>/);
+    for (const url of [ad.destination_url, "http://example.com/g", "javascript:alert(1)", "data:text/html,x", "//example.com"]) {
+      assert.equal(render({ ...ad, destination_url: url }, null).includes("<a "), false, url);
+      assert.equal(render(ad, url).includes("<a "), false, url);
     }
   });
   it("says that a direct destination link is not reported to Blisscco", () => {

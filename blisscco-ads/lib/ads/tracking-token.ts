@@ -120,6 +120,11 @@ export type TrackingGrant = {
   token: string;
   expiresAtMs: number;
   events: readonly TrackingEvent[];
+  /**
+   * Optional (Day 17 Part 1): signed click reference (bc1...), `mintClickRef()` se. Sirf tab jab sahi se ban gaya ho.
+   * mintTrackingToken ise kabhi set nahi karta; service.ts jodta hai.
+   */
+  clickRef?: string;
 };
 
 export type MintInput = {

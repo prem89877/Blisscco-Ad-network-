@@ -108,7 +108,7 @@ describe("day 16 part 3 | same key + same publisher: replay, no second serve, no
 
   it("a retry is still attributed to the original serve (same serve_ref reaches the tracking issuer, no new serve)", async () => {
     const { pub } = world();
-    const seen: { publisherId: string; serveRef: string; servedAtMs: number }[] = [];
+    const seen: { publisherId: string; serveRef: string; servedAtMs: number; creativeId: string }[] = [];
     const deps: ServeDeps = {
       authorize: authorizePublisher,
       select: (request, unitCostUsd) =>
