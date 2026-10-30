@@ -56,6 +56,17 @@ export type RpcCall = { name: string; args: Record<string, unknown> };
 type Reply = { data: unknown; error: { code?: string; message?: string } | null };
 const ok = (data: unknown): Reply => ({ data, error: null });
 
+/** Day 14 Part 5: SQL function ke andar ka exception (jaise ledger write fail). rpc isse `{ data: null, error: { code } }` banata hai. */
+export class FakeSqlError extends Error {
+  constructor(
+    readonly code: string,
+    message = "test: sql exception",
+  ) {
+    super(message);
+  }
+}
+export type ServeRecordedEvent = { serveRef: string; campaignId: string; publisherId: string; unitUsd: number };
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IDEM_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -94,6 +105,11 @@ export class FakeAdDb {
   private creatives = new Map<string, Creative>();
   /** Test ke liye: kisi rpc ko zabardasti fail karao (outage nakal). */
   failRpc: Record<string, Reply | undefined> = {};
+  /**
+   * Day 14 Part 5 hook. SQL me `perform private.ledger_record_serve(...)` record_ad_serve ke andar, spend + serve log ke BAAD, usi transaction me chalta hai.
+   * Yahan bhi wahi jagah: hook throw kare => poora serve (spend, serve log, counter, idempotency link) rollback, aur rpc error deta hai. null = koi ledger nahi (purane tests jaise).
+   */
+  onServeRecorded: ((event: ServeRecordedEvent) => void) | null = null;
 
   get today(): string {
     return new Date(this.nowMs).toISOString().slice(0, 10);
@@ -213,7 +229,12 @@ export class FakeAdDb {
           case "load_ad_candidates":
             return ok(this.loadCandidates(String(args.p_category), String(args.p_today)));
           case "record_ad_serve":
-            return ok(this.recordServe(args));
+            try {
+              return ok(this.recordServe(args));
+            } catch (e) {
+              if (e instanceof FakeSqlError) return { data: null, error: { code: e.code, message: e.message } };
+              throw e;
+            }
           case "find_idempotent_serve":
             return ok(this.findIdempotent(String(args.p_key_hash), args.p_idempotency_key));
           default:
@@ -340,13 +361,26 @@ export class FakeAdDb {
     if (total + unit > camp.totalBudget + 1e-9) return { outcome: "rejected" };
     if (camp.dailyBudget !== null && day + unit > camp.dailyBudget + 1e-9) return { outcome: "rejected" };
 
+    const prevCount = this.serveCountToday.get(cr.id) ?? 0;
     this.spend.set(camp.id, total + unit);
     this.spentToday.set(dayKey, day + unit);
-    this.serveCountToday.set(cr.id, (this.serveCountToday.get(cr.id) ?? 0) + 1);
+    this.serveCountToday.set(cr.id, prevCount + 1);
     const serveIndex = this.serveLog.length;
     const servedAtMs = this.serveTimeMs ?? Date.now();
     const serveRef = `bsr_${sha256(`serve-${serveIndex}-${found.publisher.id}`).slice(0, 40)}`;
     this.serveLog.push({ publisherId: found.publisher.id, creativeId: cr.id, campaignId: camp.id, topic, serveRef, servedAtMs });
+    if (this.onServeRecorded) {
+      try {
+        this.onServeRecorded({ serveRef, campaignId: camp.id, publisherId: found.publisher.id, unitUsd: unit });
+      } catch (e) {
+        // SQL transaction rollback: spend, daily spend, serve counter aur serve log, sab pehle jaisa. Idempotency link abhi bana hi nahi.
+        this.spend.set(camp.id, total);
+        this.spentToday.set(dayKey, day);
+        this.serveCountToday.set(cr.id, prevCount);
+        this.serveLog.pop();
+        throw e;
+      }
+    }
     if (hasIdem) this.serveRequests.set(`${found.publisher.id}|${String(idem)}`, { creativeId: cr.id, serveIndex });
     if (this.legacyNoServeRef) return { outcome: "ok" };
     return { outcome: "ok", serve_ref: serveRef, served_at: new Date(servedAtMs).toISOString() };
