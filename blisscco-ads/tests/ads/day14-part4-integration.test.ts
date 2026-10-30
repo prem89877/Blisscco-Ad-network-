@@ -265,7 +265,7 @@ describe("day 14 part 4 / 1: advertiser campaign creation (server action)", () =
   });
 
   it("invalid input (zero budget, unknown category, daily above total, past start) is rejected with field errors and nothing is written", async () => {
-    for (const bad of [{ totalBudget: "0" }, { category: "not-a-category" }, { totalBudget: "10", dailyBudget: "50" }, { startDate: "2000-01-01" }, { name: "" }]) {
+    for (const bad of <Record<string, string>[]>[{ totalBudget: "0" }, { category: "not-a-category" }, { totalBudget: "10", dailyBudget: "50" }, { startDate: "2000-01-01" }, { name: "" }]) {
       const out = await run(form(bad));
       assert.equal(out.status, "error", JSON.stringify(bad));
       assert.ok(out.fieldErrors && Object.keys(out.fieldErrors).length > 0, JSON.stringify(bad));
@@ -332,7 +332,7 @@ describe("day 14 part 4 / 2: a created campaign becomes eligible only after revi
 
   type Case = {
     name: string;
-    ad: Parameters<FakeAdDb["addAd"]>[1];
+    ad: NonNullable<Parameters<FakeAdDb["addAd"]>[1]>;
     advertiser?: { status?: "pending" | "active" | "suspended"; profile?: "active" | "suspended" };
     fill: boolean;
     reason: string | null; // deliveryState reason (campaigns dashboard ka "Not showing ads" karan)
@@ -404,7 +404,7 @@ describe("day 14 part 4 / 3: publisher authentication", () => {
   it("missing, empty, wrong-scheme and malformed keys are 401 with one identical body, and never reach the database", async () => {
     const w = world();
     w.db.addAd(w.advertiserId, {});
-    for (const headers of [{}, { authorization: "" }, { authorization: "Bearer " }, { authorization: `Basic ${KEY}` }, { authorization: "Bearer short" }, { authorization: `Bearer ${"x".repeat(300)}` }]) {
+    for (const headers of <Record<string, string>[]>[{}, { authorization: "" }, { authorization: "Bearer " }, { authorization: `Basic ${KEY}` }, { authorization: "Bearer short" }, { authorization: `Bearer ${"x".repeat(300)}` }]) {
       const res = await toHttp(
         await matchRoute.POST(new Request(`${BASE}/api/v1/ads/match`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: '{"topic":"gaming"}' })),
       );
@@ -957,7 +957,7 @@ describe("day 14 part 4 / 8: Day 12 click route (GET /api/v1/ads/click?ref=...)"
   it("a browser prefetch/prerender is 204: no click, no redirect, no database call", async () => {
     const { w, serve } = await served();
     const ref = refFor(serve);
-    for (const headers of [{ "sec-purpose": "prefetch" }, { purpose: "prefetch" }, { "next-router-prefetch": "1" }]) {
+    for (const headers of <Record<string, string>[]>[{ "sec-purpose": "prefetch" }, { purpose: "prefetch" }, { "next-router-prefetch": "1" }]) {
       const res = await click(ref, headers);
       assert.equal(res.status, 204, JSON.stringify(headers));
       assert.equal(res.headers.get("location"), null);

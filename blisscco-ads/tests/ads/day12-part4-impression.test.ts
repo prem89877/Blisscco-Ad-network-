@@ -300,7 +300,7 @@ describe("day 12 part 4 | database reply parsing", () => {
     assert.equal(parseServeLookup({ outcome: "not_found" }), null);
     for (const bad of [null, undefined, "x", [], {}, { outcome: "ok" }, { outcome: "found" }, { outcome: "found", publisher_id: "nope", served_at: "2026-10-28T10:00:00Z" },
       { outcome: "found", publisher_id: PUB, served_at: 5 }, { outcome: "found", publisher_id: PUB, served_at: "not a date" }]) {
-      assert.throws(() => parseServeLookup(bad), undefined, JSON.stringify(bad));
+      assert.throws(() => parseServeLookup(bad), Error, JSON.stringify(bad));
     }
   });
   it("writer reply: only recorded / duplicate / rejected count; everything else is an error", () => {

@@ -414,7 +414,7 @@ describe("day 12 prompt 5 part 3 | HTTP handler", () => {
 
   it("prefetch / prerender requests do nothing: 204, no click, no redirect", async () => {
     const store = readyStore();
-    for (const h of [{ "sec-purpose": "prefetch" }, { purpose: "prefetch" }, { "sec-purpose": "prefetch;prerender" }, { "x-moz": "prefetch" }, { "next-router-prefetch": "1" }]) {
+    for (const h of <Record<string, string>[]>[{ "sec-purpose": "prefetch" }, { purpose: "prefetch" }, { "sec-purpose": "prefetch;prerender" }, { "x-moz": "prefetch" }, { "next-router-prefetch": "1" }]) {
       const res = await handleClickGet(req(`?ref=${makeRef()}`, h), { accept: real(store), ...guards() });
       assert.equal(res.status, 204, JSON.stringify(h));
       assert.equal(res.headers.get("location"), null);
