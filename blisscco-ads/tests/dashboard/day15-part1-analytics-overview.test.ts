@@ -147,3 +147,72 @@ describe("page source contract", () => {
     assert.doesNotMatch(src, /supabase\/admin|service_role|\.from\(|\.insert\(|\.update\(/);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Day 15 Part 6: regression. Advertiser overview: duplicate rows, missing data, failures aur doosre account ka data.
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe("Day 15 part 6: advertiser overview regression", () => {
+  it("the same campaign twice is an error, never double-counted totals", async () => {
+    const r = await loadAdvertiserOverview("advertiser", stub({ data: [row(C1, 100, 5, 5), row(C1, 100, 5, 5)], error: null }).getClient);
+    assert.deepEqual(r, { status: "error" });
+    const r2 = await loadAdvertiserOverview("advertiser", stub({ data: [row(C1, 100, 5, 5), row(C1.toUpperCase(), 100, 5, 5)], error: null }).getClient);
+    assert.deepEqual(r2, { status: "error" });
+  });
+  it("different campaigns with the same numbers are summed once each", async () => {
+    const r = await loadAdvertiserOverview("advertiser", stub({ data: [row(C1, 100, 5, 5), row(C2, 100, 5, 5)], error: null }).getClient);
+    assert.equal(r.status, "ok");
+    if (r.status === "ok") assert.deepEqual(r.totals, { campaigns: 2, campaignsWithEvents: 2, impressions: 200, clicks: 10, ctr: 5 });
+  });
+  it("every failure kind is an error with no numbers at all (never ok with zeros)", async () => {
+    const failures: Reply[] = [
+      { data: null, error: { code: "42501" } },
+      { data: undefined, error: null },
+      { data: {}, error: null },
+      { data: "[]", error: null },
+      { data: [null], error: null },
+      { data: [{ campaign_id: C1 }], error: null }, // counts missing
+      { data: [{ impressions: 1, clicks: 0, ctr: 0 }], error: null }, // campaign_id missing
+      { data: [row(C1, 10, 1, 10), { ...row(C2, 10, 1, 10), ctr: null }], error: null },
+      new Error("socket hang up"),
+    ];
+    for (const f of failures) {
+      const r = await loadAdvertiserOverview("advertiser", stub(f).getClient);
+      assert.deepEqual(r, { status: "error" });
+      assert.ok(!("totals" in r));
+    }
+  });
+  it("an error is not the empty state and an empty state is not an error", async () => {
+    const failed = await loadAdvertiserOverview("advertiser", stub({ data: null, error: { code: "XX000" } }).getClient);
+    const empty = await loadAdvertiserOverview("advertiser", stub({ data: [], error: null }).getClient);
+    assert.notDeepEqual(failed, empty);
+    assert.equal(failed.status, "error");
+    assert.equal(empty.status, "empty");
+  });
+  it("account scoping: the loader sends no ids, so the database (auth.uid()) alone decides whose campaigns come back", async () => {
+    const s = stub({ data: [row(C1, 10, 1, 10)], error: null });
+    await loadAdvertiserOverview("advertiser", s.getClient);
+    assert.deepEqual(s.calls, ["get_my_campaign_analytics"]);
+    const lib = read("lib/ads/analytics-overview.ts");
+    assert.doesNotMatch(lib, /advertiser_id|advertiserId|user\.id|account\.id|p_advertiser/);
+  });
+  it("result carries only totals: no campaign ids, no per-campaign rows", async () => {
+    const r = await loadAdvertiserOverview("advertiser", stub({ data: [row(C1, 10, 1, 10), row(C2, 20, 2, 10)], error: null }).getClient);
+    const json = JSON.stringify(r);
+    assert.ok(!json.includes(C1) && !json.includes(C2) && !json.includes("campaign_id"));
+  });
+  it("page: error and empty branches show no StatCard or figures, and the zeros note is only for real zero counts", () => {
+    const page = read("app/dashboard/analytics/page.tsx");
+    const start = page.indexOf('overview.status === "error"');
+    const end = page.indexOf("const t = overview.totals");
+    assert.ok(start > 0 && end > start);
+    assert.doesNotMatch(page.slice(start, end), /StatCard|formatNumber|formatCtr|overview\.totals/);
+    assert.match(page, /noEvents = t\.campaignsWithEvents === 0/);
+    assert.match(page, /\{noEvents && \(/);
+  });
+  it("page never passes an id, email or account object to the loader and never imports demo data", () => {
+    const page = read("app/dashboard/analytics/page.tsx");
+    assert.match(page, /loadAdvertiserOverview\(account\.role, \(\) => createClient\(\)\)/);
+    assert.doesNotMatch(page, /lib\/demo-data|demo-data/);
+  });
+});

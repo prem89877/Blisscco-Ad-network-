@@ -164,3 +164,69 @@ describe("page and panel source contract", () => {
     assert.doesNotMatch(errBranch, /formatNumber|StatCard|impressions|clicks/);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Day 15 Part 6: regression. Campaign performance: malformed / duplicate / missing / failed jawab aur doosre ka campaign.
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe("Day 15 part 6: campaign performance regression", () => {
+  it("duplicate rows for the requested campaign are an error, not the first row and not a sum", async () => {
+    const r = await loadCampaignPerformance(stub({ data: [row(MINE, 10, 1, 10), row(MINE, 10, 1, 10)], error: null }).getClient, MINE);
+    assert.deepEqual(r, { status: "error" });
+  });
+  it("missing or malformed fields are an error with no numbers", async () => {
+    const bad: unknown[] = [
+      [{ campaign_id: MINE }],
+      [{ campaign_id: MINE, impressions: 10, clicks: 1 }], // ctr missing
+      [{ campaign_id: MINE, impressions: "ten", clicks: 1, ctr: 10 }],
+      [{ campaign_id: MINE, impressions: -10, clicks: 1, ctr: 10 }],
+      [{ impressions: 10, clicks: 1, ctr: 10 }], // campaign_id missing
+      [null],
+      [[]],
+      "rows",
+      {},
+    ];
+    for (const data of bad) {
+      const r = await loadCampaignPerformance(stub({ data, error: null }).getClient, MINE);
+      assert.deepEqual(r, { status: "error" }, JSON.stringify(data));
+    }
+  });
+  it("every failed query is an error, never ok with zeros, and never 'unavailable'", async () => {
+    const failures: Reply[] = [{ data: null, error: { code: "42501" } }, { data: null, error: {} }, new Error("timeout"), { data: undefined, error: null }];
+    for (const f of failures) {
+      const r = await loadCampaignPerformance(stub(f).getClient, MINE);
+      assert.deepEqual(r, { status: "error" });
+    }
+  });
+  it("another account's campaign id returns 'unavailable' with no figures, and also when the database sends a foreign row anyway", async () => {
+    const db = ownershipDb(MINE, row(MINE, 99, 9, 9.0909));
+    const foreign = await loadCampaignPerformance(db.getClient, OTHER);
+    assert.deepEqual(foreign, { status: "unavailable" });
+    assert.deepEqual(db.calls, [{ p_campaign_id: OTHER }]);
+    const leaked = await loadCampaignPerformance(stub({ data: [row(MINE, 99, 9, 9.0909)], error: null }).getClient, OTHER);
+    assert.deepEqual(leaked, { status: "error" });
+    assert.ok(!JSON.stringify(leaked).includes("99"));
+  });
+  it("campaign id letter case does not matter, but it must still be the same campaign", async () => {
+    const r = await loadCampaignPerformance(stub({ data: [row(MINE.toUpperCase(), 10, 1, 10)], error: null }).getClient, MINE);
+    assert.equal(r.status, "ok");
+  });
+  it("zero events, missing campaign and failed query are three different results", async () => {
+    const zero = await loadCampaignPerformance(stub({ data: [row(MINE, 0, 0, 0)], error: null }).getClient, MINE);
+    const missing = await loadCampaignPerformance(stub({ data: [], error: null }).getClient, MINE);
+    const failed = await loadCampaignPerformance(stub({ data: null, error: { code: "XX000" } }).getClient, MINE);
+    assert.deepEqual([zero.status, missing.status, failed.status], ["ok", "unavailable", "error"]);
+    if (zero.status === "ok") assert.equal(zero.hasEvents, false);
+  });
+  it("result never carries the campaign id or raw error text", async () => {
+    const r = await loadCampaignPerformance(stub({ data: null, error: { code: "42P01" } }).getClient, MINE);
+    assert.ok(!JSON.stringify(r).includes(MINE) && !JSON.stringify(r).includes("42P01"));
+  });
+  it("page: panel gets only the performance object (no id, no raw error) and the file uses no demo data", () => {
+    const page = read("app/dashboard/advertiser/campaigns/[id]/page.tsx");
+    const panel = read("components/dashboard/CampaignPerformancePanel.tsx");
+    assert.match(page, /<CampaignPerformancePanel performance=\{performance\} \/>/);
+    for (const src of [page, panel]) assert.doesNotMatch(src, /lib\/demo-data|from "@\/lib\/demo-data"/);
+    assert.doesNotMatch(panel, /error\.message|digest|campaignId|campaign\.id/);
+  });
+});

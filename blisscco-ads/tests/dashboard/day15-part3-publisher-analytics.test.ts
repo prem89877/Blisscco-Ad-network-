@@ -167,3 +167,73 @@ describe("privacy: no campaign, advertiser, budget or other publisher data", () 
     assert.doesNotMatch(errBranch, /formatNumber|StatCard|impressions|clicks/);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Day 15 Part 6: regression. Publisher analytics: malformed / duplicate / missing / failed jawab aur doosre publisher ka data.
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe("Day 15 part 6: publisher analytics regression", () => {
+  it("two total rows (duplicate or from another publisher) are an error, never summed and never first-row-wins", async () => {
+    const mine = row(100, 5, 5);
+    const r1 = await loadPublisherOverview("publisher", stub({ data: [mine, mine], error: null }).getClient);
+    const r2 = await loadPublisherOverview("publisher", stub({ data: [mine, row(9000, 900, 10)], error: null }).getClient);
+    assert.deepEqual(r1, { status: "error" });
+    assert.deepEqual(r2, { status: "error" });
+    assert.ok(!JSON.stringify(r2).includes("9000"));
+  });
+  it("missing or malformed fields are an error with no numbers", async () => {
+    const bad: unknown[] = [
+      [{}],
+      [{ impressions: 10, clicks: 1 }], // ctr missing
+      [{ impressions: 10, ctr: 0 }], // clicks missing
+      [{ clicks: 1, ctr: 0 }], // impressions missing
+      [{ impressions: null, clicks: null, ctr: null }],
+      [row("1e2", 1, 1)],
+      [row(10, -1, 0)],
+      [row(10, 1.5, 15)],
+      [row(10, 1, "NaN")],
+      [null],
+      "totals",
+      {},
+      undefined,
+    ];
+    for (const data of bad) {
+      const r = await loadPublisherOverview("publisher", stub({ data, error: null }).getClient);
+      assert.deepEqual(r, { status: "error" }, JSON.stringify(data));
+    }
+  });
+  it("every failed query is an error with no numbers (never ok zeros, never not_found)", async () => {
+    const failures: Reply[] = [{ data: null, error: { code: "42501" } }, { data: [row(10, 1, 10)], error: { code: "XX000" } }, new Error("ECONNRESET")];
+    for (const f of failures) {
+      const r = await loadPublisherOverview("publisher", stub(f).getClient);
+      assert.deepEqual(r, { status: "error" });
+    }
+    const failedClient = await loadPublisherOverview("publisher", async () => {
+      throw new Error("no session");
+    });
+    assert.deepEqual(failedClient, { status: "error" });
+  });
+  it("zero traffic, no publisher row and failure are three different results", async () => {
+    const zero = await loadPublisherOverview("publisher", stub({ data: [row(0, 0, 0)], error: null }).getClient);
+    const none = await loadPublisherOverview("publisher", stub({ data: [], error: null }).getClient);
+    const failed = await loadPublisherOverview("publisher", stub({ data: null, error: { code: "XX000" } }).getClient);
+    assert.deepEqual([zero.status, none.status, failed.status], ["ok", "not_found", "error"]);
+  });
+  it("account scoping: no id is sent, and advertiser / admin / unknown roles never reach the database", async () => {
+    const s = stub({ data: [row(10, 1, 10)], error: null });
+    await loadPublisherOverview("publisher", s.getClient);
+    assert.deepEqual(s.calls, [{ fn: "get_my_publisher_analytics", args: {} }]);
+    for (const role of ["advertiser", "admin", null] as const) {
+      const t = stub({ data: [row(10, 1, 10)], error: null });
+      assert.deepEqual(await loadPublisherOverview(role, t.getClient), { status: "unavailable" });
+      assert.equal(t.clientsMade(), 0);
+      assert.equal(t.calls.length, 0);
+    }
+  });
+  it("page: publisher branch passes only the role and a session client, never an id, and imports no demo data", () => {
+    const pageSrc = read("app/dashboard/analytics/page.tsx");
+    assert.match(pageSrc, /loadPublisherOverview\(account\.role, \(\) => createClient\(\)\)/);
+    assert.doesNotMatch(pageSrc, /lib\/demo-data|demo-data/);
+    assert.doesNotMatch(read("components/dashboard/PublisherAnalyticsView.tsx"), /lib\/demo-data|demo-data/);
+  });
+});

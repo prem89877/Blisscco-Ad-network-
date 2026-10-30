@@ -7,10 +7,10 @@ import * as ts from "typescript";
 import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS } from "@/lib/ads/contract";
 import { parseMatchRequest } from "@/lib/ads/validation";
 import * as clickRoute from "@/app/api/v1/ads/click/route";
-import { handleClickGet } from "@/lib/ads/click-handler";
-import { handleImpressionPost } from "@/lib/ads/impression-handler";
+import { handleClickGet, REQUESTS_PER_MINUTE_PER_IP as CLICK_REQ_LIMIT, FAILURES_PER_MINUTE_PER_IP as CLICK_FAIL_LIMIT } from "@/lib/ads/click-handler";
+import { handleImpressionPost, REQUESTS_PER_MINUTE_PER_IP as IMP_REQ_LIMIT, FAILURES_PER_MINUTE_PER_IP as IMP_FAIL_LIMIT } from "@/lib/ads/impression-handler";
 import { MAX_IMPRESSION_BODY_BYTES, parseImpressionRequest } from "@/lib/ads/impression";
-import { CLICK_PARAM, parseClickQuery } from "@/lib/ads/click";
+import { CLICK_PARAM, parseClickQuery, type ClickResult } from "@/lib/ads/click";
 import { createIpGuard } from "@/lib/ads/ip-guard";
 import { CLICK_REF_PREFIX } from "@/lib/ads/click-ref";
 import { DEFAULT_TTL_SECONDS, MAX_TOKEN_LENGTH, MAX_TTL_SECONDS, TRACKING_EVENTS, TRACKING_TOKEN_PREFIX } from "@/lib/ads/tracking-token";
@@ -531,5 +531,135 @@ describe("Day 15 part 4: guide still never shows a real key or secret", () => {
       assert.match(m[3], /^EXAMPLE-/, `${m[0]}: not an obvious placeholder`);
     }
     assert.equal(/eyJ[A-Za-z0-9_-]{10,}/.test(src), false, "no JWT-looking value");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Day 15 Part 6: guide vs asli impression / click route contracts. Har claim ko asli handler chalakar jaancha gaya.
+// Mismatch jo mile aur guide me theek kiye gaye: (1) click ka 429 malformed query (400) ko bhi ginta hai, sirf "rejected ref" ko nahi;
+// (2) prefetch 204 sirf sahi shape ke link par, bina ref ke prefetch 400 hai; (3) "har response JSON" ka daawa click ke 302 / 204 par galat tha.
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe("Day 15 part 6: guide matches the real impression and click routes", () => {
+  const page = flat(GUIDE);
+  const IP = { "x-forwarded-for": "203.0.113.9" };
+  const guards = () => ({ requestGuard: createIpGuard(300), failureGuard: createIpGuard(30) });
+  const clickUrl = (qs: string) => `https://api.example.test/api/v1/ads/click${qs}`;
+  const accept = async (): Promise<ClickResult> => ({ kind: "redirect", location: "https://example.com/gaming-laptops", counted: "recorded" });
+
+  it("documented rate limits (300 requests, 30 rejected per minute, Retry-After 60) are the real constants for BOTH endpoints", () => {
+    assert.deepEqual([IMP_REQ_LIMIT, IMP_FAIL_LIMIT, CLICK_REQ_LIMIT, CLICK_FAIL_LIMIT], [300, 30, 300, 30]);
+    assert.match(page, /about 300 requests per minute, and about 30 rejected tokens per minute/);
+    assert.match(page, /Retry-After: 60/);
+  });
+
+  it("click: malformed query links (400) really count towards the 429, and the guide now says so", async () => {
+    const opts = { ...guards(), accept };
+    let last = 0;
+    for (let i = 0; i < 31; i++) last = (await handleClickGet(new Request(clickUrl(""), { headers: IP }), opts)).status;
+    assert.equal(last, 429);
+    const row429 = /status: "429", body: "rate_limited", meaning: "([^"]+)"/.exec(read(GUIDE).slice(read(GUIDE).indexOf("const CLICK_ERRORS")));
+    assert.ok(row429);
+    assert.match(row429[1], /malformed click links \(400\)/);
+    assert.match(row429[1], /rejected references \(404\)/);
+  });
+
+  it("click: a rejected reference (404) counts too, but a well-formed link that works never does", async () => {
+    const bad = { ...guards(), accept: async (): Promise<ClickResult> => ({ kind: "invalid", reason: "invalid_signature" }) };
+    let last = 0;
+    for (let i = 0; i < 31; i++) last = (await handleClickGet(new Request(clickUrl("?ref=bc1.a.b"), { headers: IP }), bad)).status;
+    assert.equal(last, 429);
+    const good = { ...guards(), accept };
+    for (let i = 0; i < 100; i++) assert.equal((await handleClickGet(new Request(clickUrl("?ref=bc1.a.b"), { headers: IP }), good)).status, 302);
+  });
+
+  it("click: prefetch is 204 only for a well-formed link; a prefetch with no ref is 400, as the guide now says", async () => {
+    const h = { ...IP, "sec-purpose": "prefetch" };
+    assert.equal((await handleClickGet(new Request(clickUrl("?ref=bc1.a.b"), { headers: h }), { ...guards(), accept })).status, 204);
+    const noRef = await handleClickGet(new Request(clickUrl(""), { headers: h }), { ...guards(), accept });
+    assert.equal(noRef.status, 400);
+    assert.deepEqual(await noRef.json(), { error: "invalid_request", reason: "missing_ref" });
+    assert.match(page, /prefetch or prerender asked for a correctly formed click link/);
+    assert.match(page, /A prefetch of a malformed link is answered 400/);
+  });
+
+  it("impression: only rejected tokens (401) count towards the failure limit, malformed bodies (400) do not, as the guide says", async () => {
+    const post = (body: string) => new Request("https://api.example.test/api/v1/ads/impression", { method: "POST", headers: { "content-type": "application/json", ...IP }, body });
+    const malformed = guards();
+    let last = 0;
+    for (let i = 0; i < 40; i++) last = (await handleImpressionPost(post("{"), { ...malformed, accept: async () => ({ kind: "recorded" }) })).status;
+    assert.equal(last, 400);
+    const rejected = guards();
+    for (let i = 0; i < 31; i++) last = (await handleImpressionPost(post('{"token":"bt1.a.b","event":"impression"}'), { ...rejected, accept: async () => ({ kind: "unauthorized" }) })).status;
+    assert.equal(last, 429);
+    assert.match(page, /about 30 rejected tokens per minute/);
+  });
+
+  it("every documented impression 400 reason is exactly the set the real parser can return (no missing, no invented)", () => {
+    const row400 = /status: "400", body: "invalid_request \+ reason", meaning: "The body broke the contract: ([^"]+)"/.exec(read(GUIDE));
+    assert.ok(row400);
+    const documented = [...row400[1].matchAll(/\b(invalid_json|invalid_body|unknown_field|invalid_token|invalid_event|unreadable_body)\b/g)].map((m) => m[1]);
+    assert.deepEqual([...new Set(documented)].sort(), ["invalid_body", "invalid_event", "invalid_json", "invalid_token", "unknown_field", "unreadable_body"]);
+    const real = new Set<string>();
+    for (const body of ["{", "[]", "null", '{"token":"a","event":"impression","x":1}', '{"event":"impression"}', '{"token":"a"}', '{"token":"a","event":"click"}']) {
+      const p = parseImpressionRequest(body);
+      if (!p.ok) real.add(p.reason);
+    }
+    assert.deepEqual([...real].sort(), ["invalid_body", "invalid_event", "invalid_json", "invalid_token", "unknown_field"]); // unreadable_body kommt vom Handler (Body-Lesefehler)
+  });
+
+  it("every documented click 400 reason is exactly the set the real parser returns", () => {
+    const real = new Set<string>();
+    for (const qs of ["", "ref=a&x=1", "ref=a&ref=b", "ref=", `ref=${"x".repeat(MAX_TOKEN_LENGTH + 1)}`]) {
+      const p = parseClickQuery(new URLSearchParams(qs));
+      if (!p.ok) real.add(p.reason);
+    }
+    assert.deepEqual([...real].sort(), ["invalid_ref", "missing_ref", "unexpected_parameter"]);
+    for (const r of real) assert.ok(read(GUIDE).includes(r), r);
+  });
+
+  it("response headers: impression and click really send no-store and the version header; click 302/204 have no JSON body", async () => {
+    const imp = await handleImpressionPost(
+      new Request("https://api.example.test/api/v1/ads/impression", { method: "POST", headers: { "content-type": "application/json", ...IP }, body: '{"token":"bt1.a.b","event":"impression"}' }),
+      { ...guards(), accept: async () => ({ kind: "recorded" }) },
+    );
+    assert.equal(imp.headers.get("cache-control"), "no-store");
+    assert.equal(imp.headers.get("x-blisscco-api-version"), "1");
+    assert.match(imp.headers.get("content-type") ?? "", /application\/json/);
+    const redirect = await handleClickGet(new Request(clickUrl("?ref=bc1.a.b"), { headers: IP }), { ...guards(), accept });
+    const prefetch = await handleClickGet(new Request(clickUrl("?ref=bc1.a.b"), { headers: { ...IP, "sec-purpose": "prefetch" } }), { ...guards(), accept });
+    for (const r of [redirect, prefetch]) {
+      assert.equal(r.headers.get("cache-control"), "no-store");
+      assert.equal(r.headers.get("x-blisscco-api-version"), "1");
+      assert.equal(await r.text(), "");
+    }
+    assert.equal(redirect.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(redirect.headers.get("location"), "https://example.com/gaming-laptops");
+    // Guide ab yeh nahi kehta ki click ke jawab JSON hain.
+    assert.doesNotMatch(page, /Every response from the API itself is JSON/);
+    assert.match(page, /click endpoint, whose 302 and 204 answers have no body/);
+  });
+
+  it("the guide's click 302 example headers are all really sent, and its click and impression cURL examples are accepted by the real parsers", async () => {
+    const example = lines("CLICK_RESPONSE_EXAMPLE");
+    const redirect = await handleClickGet(new Request(clickUrl("?ref=bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE"), { headers: IP }), { ...guards(), accept });
+    for (const line of example.split("\n").slice(1)) {
+      const [name, ...value] = line.split(": ");
+      if (name === "Location") continue; // Location me example.com ka alag URL hai; neeche alag se jaancha
+      assert.equal(redirect.headers.get(name.toLowerCase()), value.join(": "), name);
+    }
+    assert.ok(example.startsWith("HTTP/1.1 302"));
+    assert.deepEqual(parseClickQuery(new URLSearchParams("ref=bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE")), { ok: true, ref: "bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE" });
+    assert.equal(parseImpressionRequest(lines("IMPRESSION_REQUEST_EXAMPLE")).ok, true);
+  });
+
+  it("405: route files export exactly the documented methods (impression POST only; click GET plus 405 stubs). Platform's empty 405 itself needs a real Next.js server and is NOT verified here", async () => {
+    const impressionRoute = read("app/api/v1/ads/impression/route.ts");
+    assert.match(impressionRoute, /export async function POST\(/);
+    assert.doesNotMatch(impressionRoute, /export async function (GET|HEAD|PUT|PATCH|DELETE|OPTIONS)\(/);
+    const res = await clickRoute.POST();
+    assert.equal(res.status, 405);
+    assert.equal(res.headers.get("allow"), "GET");
+    assert.deepEqual(await res.json(), { error: "method_not_allowed" });
   });
 });

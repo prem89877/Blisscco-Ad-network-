@@ -351,11 +351,11 @@ const IMPRESSION_ERRORS: Row[] = [
 
 const CLICK_ERRORS: Row[] = [
   { status: "302", body: "(empty) + Location", meaning: "The person is sent to the ad's destination. This happens for the first click, for a repeat click, and when the click was not counted. The response does not say which.", action: "Nothing. The browser follows it." },
-  { status: "204", body: "(empty)", meaning: "A browser prefetch or prerender asked for the link. Nothing was counted and nobody was redirected.", action: "Nothing." },
+  { status: "204", body: "(empty)", meaning: "A browser prefetch or prerender asked for a correctly formed click link (exactly one ref parameter). Nothing was counted and nobody was redirected. A prefetch of a malformed link is answered 400, like any other request.", action: "Nothing." },
   { status: "400", body: "invalid_request + reason", meaning: "The query broke the contract: reason is missing_ref, unexpected_parameter (only ref is allowed, once) or invalid_ref (empty or over 512 characters).", action: "Do not retry. Fix the link." },
   { status: "404", body: "not_found", meaning: "The reference was not accepted: edited, expired, for an unknown ad delivery, or for an ad that can no longer be clicked. All of these look identical on purpose.", action: "Do not retry. Send the person to nothing, or to a page of your own." },
   { status: "405", body: "method_not_allowed + Allow: GET", meaning: "Any method other than GET, including HEAD and POST, so a crawler cannot count a click.", action: "Do not retry. Use GET." },
-  { status: "429", body: "rate_limited", meaning: "Too many requests, or too many rejected references, from one IP address in the current minute. The response carries Retry-After: 60.", action: "Wait for Retry-After, then try again." },
+  { status: "429", body: "rate_limited", meaning: "Too many requests, or too many malformed click links (400) or rejected references (404), from one IP address in the current minute. The response carries Retry-After: 60.", action: "Wait for Retry-After, then try again." },
   { status: "503", body: "unavailable", meaning: "Temporary failure on Blisscco's side. The person is not redirected.", action: "Trying the same link again later is safe." },
 ];
 
@@ -549,9 +549,9 @@ export default async function PublisherGuidePage() {
 
         <Panel title="4. Responses">
           <p className="text-sm text-mist/75">
-            Every response from the API itself is JSON with <code>Cache-Control: no-store</code>. The v1 endpoint also sends{" "}
-            <code>X-Blisscco-Api-Version: 1</code>. The only exception is the platform&apos;s empty 405 for a method other than POST (see
-            section 5).
+            Every response from the match and impression endpoints is JSON with <code>Cache-Control: no-store</code>. All v1 endpoints also send{" "}
+            <code>X-Blisscco-Api-Version: 1</code>. The exceptions are the platform&apos;s empty 405 for a method other than POST (see
+            section 5) and the click endpoint, whose 302 and 204 answers have no body (section 4d).
           </p>
           <p className="mt-3 text-sm font-medium">Successful match (200)</p>
           <div className="mt-2">

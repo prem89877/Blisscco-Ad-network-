@@ -95,9 +95,14 @@ export async function fetchMyCampaignsAnalytics(client: AnalyticsRpcClient): Pro
   const rows = await callRpc(client, "get_my_campaign_analytics", { p_campaign_id: null });
   if (!rows) return { status: "error" };
   const out: CampaignAnalytics[] = [];
+  const seen = new Set<string>();
   for (const r of rows) {
     const parsed = parseCampaignAnalyticsRow(r);
     if (!parsed) return { status: "error" };
+    // Ek campaign ki do rows => totals double ginte. Aisa jawab galat hai: poora error (UUID ki case alag ho tab bhi wahi campaign).
+    const key = parsed.campaignId.toLowerCase();
+    if (seen.has(key)) return { status: "error" };
+    seen.add(key);
     out.push(parsed);
   }
   return { status: "ok", data: out };
