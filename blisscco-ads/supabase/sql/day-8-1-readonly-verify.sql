@@ -12,7 +12,8 @@
 
 
 -- ===== A1. Tables aur RLS =====
--- Expect: 12 rows, rls_on = true har row me:
+-- Expect (Day 8 ke waqt): 12 rows, rls_on = true har row me. (Day 14 note: Day 9-13 ke baad 7 tables aur aate hain => 19 rows, sab rls_on = true:
+--   Day 9 ka 1, Day 12 ka 1 aur Day 13 ke 5 tables; naam supabase/MIGRATION-ORDER.md aur us din ki migration files me hain.)
 --   ad_categories, ad_creatives, ad_platform_settings, ad_serve_log, advertisers, api_rate_limits,
 --   campaign_spend_daily, campaigns, creative_serve_daily, profiles, publisher_api_keys, publishers
 select c.relname as table_name, c.relrowsecurity as rls_on, c.relforcerowsecurity as rls_forced
@@ -32,7 +33,7 @@ order by tablename, policyname;
 
 
 -- ===== A3. RLS ON par koi policy nahi (matlab: sirf SECURITY DEFINER functions chhoo sakte hain) =====
--- Expect (7 rows): ad_categories, ad_platform_settings, ad_serve_log, api_rate_limits,
+-- Expect (Day 8 ke waqt 7 rows; Day 9-13 ke baad 14: upar ke 7 naye tables bhi RLS on + koi policy nahi): ad_categories, ad_platform_settings, ad_serve_log, api_rate_limits,
 --                  campaign_spend_daily, creative_serve_daily, publisher_api_keys
 select c.relname as table_name
 from pg_class c

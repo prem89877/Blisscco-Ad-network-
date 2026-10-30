@@ -1,3 +1,7 @@
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-- TEST DATABASE ONLY (denim).  NEVER RUN THIS FILE ON PRODUCTION (blisscco ad network).
+-- TYPE: security tests (har TEST block rollback-only) + SETUP/CLEANUP blocks jo TEST rows SAVE (persist) karte hain. Production par SETUP kabhi nahi.
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 -- =====================================================================
 -- BLISSCCO | Day 3 | Part 6 : SECURITY TEST (do test users ke saath)
 -- Ye tests tab tak "pass" nahi maane jaate jab tak tumne khud run karke

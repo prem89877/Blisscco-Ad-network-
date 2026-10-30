@@ -32,6 +32,8 @@ describe("Day 12 part 2: migrations are additive and safe", () => {
       "day-12-1-serve-ref.sql", "day-12-10-record-ad-click.sql", "day-12-11-click-verify.sql", /* Day 12 prompt 5 part 3: click writer + read-only jaanch (sort order) */
       // Day 12 prompt 6 part 2: analytics read-only functions + rollback-only SQL tests
       "day-12-12-campaign-analytics.sql", "day-12-13-campaign-analytics-tests.sql",
+      // Day 14 part 2: day-12-12 ka read-only verify (production par chalane layak).
+      "day-12-14-campaign-analytics-verify.sql",
       "day-12-2-ad-events.sql", "day-12-3-event-verify.sql", "day-12-4-event-tests.sql",
       "day-12-5-serve-ref-return.sql", "day-12-6-serve-ref-return-verify.sql",
       // Part 4: impression writer, uski read-only jaanch aur rollback-only SQL tests

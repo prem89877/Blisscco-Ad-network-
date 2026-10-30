@@ -62,6 +62,8 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
       "supabase/sql/day-12-11-click-verify.sql",
       // Day 12 prompt 6 part 2: analytics ke liye read-only functions (ad_events par koi grant nahi, isliye ye zaroori hain). Sirf padhte hain.
       "supabase/sql/day-12-12-campaign-analytics.sql",
+      // Day 14 part 2: day-12-12 ka read-only verify (production par chalane layak; sirf SELECT).
+      "supabase/sql/day-12-14-campaign-analytics-verify.sql",
       "supabase/sql/day-12-2-ad-events.sql",
       "supabase/sql/day-12-3-event-verify.sql",
       "supabase/sql/day-12-5-serve-ref-return.sql",

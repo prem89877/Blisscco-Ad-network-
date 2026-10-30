@@ -175,7 +175,10 @@ describe("source guarantees (secrets, scope, SQL shape)", () => {
   it("SQL: read-only, authenticated-only, ownership checked in the database, no new tables / writes / service_role", () => {
     const sql = read("supabase/sql/day-12-12-campaign-analytics.sql").split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
     assert.ok(!/create\s+table|alter\s+table|create\s+index|create\s+trigger|insert\s+into|update\s+public|delete\s+from|drop\s+/i.test(sql));
-    assert.ok(!/service_role/.test(sql));
+    // Day 14 part 2: service_role ko ab revoke list me naam se hata diya jata hai (default privileges se milne wala EXECUTE). Grant kabhi nahi.
+    assert.ok(!/grant[^;]*service_role/i.test(sql));
+    assert.ok(/revoke all on function public\.get_my_campaign_analytics\(uuid\) from public, anon, service_role;/.test(sql));
+    assert.ok(/revoke all on function public\.get_my_publisher_analytics\(\) from public, anon, service_role;/.test(sql));
     assert.equal((sql.match(/security definer/g) ?? []).length, 2);
     assert.equal((sql.match(/set search_path = ''/g) ?? []).length, 2);
     assert.ok(sql.includes("grant execute on function public.get_my_campaign_analytics(uuid) to authenticated"));

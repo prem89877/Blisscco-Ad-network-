@@ -1,3 +1,7 @@
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-- TEST DATABASE ONLY (denim).  NEVER RUN THIS FILE ON PRODUCTION (blisscco ad network).
+-- TYPE: ROLLBACK-ONLY test (kuch save nahi hota), par TEST fixtures chahiye aur transaction ke andar rows / settings badalta hai.
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 -- =====================================================================
 -- BLISSCCO | Day 13 | Part 1 : financial ledger ke SQL tests (ROLLBACK-ONLY: kuch save nahi hota)
 -- (Maine ye SQL kisi database par CHALAYA NAHI: sandbox me Postgres nahi hai aur is part me connected Supabase par SQL chalana mana tha.

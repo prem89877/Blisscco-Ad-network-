@@ -1,3 +1,7 @@
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-- TEST DATABASE ONLY (denim).  NEVER RUN THIS FILE ON PRODUCTION (blisscco ad network).
+-- TYPE: DESTRUCTIVE cleanup (BLOCK 3 COMMIT karke TEST rows DELETE karta hai). Production par kabhi nahi.
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 -- =====================================================================
 -- BLISSCCO | Day 5 | Part 10 : TEST data ka cleanup (Day 3-6 SETUP + Day 5 serve tests ke baad)
 -- Kyun: day-3-6 ka purana CLEANUP block sirf creatives/campaigns/advertisers/publishers delete karta hai.

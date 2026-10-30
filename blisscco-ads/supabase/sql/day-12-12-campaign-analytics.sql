@@ -29,6 +29,10 @@
 -- Jo NAHI badalta: ad_events, ad_serve_log, record_ad_*, record_ad_serve, spend / budget, RLS, koi existing grant.
 -- =====================================================================
 
+-- FIX (Day 14 Part 2): revoke ab service_role par bhi (pehle sirf public, anon). Header + day-12-13 T5 ka matlab 'service_role execute nahi kar sakta' tha, par Supabase ke default
+--   privileges service_role ko naye public function par EXECUTE dete hain, isliye wo revoke ke bina bacha rehta tha. Sirf tightening: authenticated ka grant wahi hai, app user-session se hi bulata hai.
+-- Dependencies (actual): day-3-5 (private.is_admin, private.my_advertiser_id), day-3-1/3-2/3-3 (profiles, publishers, campaigns), day-12-2 (ad_events).
+
 begin;
 
 -- ---------- A. campaign-level ----------
@@ -60,7 +64,7 @@ as $$
   order by t.created_at desc
 $$;
 
-revoke all on function public.get_my_campaign_analytics(uuid) from public, anon;
+revoke all on function public.get_my_campaign_analytics(uuid) from public, anon, service_role;
 grant execute on function public.get_my_campaign_analytics(uuid) to authenticated;
 
 comment on function public.get_my_campaign_analytics(uuid) is
@@ -90,7 +94,7 @@ as $$
   ) t
 $$;
 
-revoke all on function public.get_my_publisher_analytics() from public, anon;
+revoke all on function public.get_my_publisher_analytics() from public, anon, service_role;
 grant execute on function public.get_my_publisher_analytics() to authenticated;
 
 comment on function public.get_my_publisher_analytics() is

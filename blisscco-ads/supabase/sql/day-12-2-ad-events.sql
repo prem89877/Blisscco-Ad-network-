@@ -1,6 +1,6 @@
 -- =====================================================================
 -- BLISSCCO | Day 12 | Part 2 | Migration 2 of 2 (file day-12-2) : ad_events (serve / impression / click ka alag event model) + retention
--- Pehle day-12-1-serve-ref.sql chali honi chahiye (composite FK uski unique key par tikta hai). Dobara chalane par safe hai.
+-- Pehle day-12-1-serve-ref.sql chali honi chahiye (composite FK uski unique key par tikta hai). Asli dependencies: day-5-3 (ad_serve_log, creative_serve_daily, api_rate_limits), day-9-5 (ad_serve_requests, purge function). Dobara chalane par safe hai.
 -- PEHLE TEST project (denim) par chalao, phir asli (blisscco ad network) par. (Ye file kisi database par chalayi NAHI gayi hai.)
 --
 -- Faisle (Day 12 Part 1, section 10):

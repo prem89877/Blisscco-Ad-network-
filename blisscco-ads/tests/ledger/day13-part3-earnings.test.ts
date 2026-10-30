@@ -315,7 +315,7 @@ describe("day 13 part 3 | SQL migration (text checks; real behaviour = day-13-8 
   });
   it("billing is untouched: no mention of record_ad_serve, spend, budget; no existing migration was edited", () => {
     assert.doesNotMatch(sql, /record_ad_serve|campaign_spend_daily|cpm_usd/);
-    for (const f of readdirSync(SQL_DIR).filter((x) => !/^day-13-[7-9]-/.test(x))) {
+    for (const f of readdirSync(SQL_DIR).filter((x) => !/^day-13-[7-9]-/.test(x) && x !== "day-13-17-publisher-earnings-verify.sql")) { // Day 14 part 2: day-13-7 ka read-only verify
       assert.doesNotMatch(readSql(f), /get_my_publisher_earnings|get_my_publisher_ledger_entries/, f);
     }
   });
