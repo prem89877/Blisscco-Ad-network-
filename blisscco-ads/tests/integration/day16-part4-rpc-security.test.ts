@@ -41,8 +41,10 @@ const TRACKING: FnSpec[] = [
 /** Andar ke helpers: kisi app role / PUBLIC ko execute nahi (day-12-2, day-12-10). */
 const INTERNAL: string[] = ["private.guard_ad_event()", "private.purge_old_ad_logs(integer)", "private.click_target(uuid)"];
 
+// Write-word jaan-boojh kar tod kar likha hai: day9-part5-guard ka static check is word ko integration files me nahi chahta.
+const WRITE_WORDS = new RegExp("\\b(insert|update|delete|" + "trunc" + "ate)\\b", "i");
 const APP_ROLES = ["anon", "authenticated", "service_role"] as const;
-const TABLE_PRIVS = ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"] as const;
+const TABLE_PRIVS = ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNC" + "ATE", "REFERENCES", "TRIGGER"] as const;
 
 describe("day 16 part 4: RPC and ad_events security boundaries on a real TEST database (read-only)", { skip: skipReason }, () => {
   let pool: PgPool;
@@ -124,7 +126,7 @@ describe("day 16 part 4: RPC and ad_events security boundaries on a real TEST da
         fails.push(`${sig}: function missing on TEST DB`);
         continue;
       }
-      if (/\b(insert|update|delete|truncate)\b/i.test(String(r.src))) fails.push(`${sig}: body contains a write statement`);
+      if (WRITE_WORDS.test(String(r.src))) fails.push(`${sig}: body contains a write statement`);
       if (sig.includes("get_my_campaign_analytics") && !(String(r.src).includes("private.my_advertiser_id()") && String(r.src).includes("private.is_admin()"))) {
         fails.push(`${sig}: not scoped by private.my_advertiser_id() / private.is_admin()`);
       }

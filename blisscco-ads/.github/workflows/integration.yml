@@ -1,19 +1,73 @@
 name: DB integration (TEST database only)
 
 # Haath se chalao (Actions > "DB integration" > Run workflow). Sirf alag TEST Supabase project par chalta hai, production par kabhi nahi.
-# Repo secrets (TEST project ke): TEST_DATABASE_URL, TEST_SUPABASE_PROJECT_REF.
-# Guard (tests/integration/test-db-guard.ts) in teeno me se kuch bhi galat ho toh test chalne se pehle hi roak deta hai.
+# Repo secrets (TEST project ke): TEST_DATABASE_URL, TEST_SUPABASE_PROJECT_REF. TEST_DB_CONFIRM secret nahi hai: yahin likhi fixed value hai.
+# Day 16 Part 5: configuration adhoori ho toh workflow LAAL (fail) hota hai. Pehle jaisa "sab DB tests skip, phir bhi hara" ab mumkin nahi:
+#   1. Preflight: teeno values zaroori (khali / sirf spaces = missing). Sirf naam print hota hai, value kabhi nahi.
+#   2. Tests ke baad: koi bhi test skip hua ya ek bhi pass nahi hua => fail.
+# Guard (tests/integration/test-db-guard.ts) ab bhi test chalne se pehle production ref / production environment ko roakta hai.
+# Trigger sirf workflow_dispatch: push / pull_request par TEST secrets expose nahi hote. Production credentials yahan kabhi nahi.
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Ek hi TEST database par do run ek saath nahi (tagged rows aapas me na takrayein).
+concurrency:
+  group: integration-test-database
+  cancel-in-progress: false
 
 jobs:
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Preflight (required TEST database configuration)
+        shell: bash
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          TEST_SUPABASE_PROJECT_REF: ${{ secrets.TEST_SUPABASE_PROJECT_REF }}
+          TEST_DB_CONFIRM: blisscco-test-db
+        run: |
+          missing=0
+          for name in TEST_DATABASE_URL TEST_SUPABASE_PROJECT_REF TEST_DB_CONFIRM; do
+            value="${!name}"
+            value="${value//[[:space:]]/}"
+            if [ -z "$value" ]; then
+              echo "::error title=Missing TEST database configuration::$name is not set (or empty). Add it as a repository secret of the TEST project. Integration tests did NOT run."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          if [ "$TEST_DB_CONFIRM" != "blisscco-test-db" ]; then
+            echo "::error title=Invalid TEST_DB_CONFIRM::TEST_DB_CONFIRM must be exactly blisscco-test-db."
+            exit 1
+          fi
+          case "$TEST_DATABASE_URL" in
+            postgres://*|postgresql://*) ;;
+            *)
+              echo "::error title=Invalid TEST_DATABASE_URL::TEST_DATABASE_URL must be a postgres:// or postgresql:// URL."
+              exit 1
+              ;;
+          esac
+          case "$TEST_DATABASE_URL" in
+            *"$TEST_SUPABASE_PROJECT_REF"*) ;;
+            *)
+              echo "::error title=TEST project mismatch::TEST_DATABASE_URL does not belong to TEST_SUPABASE_PROJECT_REF."
+              exit 1
+              ;;
+          esac
+          echo "Preflight ok: all three TEST database settings are present (values not printed)."
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+
       - name: Install
         run: |
           if [ -f package-lock.json ]; then
@@ -22,9 +76,33 @@ jobs:
             echo "::warning title=package-lock.json missing::npm install fallback (not reproducible)"
             npm install
           fi
+
       - name: Integration tests (TEST database)
-        run: npm run test:integration
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:integration 2>&1 | tee integration-test.log
         env:
           TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
           TEST_SUPABASE_PROJECT_REF: ${{ secrets.TEST_SUPABASE_PROJECT_REF }}
           TEST_DB_CONFIRM: blisscco-test-db
+
+      - name: Require that no integration test was skipped
+        shell: bash
+        run: |
+          log=integration-test.log
+          passed=$(grep -E '^(#|ℹ) pass [0-9]+' "$log" | tail -1 | grep -oE '[0-9]+$' || true)
+          skipped=$(grep -E '^(#|ℹ) skipped [0-9]+' "$log" | tail -1 | grep -oE '[0-9]+$' || true)
+          if [ -z "$passed" ] || [ -z "$skipped" ]; then
+            echo "::error title=No test summary::Could not read the pass/skipped counts from the test output."
+            exit 1
+          fi
+          echo "Integration tests: passed=$passed skipped=$skipped"
+          if [ "$passed" -eq 0 ]; then
+            echo "::error title=No test passed::Zero integration tests passed."
+            exit 1
+          fi
+          if [ "$skipped" -ne 0 ] || grep -qE '# SKIP' "$log"; then
+            echo "::error title=Integration tests were skipped::$skipped test(s) were skipped. A skipped database test is not a pass."
+            exit 1
+          fi

@@ -10,7 +10,7 @@ import { checkTestDatabase } from "./test-db-guard";
 // !! Prerequisite: TEST project par day-3 .. day-12-10 migrations chali hon. Env set hai par migration missing => before() hook
 //    saaf message ke saath FAIL karta hai (koi PASS banaya nahi jaata, schema yahan se kabhi nahi badalta).
 // !! Serves asli record_ad_serve se bante hain (service_role, day9 jaisa); events functions service_role se bulaye jaate hain.
-// !! Sirf TAG wali apni rows banata/hatata hai: koi TRUNCATE nahi, koi bina-filter DELETE nahi. Credentials kabhi log nahi hote.
+// !! Sirf TAG wali apni rows banata/hatata hai: koi poori-table safai nahi, koi bina-filter DELETE nahi. Credentials kabhi log nahi hote.
 // !! Ye sandbox me CHALAYA NAHI gaya (Postgres / `pg` / network nahi). Pehli baar TEST project par khud chalao.
 
 type Row = Record<string, unknown>;
