@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadMyPublisher } from "@/lib/publisher/queries";
 import { formatDate } from "@/lib/format";
 import { formatUsdUnits } from "@/lib/ledger/display";
+import { fetchMyPayoutSummary } from "@/lib/payouts/data";
 import {
   ENTRY_TYPE_LABEL,
   UNSUPPORTED_BALANCES,
@@ -50,7 +51,13 @@ export default async function PublisherEarningsPage() {
 
   // Ownership DATABASE me hai: dono functions caller ki apni session (auth.uid()) se publisher nikalte hain. Yahan koi publisher id bheji hi nahi jaati.
   const supabase = await createClient();
-  const [summary, entries] = await Promise.all([fetchMyEarningsSummary(supabase), fetchMyEarningsEntries(supabase, 25)]);
+  // Payout figures (Day 13 Part 6): wahi get_my_payout_summary jo Payouts page use karta hai, isliye dono pages ek hi hisab dikhate hain
+  // (available = ledger balance - requested/approved - marked as paid). Ye ledger ya payout ko badalta nahi, sirf padhta hai.
+  const [summary, entries, payout] = await Promise.all([
+    fetchMyEarningsSummary(supabase),
+    fetchMyEarningsEntries(supabase, 25),
+    fetchMyPayoutSummary(supabase),
+  ]);
 
   if (summary.status !== "ok") {
     return (
@@ -106,6 +113,29 @@ export default async function PublisherEarningsPage() {
           />
         </section>
 
+        {payout.status === "ok" && (
+          <section aria-label="Payout position" className="grid gap-4 sm:grid-cols-3">
+            <StatCard
+              label="Available to request"
+              value={formatUsdUnits(payout.data.available)}
+              hint="Ledger balance minus open payout requests minus amounts already marked as paid. Never shown below zero."
+            />
+            <StatCard
+              label="In open payout request"
+              value={formatUsdUnits(payout.data.reserved)}
+              hint="Held by a requested or approved payout request. Not paid yet."
+            />
+            <StatCard
+              label="Marked as paid"
+              value={formatUsdUnits(payout.data.paidOut)}
+              hint="Amounts the Blisscco team recorded as sent manually. Blisscco does not send money automatically."
+            />
+          </section>
+        )}
+        {payout.status === "error" && (
+          <p className="text-sm text-red-300">Payout figures could not be loaded. Please refresh the page. The ledger figures above are not affected.</p>
+        )}
+
         <UnsupportedPanel />
 
         <Panel
@@ -137,7 +167,10 @@ export default async function PublisherEarningsPage() {
 /** Jo figures ledger me hain hi nahi: kabhi 0 ya demo number nahi, saaf "not tracked yet". */
 function UnsupportedPanel() {
   return (
-    <Panel title="Not tracked yet" note="These are not recorded anywhere yet, so Blisscco shows no number for them instead of guessing.">
+    <Panel
+      title="Not tracked yet"
+      note="Payout totals are tracked per payout request (see the Payouts page). Whether each single earning is pending, approved or paid is not recorded anywhere, so Blisscco shows no number for it instead of guessing."
+    >
       <ul className="grid gap-3 sm:grid-cols-3">
         {UNSUPPORTED_BALANCES.map((b) => (
           <li key={b.key} className="rounded-xl border border-line bg-surface p-4">
