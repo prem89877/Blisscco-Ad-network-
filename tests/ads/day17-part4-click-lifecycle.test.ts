@@ -398,7 +398,7 @@ describe("day 17 part 4 | existing safe behaviour is retained", () => {
   it("prefetch / prerender: 204, no redirect, no database call, no click", async () => {
     const { ref, serve } = await serveWithClickRef();
     store.addImpression(serve.serveRef);
-    for (const h of [{ "sec-purpose": "prefetch" }, { purpose: "prefetch" }, { "sec-purpose": "prefetch;prerender" }, { "x-moz": "prefetch" }, { "next-router-prefetch": "1" }]) {
+    for (const h of [{ "sec-purpose": "prefetch" }, { purpose: "prefetch" }, { "sec-purpose": "prefetch;prerender" }, { "x-moz": "prefetch" }, { "next-router-prefetch": "1" }] as Record<string, string>[]) {
       const res = await click(ref, { headers: h });
       assert.equal(res.status, 204, JSON.stringify(h));
       assert.equal(res.location, null);
