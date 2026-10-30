@@ -10,8 +10,9 @@ import { requireAccount } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Integration Guide | Blisscco Dashboard" };
 
-// Publisher integration guide for the versioned Ad API (POST /api/v1/ads/match).
-// Source of truth for the contract: DAY6-ADS-MATCH-CONTRACT.md and lib/ads/contract.ts.
+// Publisher integration guide for the versioned Ad API: POST /api/v1/ads/match, POST /api/v1/ads/impression, GET /api/v1/ads/click.
+// Source of truth for the contract: DAY6-ADS-MATCH-CONTRACT.md, lib/ads/contract.ts and the impression and click route handlers.
+// Day 15 Part 4: tests/ads/publisher-guide.test.ts checks this page against the real code. This page imports none of those modules.
 // Rules for this page: no real key, no real publisher, no deployment URL, no claim about third-party chatbots,
 // no claim of production readiness. Code samples are plain strings (no template literals) so nothing is interpolated.
 
@@ -191,6 +192,201 @@ const PROXY_EXAMPLE = [
   "}).listen(Number(process.env.PORT) || 3000);",
 ].join("\n");
 
+// Day 15 Part 4: impression and click endpoints. Example values only: the tokens and references below are NOT real.
+const IMPRESSION_REQUEST_EXAMPLE = [
+  "{",
+  "  \"token\": \"bt1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE\",",
+  "  \"event\": \"impression\"",
+  "}",
+].join("\n");
+
+const IMPRESSION_CURL_EXAMPLE = [
+  "curl -i -X POST \"https://YOUR-BLISSCCO-API-HOST/api/v1/ads/impression\" \\",
+  "  -H \"Content-Type: application/json\" \\",
+  "  -d '{\"token\":\"bt1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE\",\"event\":\"impression\"}'",
+].join("\n");
+
+const IMPRESSION_RECORDED_EXAMPLE = [
+  "{ \"ok\": true, \"status\": \"recorded\" }",
+].join("\n");
+
+const IMPRESSION_DUPLICATE_EXAMPLE = [
+  "{ \"ok\": true, \"status\": \"duplicate\" }",
+].join("\n");
+
+const CLICK_CURL_EXAMPLE = [
+  "# Format only. The ref value is a placeholder: match responses do not return a click reference yet.",
+  "curl -i \"https://YOUR-BLISSCCO-API-HOST/api/v1/ads/click?ref=bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE\"",
+].join("\n");
+
+const CLICK_RESPONSE_EXAMPLE = [
+  "HTTP/1.1 302 Found",
+  "Location: https://example.com/gaming-laptops",
+  "Cache-Control: no-store",
+  "Referrer-Policy: no-referrer",
+].join("\n");
+
+const TRACKED_SERVER_EXAMPLE = [
+  "// Runs on YOUR backend only. Never import this file into browser or frontend code.",
+  "type SponsoredAd = {",
+  "  id: string;",
+  "  headline: string;",
+  "  body: string;",
+  "  cta_text: string | null;",
+  "  destination_url: string;",
+  "};",
+  "type Tracking = { token: string; expires_at: string; events: string[] };",
+  "type TrackedAd = { ad: SponsoredAd; tracking: Tracking | null };",
+  "export type ImpressionOutcome = \"recorded\" | \"duplicate\" | \"dropped\" | \"failed\";",
+  "",
+  "const API_BASE = process.env.BLISSCCO_API_BASE_URL; // given to you by Blisscco",
+  "const API_KEY = process.env.BLISSCCO_PUBLISHER_API_KEY; // secret, kept out of git",
+  "const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));",
+  "",
+  "// STEP 1: a SERVE. Ask for an ad and opt in to a tracking token. Getting an ad is NOT an impression yet.",
+  "export async function getTrackedAd(",
+  "  topic: string, // a topic slug that YOUR code chose, never user text",
+  "  idempotencyKey: string = crypto.randomUUID(), // one new key per placement; reuse it only when YOU retry that placement",
+  "): Promise<TrackedAd | null> {",
+  "  if (!API_BASE || !API_KEY) return null; // not configured: just run without ads",
+  "  for (let attempt = 0; attempt < 2; attempt++) {",
+  "    try {",
+  "      const res = await fetch(API_BASE + \"/api/v1/ads/match\", {",
+  "        method: \"POST\",",
+  "        headers: {",
+  "          Authorization: \"Bearer \" + API_KEY,",
+  "          \"Content-Type\": \"application/json\",",
+  "          \"Idempotency-Key\": idempotencyKey,",
+  "          \"X-Blisscco-Tracking\": \"1\", // opt in: a successful match may now carry a tracking token",
+  "        },",
+  "        body: JSON.stringify({ topic: topic }),",
+  "        signal: AbortSignal.timeout(2000),",
+  "      });",
+  "      if (res.ok) {",
+  "        const data = (await res.json()) as { fill?: boolean; sponsored?: boolean; ad?: SponsoredAd; tracking?: Tracking };",
+  "        if (data.fill !== true || data.sponsored !== true || !data.ad) return null;",
+  "        return { ad: data.ad, tracking: data.tracking ?? null }; // a missing tracking object is normal: show the ad anyway",
+  "      }",
+  "      if (res.status < 500) return null; // 400, 401, 429 and the rest: do not retry here",
+  "    } catch {",
+  "      // network error or timeout: fall through to ONE retry with the SAME Idempotency-Key",
+  "    }",
+  "    if (attempt === 0) await sleep(1000 + Math.random() * 500);",
+  "  }",
+  "  return null;",
+  "}",
+  "",
+  "// STEP 2: an IMPRESSION. Call this only after the ad was really displayed to a person, never just because you received it.",
+  "// There is no API key here: the token is the permission. Send it from your server (the endpoint has no CORS).",
+  "export async function reportImpression(tracking: Tracking | null): Promise<ImpressionOutcome> {",
+  "  if (!API_BASE || !tracking) return \"dropped\"; // no token: there is nothing to report",
+  "  if (Date.now() >= Date.parse(tracking.expires_at)) return \"dropped\"; // expired: the API would answer 401",
+  "  for (let attempt = 0; attempt < 3; attempt++) {",
+  "    try {",
+  "      const res = await fetch(API_BASE + \"/api/v1/ads/impression\", {",
+  "        method: \"POST\",",
+  "        headers: { \"Content-Type\": \"application/json\" }, // no Authorization header, no Idempotency-Key",
+  "        body: JSON.stringify({ token: tracking.token, event: \"impression\" }),",
+  "        signal: AbortSignal.timeout(2000),",
+  "      });",
+  "      if (res.ok) {",
+  "        const data = (await res.json()) as { status?: string };",
+  "        if (data.status === \"recorded\" || data.status === \"duplicate\") return data.status; // both mean: done",
+  "        return \"failed\";",
+  "      }",
+  "      if (res.status === 429) return \"failed\"; // rate limited: stop, wait for Retry-After, do not loop",
+  "      if (res.status < 500) return \"dropped\"; // 400, 401, 413, 415: retrying cannot help, drop the token",
+  "    } catch {",
+  "      // network error or timeout: retrying is safe, because one serve can only ever count one impression",
+  "    }",
+  "    if (attempt < 2) await sleep(1000 + Math.random() * 500);",
+  "  }",
+  "  return \"failed\"; // still failing: carry on, the ad was already shown",
+  "}",
+].join("\n");
+
+const RENDER_EXAMPLE = [
+  "// Safe rendering of the five public ad fields. It holds no secret, so it may run on your server or in your frontend.",
+  "type PublicAd = {",
+  "  id: string;",
+  "  headline: string;",
+  "  body: string;",
+  "  cta_text: string | null;",
+  "  destination_url: string;",
+  "};",
+  "",
+  "const escapeHtml = (text: string) =>",
+  "  text.replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");",
+  "",
+  "// Render this in its own box AFTER the assistant's answer. The Sponsored label is always there and is plain text.",
+  "export function renderSponsoredAd(ad: PublicAd): string {",
+  "  // Only https links become clickable. Anything else is shown as text, without a link.",
+  "  const safeLink = ad.destination_url.startsWith(\"https://\");",
+  "  // Match responses carry no click reference yet, so this link goes straight to destination_url.",
+  "  // Clicks made this way are NOT reported to Blisscco.",
+  "  const action = safeLink",
+  "    ? \"<a href=\\\"\" + escapeHtml(ad.destination_url) + \"\\\" rel=\\\"sponsored noopener noreferrer\\\">\" + escapeHtml(ad.cta_text ?? \"Learn more\") + \"</a>\"",
+  "    : \"\";",
+  "  return (",
+  "    \"<aside aria-label=\\\"Sponsored\\\"><span>Sponsored</span>\" +",
+  "    \"<p><strong>\" + escapeHtml(ad.headline) + \"</strong></p>\" +",
+  "    \"<p>\" + escapeHtml(ad.body) + \"</p>\" + action + \"</aside>\"",
+  "  );",
+  "}",
+].join("\n");
+
+type Row = { status: string; body: string; meaning: string; action: string };
+
+const IMPRESSION_ERRORS: Row[] = [
+  { status: "200", body: "ok:true + status:recorded", meaning: "This was the first impression reported for that ad delivery, and it is now recorded.", action: "Nothing. Do not send it again." },
+  { status: "200", body: "ok:true + status:duplicate", meaning: "An impression for that ad delivery was already recorded (a retry, a replay or a double callback). Nothing new was counted.", action: "Treat it as success. Do not send it again." },
+  { status: "400", body: "invalid_request + reason", meaning: "The body broke the contract: reason is invalid_json, invalid_body, unknown_field (only token and event are allowed), invalid_token (empty or over 512 characters), invalid_event (it must be exactly impression) or unreadable_body.", action: "Do not retry. Fix the request." },
+  { status: "401", body: "unauthorized", meaning: "The token was not accepted: edited, expired, not issued for your account, for an unknown ad delivery, or for one that is too old. All of these look identical on purpose.", action: "Do not retry. Drop that token." },
+  { status: "405", body: "(empty)", meaning: "Any method other than POST. This answer comes from the hosting platform, so it has no JSON body.", action: "Do not retry. Use POST." },
+  { status: "413", body: "payload_too_large", meaning: "The body is over 1024 bytes.", action: "Do not retry. Send only token and event." },
+  { status: "415", body: "unsupported_media_type", meaning: "Content-Type is not application/json.", action: "Do not retry. Fix the header." },
+  { status: "429", body: "rate_limited", meaning: "Too many requests, or too many rejected tokens, from your IP address in the current minute. The response carries Retry-After: 60.", action: "Stop sending until Retry-After has passed, then send once." },
+  { status: "503", body: "unavailable", meaning: "Temporary failure on Blisscco's side. Nothing was recorded.", action: "Retry up to twice, after 1 second or more with jitter. Sending the same token again is safe." },
+];
+
+const CLICK_ERRORS: Row[] = [
+  { status: "302", body: "(empty) + Location", meaning: "The person is sent to the ad's destination. This happens for the first click, for a repeat click, and when the click was not counted. The response does not say which.", action: "Nothing. The browser follows it." },
+  { status: "204", body: "(empty)", meaning: "A browser prefetch or prerender asked for the link. Nothing was counted and nobody was redirected.", action: "Nothing." },
+  { status: "400", body: "invalid_request + reason", meaning: "The query broke the contract: reason is missing_ref, unexpected_parameter (only ref is allowed, once) or invalid_ref (empty or over 512 characters).", action: "Do not retry. Fix the link." },
+  { status: "404", body: "not_found", meaning: "The reference was not accepted: edited, expired, for an unknown ad delivery, or for an ad that can no longer be clicked. All of these look identical on purpose.", action: "Do not retry. Send the person to nothing, or to a page of your own." },
+  { status: "405", body: "method_not_allowed + Allow: GET", meaning: "Any method other than GET, including HEAD and POST, so a crawler cannot count a click.", action: "Do not retry. Use GET." },
+  { status: "429", body: "rate_limited", meaning: "Too many requests, or too many rejected references, from one IP address in the current minute. The response carries Retry-After: 60.", action: "Wait for Retry-After, then try again." },
+  { status: "503", body: "unavailable", meaning: "Temporary failure on Blisscco's side. The person is not redirected.", action: "Trying the same link again later is safe." },
+];
+
+function StatusTable({ caption, rows }: { caption: string; rows: Row[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[34rem] text-left text-sm">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr className="border-b border-line text-xs uppercase tracking-wide text-mist/55">
+            <th scope="col" className="py-2 pr-3 font-medium">Status</th>
+            <th scope="col" className="py-2 pr-3 font-medium">Body</th>
+            <th scope="col" className="py-2 pr-3 font-medium">Meaning</th>
+            <th scope="col" className="py-2 font-medium">What to do</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((e, i) => (
+            <tr key={e.status + e.body + i} className="border-b border-line/60 align-top text-mist/75">
+              <td className="py-2 pr-3 font-mono text-xs">{e.status}</td>
+              <td className="py-2 pr-3 font-mono text-xs">{e.body}</td>
+              <td className="py-2 pr-3">{e.meaning}</td>
+              <td className="py-2">{e.action}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const ERRORS: Array<{ status: string; body: string; meaning: string; action: string }> = [
   { status: "400", body: "invalid_request + reason", meaning: "The request broke the contract (bad JSON, unknown field, bad topic, bad exclude_ad_ids, an Idempotency-Key that is not 8 to 64 letters, digits, _ or - (reason invalid_idempotency_key), or an X-Blisscco-Tracking header whose value is not exactly 1 (reason invalid_tracking_header)).", action: "Do not retry. Fix the request." },
   { status: "401", body: "unauthorized", meaning: "Key missing, malformed, unknown, revoked or expired, or the publisher account is not active (pending or suspended). All of these look identical on purpose.", action: "Do not retry. Check the key and the account status on the Publisher page, then create a new key or contact Blisscco." },
@@ -217,7 +413,7 @@ export default async function PublisherGuidePage() {
 
       <PageHeader
         title="Integration Guide"
-        description="How a publisher's own server can request a clearly labelled, topic-matched sponsored ad from the versioned Blisscco Ad API."
+        description="How a publisher's own server can request a clearly labelled, topic-matched sponsored ad from the versioned Blisscco Ad API, and report that the ad was shown."
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -248,6 +444,12 @@ export default async function PublisherGuidePage() {
             exists. Matching is by category only. Blisscco does not read conversations, does not build a profile of the
             person, and does not send anything to an external AI service. Your server decides the topic; the API
             rejects any prompt, message, user identifier or other extra field.
+          </p>
+          <p className="mt-3 text-sm text-mist/75">
+            Three endpoints exist: <code>POST /api/v1/ads/match</code> (request an ad, section 3),{" "}
+            <code>POST /api/v1/ads/impression</code> (report that a person was shown that ad, section 4c) and{" "}
+            <code>GET /api/v1/ads/click</code> (the click redirect, section 4d). Getting an ad, showing it and clicking it are three
+            different events (section 4b).
           </p>
           <p className="mt-3 text-sm text-mist/75">
             Supported topics: <code>developer_tools</code>, <code>education</code>, <code>finance</code>,{" "}
@@ -371,7 +573,7 @@ export default async function PublisherGuidePage() {
 
         <Panel
           title="4a. Optional tracking token"
-          note="Opt-in and backward compatible. It prepares later impression and click reporting; it does not report anything today."
+          note="Opt-in and backward compatible. The token is what you send to the impression endpoint (section 4c). Receiving it reports nothing by itself."
         >
           <p className="text-sm text-mist/75">
             Add the header <code>X-Blisscco-Tracking: 1</code> to your server&apos;s request and a successful match also returns a{" "}
@@ -385,15 +587,15 @@ export default async function PublisherGuidePage() {
           <p className="mt-4 text-sm font-medium">Fields</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li><code>token</code>: an opaque, signed string that refers to this one ad delivery. Treat it as a sealed value: do not decode, edit, shorten or guess it. It never contains your API key.</li>
-            <li><code>expires_at</code>: ISO 8601 time in UTC. It is counted from the moment the ad was served (default one hour), and a retry never extends it.</li>
-            <li><code>events</code>: the event types this token may later be used for: <code>impression</code> and <code>click</code>.</li>
+            <li><code>expires_at</code>: ISO 8601 time in UTC. It is counted from the moment the ad was served (one hour by default, never more than 24 hours), and a retry never extends it. After it, the impression endpoint answers 401.</li>
+            <li><code>events</code>: the event types the token is issued for: <code>impression</code> and <code>click</code>. Today the token can be used only at the impression endpoint. The click endpoint takes a different value, a click reference, and the match response does not contain one (section 4d).</li>
           </ul>
           <p className="mt-4 text-sm font-medium">What a token does and does not mean</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
-            <li>Receiving a token does <strong>not</strong> mean the ad was shown, seen or clicked. A serve, an impression and a click are three different things, and a token is only permission to report the later two.</li>
-            <li>There is no endpoint to send tokens to yet, and Blisscco counts no impressions or clicks. Do not use a token for billing, payouts or your own impression counts, and do not call anything that claims otherwise.</li>
-            <li>The token is not your API key and not a secret you must hide like the key, but anyone who holds it can try to report events for that one ad delivery until it expires. Keep it with that ad only, and do not log it next to a person, session or conversation id.</li>
-            <li>Your API key, <code>Idempotency-Key</code> and any other credential stay on your server. The browser may receive the five ad fields and, if you need it, the token for that same ad.</li>
+            <li>Receiving a token does <strong>not</strong> mean the ad was shown, seen or clicked. A serve, an impression and a click are three different things (section 4b), and a token is only permission to report an impression.</li>
+            <li>An impression exists only when the impression endpoint answers <code>recorded</code> or <code>duplicate</code>. Do not treat a token, or your own page load, as an impression, and do not report one for an ad nobody saw.</li>
+            <li>The token is not your API key, but anyone who holds it can report an impression for that one ad delivery until it expires. Keep it with that ad only, and do not log it next to a person, session or conversation id.</li>
+            <li>Your API key, <code>Idempotency-Key</code> and any other credential stay on your server. The impression endpoint has no CORS, so report impressions from your server. If your frontend must tell you that the ad was displayed, let it call your own backend, which then holds the token and makes the call.</li>
           </ul>
           <p className="mt-4 text-sm font-medium">When <code>tracking</code> is absent</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
@@ -405,6 +607,123 @@ export default async function PublisherGuidePage() {
           <p className="mt-4 text-sm font-medium">Retries</p>
           <p className="mt-1 text-sm text-mist/75">
             Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical token. It does not create a second delivery or a second token. Use a different key for every new placement, never the same key for two ads.
+          </p>
+        </Panel>
+
+        <Panel
+          title="4b. Serve, impression and click are three different events"
+          note="Blisscco records each one separately. Never use one as proof of another."
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-left text-sm">
+              <caption className="sr-only">The difference between an ad serve, an impression and a click</caption>
+              <thead>
+                <tr className="border-b border-line text-xs uppercase tracking-wide text-mist/55">
+                  <th scope="col" className="py-2 pr-3 font-medium">Event</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">What it means</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">How it is recorded</th>
+                  <th scope="col" className="py-2 font-medium">Effect on spend</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-line/60 align-top text-mist/75">
+                  <td className="py-2 pr-3 font-medium">Ad serve</td>
+                  <td className="py-2 pr-3">Blisscco handed an ad to your server. Nobody has necessarily seen it.</td>
+                  <td className="py-2 pr-3">Automatically, on a successful <code>POST /api/v1/ads/match</code>. A retry with the same <code>Idempotency-Key</code> is not a second serve.</td>
+                  <td className="py-2">The only event that is charged.</td>
+                </tr>
+                <tr className="border-b border-line/60 align-top text-mist/75">
+                  <td className="py-2 pr-3 font-medium">Impression</td>
+                  <td className="py-2 pr-3">You report that the ad was displayed to a person.</td>
+                  <td className="py-2 pr-3">Only when you send the tracking token to <code>POST /api/v1/ads/impression</code>. At most one per serve.</td>
+                  <td className="py-2">None. It is not charged again.</td>
+                </tr>
+                <tr className="align-top text-mist/75">
+                  <td className="py-2 pr-3 font-medium">Click</td>
+                  <td className="py-2 pr-3">A person followed the Blisscco click link and was redirected to the destination.</td>
+                  <td className="py-2 pr-3">Only through <code>GET /api/v1/ads/click</code>, and only if the impression was recorded first. At most one per serve.</td>
+                  <td className="py-2">None. It is not charged again.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-sm text-mist/75">
+            Impressions and clicks are reporting counts. They do not change spend, and they do not add earnings. Blisscco
+            does not guess an impression from a serve, or a click from an impression.
+          </p>
+        </Panel>
+
+        <Panel
+          title="4c. Reporting an impression"
+          note="POST /api/v1/ads/impression. Server to server. No API key: the tracking token is the permission."
+        >
+          <p className="text-sm text-mist/75">
+            Send the <code>tracking.token</code> from a match response (section 4a) once the ad has really been displayed. The request has
+            two things: <code>Content-Type: application/json</code> and a JSON body with exactly two fields, <code>token</code> and{" "}
+            <code>event</code>, where <code>event</code> must be the word <code>impression</code>. Any other field, or the event{" "}
+            <code>click</code> or <code>serve</code>, returns 400. Do not send your API key to this endpoint.
+          </p>
+          <div className="mt-3 grid gap-3">
+            <CodeBlock code={IMPRESSION_REQUEST_EXAMPLE} label="Request body (example values, not a real token)" />
+            <CodeBlock code={IMPRESSION_CURL_EXAMPLE} label="cURL example" />
+            <CodeBlock code={IMPRESSION_RECORDED_EXAMPLE} label="Response, first report for this ad delivery (200)" />
+            <CodeBlock code={IMPRESSION_DUPLICATE_EXAMPLE} label="Response, already reported (200)" />
+          </div>
+          <p className="mt-4 text-sm font-medium">Expiry and duplicates</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>The token expires at <code>expires_at</code>, which is counted from the serve (one hour by default). An impression is also never accepted more than 24 hours after the serve. Send it soon after the ad is displayed, not in a nightly batch.</li>
+            <li>Only the first impression of an ad delivery counts. Every later report for the same delivery answers <code>duplicate</code>, which is a success, and adds nothing. This holds even when two requests arrive at the same moment.</li>
+            <li>The <code>Idempotency-Key</code> header belongs to the match request only. The impression endpoint does not need it: the duplicate rule already makes a retry harmless.</li>
+            <li>A 401 never explains why. Do not retry it, and do not try to decode or repair the token.</li>
+          </ul>
+          <p className="mt-4 text-sm font-medium">Responses</p>
+          <div className="mt-2">
+            <StatusTable caption="Impression endpoint status codes, what they mean and what to do" rows={IMPRESSION_ERRORS} />
+          </div>
+          <p className="mt-3 text-sm text-mist/75">
+            Rate limits are best-effort and per IP address: about 300 requests per minute, and about 30 rejected tokens per minute.
+            Responses are JSON with <code>Cache-Control: no-store</code> and <code>X-Blisscco-Api-Version: 1</code>.
+          </p>
+          <p className="mt-4 text-sm font-medium">Safe server-side example</p>
+          <p className="mt-1 text-sm text-mist/75">
+            Step 1 asks for an ad with tracking opted in. Step 2 reports the impression only after display, retries only 5xx and network
+            errors, and gives up quietly. If either step fails, your chatbot carries on without an error.
+          </p>
+          <div className="mt-3">
+            <CodeBlock code={TRACKED_SERVER_EXAMPLE} label="Server-side TypeScript example: ad with tracking, then impression" />
+          </div>
+        </Panel>
+
+        <Panel
+          title="4d. Click redirect"
+          note="GET /api/v1/ads/click?ref=... The person's browser follows this link. No API key."
+        >
+          <p className="text-sm text-mist/75">
+            This endpoint is implemented, but <strong>the match response does not give you a click reference yet</strong>. The{" "}
+            <code>tracking</code> object holds only <code>token</code>, <code>expires_at</code> and <code>events</code>. So today you
+            cannot build a working Blisscco click link. Do not invent a field such as a click URL, do not send the tracking token to the
+            click endpoint (it is a different value and is refused), and do not try to make a reference yourself. This section describes
+            how the endpoint behaves so that you are ready when references are issued.
+          </p>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>Until then, link to <code>destination_url</code> as in section 6. Clicks made that way are not reported to Blisscco, so they do not appear in analytics.</li>
+            <li>The only query parameter is <code>ref</code>, exactly once. A destination is never taken from the query: the redirect goes to the address stored with the ad, and only if it is a valid <code>https://</code> address.</li>
+            <li>Only <code>GET</code> works. <code>HEAD</code>, <code>POST</code> and every other method return 405, so a crawler cannot count a click. Browser prefetch and prerender requests return 204 and count nothing.</li>
+            <li>A click is counted only if the impression for that ad delivery was recorded first (section 4c). Without it the person is still redirected, but the click is not counted. Only the first click of an ad delivery counts; later clicks are redirected and add nothing.</li>
+            <li>A reference expires like the token (counted from the serve, one hour by default), and a click is never accepted more than 24 hours after the serve. An invalid, expired or unknown reference returns 404 and no redirect.</li>
+            <li>The redirect carries <code>Referrer-Policy: no-referrer</code> and <code>Cache-Control: no-store</code>, so the reference is not leaked to the advertiser and the click is not cached.</li>
+            <li>No CORS is needed: it is a normal link the person follows, not a script call.</li>
+          </ul>
+          <div className="mt-3 grid gap-3">
+            <CodeBlock code={CLICK_CURL_EXAMPLE} label="Click request (format only)" />
+            <CodeBlock code={CLICK_RESPONSE_EXAMPLE} label="Click response (302)" />
+          </div>
+          <p className="mt-4 text-sm font-medium">Responses</p>
+          <div className="mt-2">
+            <StatusTable caption="Click endpoint status codes, what they mean and what to do" rows={CLICK_ERRORS} />
+          </div>
+          <p className="mt-3 text-sm text-mist/75">
+            Rate limits are the same best-effort, per-IP limits as the impression endpoint. A click does not change spend.
           </p>
         </Panel>
 
@@ -433,7 +752,7 @@ export default async function PublisherGuidePage() {
             </table>
           </div>
           <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-mist/75">
-            <li>Retry only 429 and 5xx. Never retry 4xx errors other than 429: they will fail the same way.</li>
+            <li>Retry only 429 and 5xx. Never retry 4xx errors other than 429: they will fail the same way. The same rule applies to the impression endpoint (section 4c), where resending the same token is safe because only the first impression counts.</li>
             <li>
               Send an <code>Idempotency-Key</code> header on every request: a new random value (a UUID works) per ad placement, 8 to 64
               characters of letters, digits, <code>_</code> or <code>-</code>. If you retry that same placement after a timeout or a 5xx,
@@ -452,9 +771,17 @@ export default async function PublisherGuidePage() {
             <li>Show the visible word <strong>Sponsored</strong> on every returned ad, next to the headline, in text (not colour or an icon alone). Do not hide, shrink or rename it.</li>
             <li>Keep the ad in its own box, after the assistant&apos;s answer. It must never read as the chatbot&apos;s own words or recommendation, and the chatbot must not rephrase it.</li>
             <li>Render <code>headline</code>, <code>body</code> and <code>cta_text</code> as plain text, never as HTML.</li>
-            <li>Link to <code>destination_url</code> only if it starts with <code>https://</code>, using <code>rel=&quot;sponsored noopener noreferrer&quot;</code>.</li>
+            <li>Link to <code>destination_url</code> only if it starts with <code>https://</code>, using <code>rel=&quot;sponsored noopener noreferrer&quot;</code>. Match responses carry no click reference yet, so this link goes straight to the advertiser and the click is not reported to Blisscco (section 4d).</li>
             <li>Remember the <code>id</code> of ads you showed and send it in <code>exclude_ad_ids</code> next time to reduce repeats.</li>
+            <li>Report the impression (section 4c) only after the labelled ad is on screen. Never report it for an ad you dropped, hid or did not render.</li>
           </ul>
+          <p className="mt-4 text-sm font-medium">Rendering example</p>
+          <p className="mt-1 text-sm text-mist/75">
+            Escapes every text field, always includes the Sponsored label, and makes the link clickable only for <code>https://</code>.
+          </p>
+          <div className="mt-3">
+            <CodeBlock code={RENDER_EXAMPLE} label="Sponsored ad rendering example (TypeScript)" />
+          </div>
           <div className="mt-4 max-w-md rounded-lg border border-line bg-ink p-4">
             <span className="inline-block rounded bg-mist/10 px-2 py-0.5 text-xs font-medium text-mist/80">Sponsored</span>
             <p className="mt-2 text-sm font-medium">Sample Advertiser: example headline</p>
@@ -510,9 +837,9 @@ export default async function PublisherGuidePage() {
                   <td className="py-2">Your server may send them to the browser.</td>
                 </tr>
                 <tr className="border-b border-line/60 align-top text-mist/75">
-                  <td className="py-2 pr-3">Tracking <code>token</code> (section 4a)</td>
+                  <td className="py-2 pr-3">Tracking <code>token</code> (sections 4a and 4c)</td>
                   <td className="py-2 pr-3">Not your key, but treat it as a bearer value until it expires.</td>
-                  <td className="py-2">Your server; the browser only with its own ad, if you need it there.</td>
+                  <td className="py-2">Your server. Report impressions from there; the endpoint has no CORS.</td>
                 </tr>
                 <tr className="align-top text-mist/75">
                   <td className="py-2 pr-3"><code>Idempotency-Key</code></td>
@@ -540,6 +867,9 @@ export default async function PublisherGuidePage() {
             <li>The same call with the last character of the key changed returns 401.</li>
             <li>A body with an extra field, from a throwaway script, returns 400.</li>
             <li>Simulate 429 and 503 with a mock server. Confirm the chatbot still answers normally.</li>
+            <li>Match with <code>X-Blisscco-Tracking: 1</code>, then report the impression twice with the same token. The first answer is <code>recorded</code>, the second is <code>duplicate</code>.</li>
+            <li>Change one character of the token. The impression endpoint returns 401 and nothing is recorded.</li>
+            <li>Confirm your code never calls the impression endpoint before the ad is displayed, and never sends your API key to it.</li>
             <li>Check the Sponsored label, the plain-text rendering and the link on every screen size you support.</li>
             <li>Search your built frontend files and the browser network tab: the key must appear nowhere.</li>
             <li>Ask Blisscco to revoke the test key when you are done.</li>
@@ -550,7 +880,10 @@ export default async function PublisherGuidePage() {
           <ul className="list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li>Accounts are approved by hand by the Blisscco team, so approval can take time.</li>
             <li>Advertiser budgets are enforced, and spend is counted when an ad is handed to you, not when a person sees it.</li>
-            <li>A request is counted as an ad serve. There is no impression or click reporting, and nothing here should be used for billing or payouts. The optional tracking token (section 4a) does not change that: it does not prove that an ad was shown or clicked. Retries are safe only when you send the same <code>Idempotency-Key</code>.</li>
+            <li>A match request is counted as an ad serve, and that is the only charged event. Impressions and clicks are reporting counts that you or the person trigger; they do not change spend. A tracking token does not prove that an ad was shown or clicked. Match retries are safe only when you send the same <code>Idempotency-Key</code>.</li>
+            <li>The match response does not return a click reference yet, so the Blisscco click link cannot be built today. Links to <code>destination_url</code> work, but their clicks are not reported (section 4d).</li>
+            <li>The impression endpoint has no CORS, so impressions must be reported from your server. A click is counted only after its impression was recorded.</li>
+            <li>Impression and click counts depend on your integration reporting honestly. Do not use them on their own for billing or payouts.</li>
             <li>Rate limiting is per key, plus a best-effort guard against repeated wrong keys from one IP. Add your own edge protection too.</li>
             <li>Database calls time out after 8 seconds. A Blisscco outage returns 503 with error unavailable, while a plain no-fill (200) means no matching ad.</li>
             <li>No staging environment is published.</li>

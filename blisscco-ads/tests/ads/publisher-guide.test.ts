@@ -2,8 +2,18 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { PUBLIC_AD_FIELDS } from "@/lib/ads/contract";
+import vm from "node:vm";
+import * as ts from "typescript";
+import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS } from "@/lib/ads/contract";
 import { parseMatchRequest } from "@/lib/ads/validation";
+import * as clickRoute from "@/app/api/v1/ads/click/route";
+import { handleClickGet } from "@/lib/ads/click-handler";
+import { handleImpressionPost } from "@/lib/ads/impression-handler";
+import { MAX_IMPRESSION_BODY_BYTES, parseImpressionRequest } from "@/lib/ads/impression";
+import { CLICK_PARAM, parseClickQuery } from "@/lib/ads/click";
+import { createIpGuard } from "@/lib/ads/ip-guard";
+import { CLICK_REF_PREFIX } from "@/lib/ads/click-ref";
+import { DEFAULT_TTL_SECONDS, MAX_TOKEN_LENGTH, MAX_TTL_SECONDS, TRACKING_EVENTS, TRACKING_TOKEN_PREFIX } from "@/lib/ads/tracking-token";
 
 // Day 6 (prompt 5): publisher guide (app/dashboard/publisher/guide/page.tsx) asli API contract se mel khata rahe,
 // aur wo security/honesty rules todhe nahi (key browser me nahi, koi jhootha URL/key nahi, koi overclaim nahi).
@@ -124,5 +134,402 @@ describe("publisher guide: security and honesty rules", () => {
     assert.match(m[1], /POST \/api\/v1\/ads\/match/);
     assert.match(m[1], /Authorization: Bearer YOUR_PUBLISHER_API_KEY/);
     assert.equal(/placement_id|locale|campaign_id|"label"|waterproof/.test(m[1]), false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Day 15 Part 4: guide ab asli impression / click API se mel khata hai (kuch bhi purana ya invented nahi).
+// Asli handlers ko nakli `accept` ke saath bulate hain: database / secret / network kabhi nahi chhuta.
+// ---------------------------------------------------------------------------
+
+const TEST_IP = "203.0.113.7";
+/** Is IP ko pehle hi limit tak pahuncha hua guard (429 ka asli raasta). */
+function blockedGuard() {
+  const g = createIpGuard(1);
+  g.recordFailure(TEST_IP, Date.now());
+  return g;
+}
+/** vm ke andar bane objects ka prototype alag hota hai: JSON se guzarkar compare karte hain. */
+const plain = (v: unknown): unknown => JSON.parse(JSON.stringify(v));
+
+describe("Day 15 part 4: no outdated 'not implemented' claims", () => {
+  const g = flat(GUIDE);
+  it("the old 'no endpoint / no reporting / counts no impressions' claims are gone", () => {
+    for (const stale of [
+      /no impression or click reporting/i,
+      /There is no endpoint to send tokens to yet/i,
+      /Blisscco counts no impressions or clicks/i,
+      /it does not report anything today/i,
+      /prepares later impression and click reporting/i,
+      /Not tracked yet/i,
+    ]) assert.doesNotMatch(g, stale, String(stale));
+  });
+  it("both endpoints are documented with their exact method and path", () => {
+    assert.match(g, /POST \/api\/v1\/ads\/impression/);
+    assert.match(g, /GET \/api\/v1\/ads\/click/);
+    assert.match(g, /4c\. Reporting an impression/);
+    assert.match(g, /4d\. Click redirect/);
+    assert.match(g, /4b\. Serve, impression and click are three different events/);
+  });
+  it("the real route files really export exactly those methods", () => {
+    assert.match(read("app/api/v1/ads/impression/route.ts"), /export async function POST/);
+    assert.doesNotMatch(read("app/api/v1/ads/impression/route.ts"), /export async function (GET|PUT|PATCH|DELETE|HEAD)/);
+    const click = read("app/api/v1/ads/click/route.ts");
+    assert.match(click, /export async function GET/);
+    for (const m of ["HEAD", "POST", "PUT", "PATCH", "DELETE"]) assert.match(click, new RegExp(`export async function ${m}\\(\\) \\{\\s*return methodNotAllowed`), m);
+  });
+});
+
+describe("Day 15 part 4: no invented click reference in the match response", () => {
+  it("the real tracking object has exactly token, expires_at, events (no click ref, no click url)", () => {
+    assert.deepEqual([...PUBLIC_TRACKING_FIELDS], ["token", "expires_at", "events"]);
+    for (const f of ["lib/ads/contract.ts", "lib/ads/match-handler.ts", "lib/ads/serve.ts", "lib/ads/serve-db.ts"]) {
+      assert.doesNotMatch(read(f), /click-ref|mintClickRef|click_ref|click_url/, f);
+    }
+  });
+  it("the guide's tracking example keeps exactly the real shape and invents no field", () => {
+    const body = JSON.parse(lines("TRACKING_SUCCESS_EXAMPLE")) as { tracking: Record<string, unknown> };
+    assert.deepEqual(Object.keys(body.tracking).sort(), [...PUBLIC_TRACKING_FIELDS].sort());
+    assert.doesNotMatch(flat(GUIDE), /click_ref|click_url|clickRef|clickUrl|"click":/);
+  });
+  it("the guide says plainly that no click reference is returned yet and not to send the token to the click endpoint", () => {
+    const g = flat(GUIDE);
+    assert.match(g, /the match response does not give you a click reference yet/);
+    assert.match(g, /do not send the tracking token to the click endpoint/);
+    assert.match(g, /do not try to make a reference yourself/);
+  });
+  it("tracking tokens and click references really are different, non-interchangeable prefixes", () => {
+    assert.equal(TRACKING_TOKEN_PREFIX, "bt1");
+    assert.equal(CLICK_REF_PREFIX, "bc1");
+    assert.deepEqual([...TRACKING_EVENTS], ["impression", "click"]);
+    assert.match(flat(GUIDE), /"events": \["impression", "click"\]|events: \["impression", "click"\]|"impression", "click"/);
+  });
+});
+
+describe("Day 15 part 4: token expiry claims match the code", () => {
+  const g = flat(GUIDE);
+  it("default one hour, never more than 24 hours, counted from the serve", () => {
+    assert.equal(DEFAULT_TTL_SECONDS, 3600);
+    assert.equal(MAX_TTL_SECONDS, 86_400);
+    assert.match(g, /one hour by default, never more than 24 hours/);
+    assert.match(g, /counted from the moment the ad was served/);
+    assert.match(g, /more than 24 hours after the serve/);
+  });
+  it("the 24 hour hard limit really is in the SQL writers", () => {
+    for (const f of ["supabase/sql/day-12-7-record-ad-impression.sql", "supabase/sql/day-12-10-record-ad-click.sql"]) {
+      assert.match(read(f), /interval '24 hours'/, f);
+    }
+  });
+  it("the guide's 512 character limits are the real ones", () => {
+    assert.equal(MAX_TOKEN_LENGTH, 512);
+    assert.match(g, /over 512 characters/);
+    assert.equal(MAX_IMPRESSION_BODY_BYTES, 1024);
+    assert.match(g, /over 1024 bytes/);
+  });
+});
+
+describe("Day 15 part 4: impression examples are accepted by the real impression API", () => {
+  const body = JSON.parse(lines("IMPRESSION_REQUEST_EXAMPLE")) as Record<string, unknown>;
+  it("the request body example passes the real parser with exactly two fields", () => {
+    assert.deepEqual(Object.keys(body).sort(), ["event", "token"]);
+    assert.equal(body.event, "impression");
+    assert.match(String(body.token), /^bt1\.EXAMPLE-/, "an obviously fake token");
+    assert.equal(parseImpressionRequest(JSON.stringify(body)).ok, true);
+  });
+  it("the cURL example has the right path, JSON content type, no API key and no Idempotency-Key", () => {
+    const curl = lines("IMPRESSION_CURL_EXAMPLE");
+    assert.match(curl, /-X POST "https:\/\/YOUR-BLISSCCO-API-HOST\/api\/v1\/ads\/impression"/);
+    assert.match(curl, /Content-Type: application\/json/);
+    assert.doesNotMatch(curl, /Authorization|BLISSCCO_PUBLISHER_API_KEY|Idempotency-Key|blc_live_/);
+  });
+  it("the real handler accepts that exact request and answers with the documented bodies", async () => {
+    const guards = () => ({ requestGuard: createIpGuard(300), failureGuard: createIpGuard(30) });
+    const send = (accept: (t: unknown, e: unknown) => Promise<{ kind: "recorded" } | { kind: "duplicate" }>) =>
+      handleImpressionPost(
+        new Request("https://api.example.test/api/v1/ads/impression", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+        { accept, ...guards() },
+      );
+    const first = await send(async () => ({ kind: "recorded" }));
+    assert.equal(first.status, 200);
+    assert.deepEqual(await first.json(), JSON.parse(lines("IMPRESSION_RECORDED_EXAMPLE")));
+    const again = await send(async () => ({ kind: "duplicate" }));
+    assert.equal(again.status, 200);
+    assert.deepEqual(await again.json(), JSON.parse(lines("IMPRESSION_DUPLICATE_EXAMPLE")));
+    assert.equal(first.headers.get("cache-control"), "no-store");
+    assert.equal(first.headers.get("x-blisscco-api-version"), "1");
+  });
+  it("every documented impression status really is produced by the real handler", async () => {
+    const mk = (init: RequestInit, accept?: () => Promise<{ kind: "unauthorized" } | { kind: "unavailable" }>) =>
+      handleImpressionPost(new Request("https://api.example.test/api/v1/ads/impression", { method: "POST", ...init }), {
+        accept: accept ?? (async () => ({ kind: "unauthorized" as const })),
+        requestGuard: createIpGuard(300),
+        failureGuard: createIpGuard(30),
+      });
+    const json = { "content-type": "application/json" };
+    const r400 = await mk({ headers: json, body: JSON.stringify({ token: "x", event: "click" }) });
+    assert.equal(r400.status, 400);
+    assert.deepEqual(await r400.json(), { error: "invalid_request", reason: "invalid_event" });
+    const r400b = await mk({ headers: json, body: JSON.stringify({ token: "x", event: "impression", user: "u" }) });
+    assert.equal((await r400b.json() as { reason: string }).reason, "unknown_field");
+    const r401 = await mk({ headers: json, body: JSON.stringify(body) });
+    assert.equal(r401.status, 401);
+    assert.deepEqual(await r401.json(), { error: "unauthorized" });
+    assert.equal((await mk({ headers: json, body: "x".repeat(MAX_IMPRESSION_BODY_BYTES + 1) })).status, 413);
+    assert.equal((await mk({ headers: { "content-type": "text/plain" }, body: "{}" })).status, 415);
+    const r503 = await mk({ headers: json, body: JSON.stringify(body) }, async () => ({ kind: "unavailable" }));
+    assert.equal(r503.status, 503);
+    assert.deepEqual(await r503.json(), { error: "unavailable" });
+    const r429 = await handleImpressionPost(
+      new Request("https://api.example.test/x", { method: "POST", headers: { ...json, "x-forwarded-for": TEST_IP }, body: JSON.stringify(body) }),
+      { accept: async () => ({ kind: "recorded" }), requestGuard: blockedGuard(), failureGuard: createIpGuard(30) },
+    );
+    assert.equal(r429.status, 429);
+    assert.equal(r429.headers.get("retry-after"), "60");
+    const g = flat(GUIDE);
+    for (const needle of ["invalid_json", "invalid_body", "unknown_field", "invalid_token", "invalid_event", "unreadable_body", "payload_too_large", "unsupported_media_type", "rate_limited", "Retry-After: 60"]) {
+      assert.ok(g.includes(needle) || read(GUIDE).includes(needle), needle);
+    }
+  });
+});
+
+describe("Day 15 part 4: click documentation matches the real click API", () => {
+  const g = flat(GUIDE);
+  it("the click request example uses only the ref parameter and a fake bc1 value, marked 'format only'", () => {
+    const curl = lines("CLICK_CURL_EXAMPLE");
+    assert.match(curl, /Format only/);
+    const url = /"(https:\/\/YOUR-BLISSCCO-API-HOST[^"]+)"/.exec(curl);
+    assert.ok(url);
+    const parsed = new URL(url[1].replace("YOUR-BLISSCCO-API-HOST", "api.example.test"));
+    assert.equal(parsed.pathname, "/api/v1/ads/click");
+    assert.deepEqual([...parsed.searchParams.keys()], [CLICK_PARAM]);
+    const ref = parsed.searchParams.get(CLICK_PARAM) ?? "";
+    assert.ok(ref.startsWith(`${CLICK_REF_PREFIX}.EXAMPLE-`), "obviously fake reference");
+    assert.equal(parseClickQuery(parsed.searchParams).ok, true);
+    assert.doesNotMatch(curl, /blc_live_|Authorization/);
+  });
+  it("only ref is allowed: anything else is refused by the real parser, as the guide says", () => {
+    assert.deepEqual(parseClickQuery(new URLSearchParams("")), { ok: false, reason: "missing_ref" });
+    assert.deepEqual(parseClickQuery(new URLSearchParams("ref=a&url=https://evil.example")), { ok: false, reason: "unexpected_parameter" });
+    assert.deepEqual(parseClickQuery(new URLSearchParams("ref=a&ref=b")), { ok: false, reason: "unexpected_parameter" });
+    assert.deepEqual(parseClickQuery(new URLSearchParams(`ref=${"a".repeat(MAX_TOKEN_LENGTH + 1)}`)), { ok: false, reason: "invalid_ref" });
+    for (const reason of ["missing_ref", "unexpected_parameter", "invalid_ref"]) assert.ok(read(GUIDE).includes(reason), reason);
+  });
+  it("the real handler produces the documented 302 (with its headers), 204, 400, 404, 405, 429 and 503", async () => {
+    const guards = () => ({ requestGuard: createIpGuard(300), failureGuard: createIpGuard(30) });
+    const url = "https://api.example.test/api/v1/ads/click?ref=bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE";
+    const dest = "https://example.com/gaming-laptops";
+    const redirect = await handleClickGet(new Request(url), { accept: async () => ({ kind: "redirect", location: dest, counted: "duplicate" }), ...guards() });
+    assert.equal(redirect.status, 302);
+    assert.equal(redirect.headers.get("location"), dest);
+    const doc = lines("CLICK_RESPONSE_EXAMPLE");
+    assert.match(doc, /^HTTP\/1\.1 302 Found/);
+    assert.ok(doc.includes(`Location: ${dest}`));
+    assert.ok(doc.includes(`Cache-Control: ${redirect.headers.get("cache-control")}`));
+    assert.ok(doc.includes(`Referrer-Policy: ${redirect.headers.get("referrer-policy")}`));
+    const prefetch = await handleClickGet(new Request(url, { headers: { "sec-purpose": "prefetch" } }), { accept: async () => ({ kind: "redirect", location: dest, counted: "recorded" }), ...guards() });
+    assert.equal(prefetch.status, 204);
+    const bad = await handleClickGet(new Request("https://api.example.test/api/v1/ads/click"), { accept: async () => ({ kind: "unavailable" }), ...guards() });
+    assert.equal(bad.status, 400);
+    assert.deepEqual(await bad.json(), { error: "invalid_request", reason: "missing_ref" });
+    const nf = await handleClickGet(new Request(url), { accept: async () => ({ kind: "invalid", reason: "expired" }), ...guards() });
+    assert.equal(nf.status, 404);
+    assert.deepEqual(await nf.json(), { error: "not_found" });
+    const nf2 = await handleClickGet(new Request(url), { accept: async () => ({ kind: "unavailable_target" }), ...guards() });
+    assert.deepEqual(await nf2.json(), { error: "not_found" }, "an ad that cannot be clicked looks the same as a bad reference");
+    const down = await handleClickGet(new Request(url), { accept: async () => ({ kind: "unavailable" }), ...guards() });
+    assert.equal(down.status, 503);
+    const limited = await handleClickGet(new Request(url, { headers: { "x-forwarded-for": TEST_IP } }), { accept: async () => ({ kind: "unavailable" }), requestGuard: blockedGuard(), failureGuard: createIpGuard(30) });
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get("retry-after"), "60");
+    const post = await clickRoute.POST();
+    assert.equal(post.status, 405);
+    assert.equal(post.headers.get("allow"), "GET");
+    assert.equal((await clickRoute.HEAD()).status, 405);
+  });
+  it("the guide documents the rules the click code and SQL really have", () => {
+    assert.match(g, /only <code>GET<\/code> works|Only <code>GET<\/code> works|Only GET works/);
+    assert.match(g, /counted only if the impression for that ad delivery was recorded first/);
+    assert.match(g, /Only the first click of an ad delivery counts/);
+    assert.match(g, /Referrer-Policy: no-referrer/);
+    assert.match(g, /valid <code>https:\/\/<\/code> address/);
+    assert.match(read("supabase/sql/day-12-10-record-ad-click.sql"), /not_counted/);
+    assert.match(read("lib/ads/click-handler.ts"), /"Referrer-Policy": "no-referrer"/);
+  });
+});
+
+describe("Day 15 part 4: serve, impression and click are kept apart; no charge claims are false", () => {
+  const g = flat(GUIDE);
+  it("explains all three and that only the serve is charged", () => {
+    assert.match(g, /Ad serve/);
+    assert.match(g, /Impression/);
+    assert.match(g, /Click/);
+    assert.match(g, /The only event that is charged/);
+    assert.match(g, /Impressions and clicks are reporting counts\. They do not change spend, and they do not add earnings/);
+  });
+  it("the ledger SQL really says impressions and clicks are not charged or paid out", () => {
+    const sql = read("supabase/sql/day-13-1-financial-ledger.sql");
+    assert.match(sql, /Impression \/ click par koi charge nahi/);
+    assert.match(sql, /koi impression \/ click se ledger nahi bhara jaata/);
+  });
+  it("the Idempotency-Key is documented for match only (the impression handler really ignores it)", () => {
+    assert.match(g, /<code>Idempotency-Key<\/code> header belongs to the match request only|Idempotency-Key<\/code> header belongs to the match request only|header belongs to the match request only/);
+    assert.doesNotMatch(read("lib/ads/impression-handler.ts") + read("lib/ads/click-handler.ts"), /idempotency/i);
+  });
+});
+
+describe("Day 15 part 4: server-side tracking example runs and follows the rules", () => {
+  type Tracking = { token: string; expires_at: string; events: string[] };
+  type Mod = {
+    getTrackedAd: (topic: string, key?: string) => Promise<{ ad: Record<string, unknown>; tracking: Tracking | null } | null>;
+    reportImpression: (t: Tracking | null) => Promise<"recorded" | "duplicate" | "dropped" | "failed">;
+  };
+  type Seen = { url: string; headers: Record<string, string>; body: string };
+  const SRC = lines("TRACKED_SERVER_EXAMPLE");
+  const FUTURE = new Date(Date.now() + 3_600_000).toISOString();
+  const TRACKING: Tracking = { token: "bt1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE", expires_at: FUTURE, events: ["impression", "click"] };
+  const AD = { id: "3f2b8c1e-5a47-4d9e-9b62-7c1d8e4a6f10", headline: "Level up", body: "Gaming laptops", cta_text: "Shop now", destination_url: "https://example.com/g" };
+  const reply = (status: number, body?: unknown) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+  function load(script: Array<ReturnType<typeof reply> | Error>, seen: Seen[], sleeps: number[] = [], env: Record<string, string | undefined> = { BLISSCCO_API_BASE_URL: "https://api.example.test", BLISSCCO_PUBLISHER_API_KEY: "test-key-not-real" }): Mod {
+    const js = ts.transpileModule(SRC, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, strict: true } }).outputText;
+    const mod = { exports: {} as Record<string, unknown> };
+    const queue = [...script];
+    const sandbox = {
+      module: mod, exports: mod.exports, process: { env }, crypto: globalThis.crypto, AbortSignal, Promise, Date, Math, Number, JSON,
+      fetch: async (url: string, init: { headers: Record<string, string>; body: string }) => {
+        seen.push({ url, headers: init.headers, body: init.body });
+        const next = queue.shift();
+        if (!next) throw new Error("test: no more scripted replies");
+        if (next instanceof Error) throw next;
+        return next;
+      },
+      setTimeout: (fn: () => void, ms: number) => { sleeps.push(ms); fn(); return 0; },
+    };
+    vm.runInNewContext(js, sandbox);
+    return mod.exports as unknown as Mod;
+  }
+
+  it("step 1 opts in to tracking with the real header, sends a key and returns ad + tracking (a missing tracking is fine)", async () => {
+    const seen: Seen[] = [];
+    const out = await load([reply(200, { fill: true, sponsored: true, ad: AD, tracking: TRACKING })], seen).getTrackedAd("gaming");
+    assert.deepEqual(plain(out), { ad: AD, tracking: TRACKING });
+    assert.equal(seen[0].url, "https://api.example.test/api/v1/ads/match");
+    assert.equal(seen[0].headers["X-Blisscco-Tracking"], "1");
+    assert.match(seen[0].headers["Idempotency-Key"], /^[A-Za-z0-9_-]{8,64}$/);
+    assert.deepEqual(Object.keys(JSON.parse(seen[0].body)), ["topic"]);
+    const none = await load([reply(200, { fill: true, sponsored: true, ad: AD })], []).getTrackedAd("gaming");
+    assert.deepEqual(plain(none), { ad: AD, tracking: null });
+    assert.equal(await load([reply(200, { fill: false })], []).getTrackedAd("gaming"), null);
+  });
+
+  it("step 1 retries a 503 once with the SAME Idempotency-Key and never retries a 4xx", async () => {
+    const seen: Seen[] = [];
+    const sleeps: number[] = [];
+    const out = await load([reply(503, { fill: false, error: "unavailable" }), reply(200, { fill: true, sponsored: true, ad: AD })], seen, sleeps).getTrackedAd("gaming", "retry-key-12345678");
+    assert.ok(out);
+    assert.equal(seen.length, 2);
+    assert.equal(seen[0].headers["Idempotency-Key"], "retry-key-12345678");
+    assert.equal(seen[1].headers["Idempotency-Key"], "retry-key-12345678");
+    assert.ok(sleeps[0] >= 1000);
+    const seen401: Seen[] = [];
+    assert.equal(await load([reply(401, { error: "unauthorized" })], seen401).getTrackedAd("gaming"), null);
+    assert.equal(seen401.length, 1);
+  });
+
+  it("step 2 sends exactly {token, event:'impression'}, with no API key and no Idempotency-Key, to the impression endpoint", async () => {
+    const seen: Seen[] = [];
+    const out = await load([reply(200, { ok: true, status: "recorded" })], seen).reportImpression(TRACKING);
+    assert.equal(out, "recorded");
+    assert.equal(seen[0].url, "https://api.example.test/api/v1/ads/impression");
+    assert.deepEqual(plain(seen[0].headers), { "Content-Type": "application/json" });
+    const sent = JSON.parse(seen[0].body) as Record<string, unknown>;
+    assert.deepEqual(sent, { token: TRACKING.token, event: "impression" });
+    assert.equal(parseImpressionRequest(seen[0].body).ok, true, "the real parser accepts what the example sends");
+    assert.equal(seen[0].body.includes("test-key-not-real"), false);
+  });
+
+  it("step 2: duplicate is success; 401 / 400 are dropped without retry; 429 stops; 503 and network errors retry then give up", async () => {
+    const run = async (script: Array<ReturnType<typeof reply> | Error>, t: Tracking | null = TRACKING) => {
+      const seen: Seen[] = [];
+      const sleeps: number[] = [];
+      const outcome = await load(script, seen, sleeps).reportImpression(t);
+      return { outcome, calls: seen.length, sleeps };
+    };
+    assert.deepEqual(await run([reply(200, { ok: true, status: "duplicate" })]), { outcome: "duplicate", calls: 1, sleeps: [] });
+    assert.equal((await run([reply(401, { error: "unauthorized" })])).calls, 1);
+    assert.equal((await run([reply(401, { error: "unauthorized" })])).outcome, "dropped");
+    assert.deepEqual(await run([reply(400, { error: "invalid_request" })]).then((r) => [r.outcome, r.calls]), ["dropped", 1]);
+    assert.deepEqual(await run([reply(429, { error: "rate_limited" })]).then((r) => [r.outcome, r.calls]), ["failed", 1]);
+    const recovered = await run([reply(503, { error: "unavailable" }), new Error("network"), reply(200, { ok: true, status: "recorded" })]);
+    assert.equal(recovered.outcome, "recorded");
+    assert.equal(recovered.calls, 3);
+    assert.ok(recovered.sleeps.every((ms) => ms >= 1000));
+    const gaveUp = await run([reply(503, {}), reply(503, {}), reply(503, {})]);
+    assert.deepEqual([gaveUp.outcome, gaveUp.calls], ["failed", 3]);
+  });
+
+  it("step 2: no token, an expired token, or no configuration means nothing is sent", async () => {
+    for (const [t, env] of [
+      [null, undefined],
+      [{ ...TRACKING, expires_at: new Date(Date.now() - 1000).toISOString() }, undefined],
+      [TRACKING, { BLISSCCO_API_BASE_URL: undefined, BLISSCCO_PUBLISHER_API_KEY: undefined }],
+    ] as const) {
+      const seen: Seen[] = [];
+      assert.equal(await load([], seen, [], env as Record<string, string | undefined> | undefined).reportImpression(t), "dropped");
+      assert.equal(seen.length, 0);
+    }
+  });
+
+  it("the example is server-only, holds no key, uses server env variables and says to report only after display", () => {
+    assert.match(SRC, /Runs on YOUR backend only/);
+    assert.match(SRC, /process\.env\.BLISSCCO_PUBLISHER_API_KEY/);
+    assert.doesNotMatch(SRC, /blc_live_|NEXT_PUBLIC|VITE_|REACT_APP/);
+    assert.match(SRC, /only after the ad was really displayed/);
+    assert.match(SRC, /a SERVE/);
+    assert.match(SRC, /an IMPRESSION/);
+  });
+});
+
+describe("Day 15 part 4: the Sponsored rendering example is safe", () => {
+  type PublicAd = { id: string; headline: string; body: string; cta_text: string | null; destination_url: string };
+  const js = ts.transpileModule(lines("RENDER_EXAMPLE"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, strict: true } }).outputText;
+  const mod = { exports: {} as Record<string, unknown> };
+  vm.runInNewContext(js, { module: mod, exports: mod.exports });
+  const render = mod.exports.renderSponsoredAd as (ad: PublicAd) => string;
+  const ad: PublicAd = { id: "3f2b8c1e-5a47-4d9e-9b62-7c1d8e4a6f10", headline: "Level up", body: "Gaming laptops", cta_text: "Shop now", destination_url: "https://example.com/g" };
+
+  it("always includes the visible Sponsored label, also when cta_text is null or the link is unsafe", () => {
+    for (const a of [ad, { ...ad, cta_text: null }, { ...ad, destination_url: "http://example.com/g" }, { ...ad, destination_url: "javascript:alert(1)" }]) {
+      assert.match(render(a), /<span>Sponsored<\/span>/);
+    }
+  });
+  it("escapes HTML in every text field", () => {
+    const out = render({ ...ad, headline: "<script>alert(1)</script>", body: "a & b <img src=x onerror=1>", cta_text: "\"><b>" });
+    assert.equal(/<script|<img|<b>/.test(out), false);
+    assert.match(out, /&lt;script&gt;/);
+    assert.match(out, /&amp;/);
+  });
+  it("links only https destinations, with rel sponsored noopener noreferrer", () => {
+    assert.match(render(ad), /<a href="https:\/\/example\.com\/g" rel="sponsored noopener noreferrer">Shop now<\/a>/);
+    for (const url of ["http://example.com/g", "javascript:alert(1)", "data:text/html,x", "//example.com"]) {
+      assert.equal(render({ ...ad, destination_url: url }).includes("<a "), false, url);
+    }
+  });
+  it("says that a direct destination link is not reported to Blisscco", () => {
+    assert.match(lines("RENDER_EXAMPLE"), /NOT reported to Blisscco/);
+    assert.match(flat(GUIDE), /the click is not reported to Blisscco/);
+  });
+});
+
+describe("Day 15 part 4: guide still never shows a real key or secret", () => {
+  it("no live-looking key, no tracking secret, no signing secret and no real token anywhere on the guide", () => {
+    const src = read(GUIDE);
+    assert.equal(/blc_live_[0-9a-f]{8,}/i.test(src), false);
+    assert.equal(/AD_TRACKING_SECRET|signing secret|service[_ -]role|sb_secret_/i.test(src), false);
+    for (const m of src.matchAll(/\b(bt1|bc1)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)/g)) {
+      assert.match(m[2], /^EXAMPLE-/, `${m[0]}: not an obvious placeholder`);
+      assert.match(m[3], /^EXAMPLE-/, `${m[0]}: not an obvious placeholder`);
+    }
+    assert.equal(/eyJ[A-Za-z0-9_-]{10,}/.test(src), false, "no JWT-looking value");
   });
 });

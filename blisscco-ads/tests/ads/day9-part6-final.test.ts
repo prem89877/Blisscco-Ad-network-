@@ -57,10 +57,12 @@ describe("Day 9 part 6: publisher guide matches the Idempotency-Key contract", (
     assert.match(g, /8 to 64/);
   });
 
-  it("the guide still says there is no impression/click reporting and nothing is for billing or payouts", () => {
+  it("the guide says the serve is the only charged event, impressions and clicks do not change spend, and counts alone are not for billing or payouts (Day 15)", () => {
     const g = read(GUIDE).replace(/\s+/g, " ");
-    assert.match(g, /no impression or click reporting/);
+    assert.match(g, /that is the only charged event/);
+    assert.match(g, /they do not change spend/);
     assert.match(g, /billing or payouts/);
+    assert.doesNotMatch(g, /no impression or click reporting/);
   });
 
   it("a malformed key is rejected, a missing key is allowed (old publishers keep working)", () => {

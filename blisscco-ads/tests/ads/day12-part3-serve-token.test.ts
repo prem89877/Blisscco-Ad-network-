@@ -1082,14 +1082,14 @@ describe("day 12 part 3 | publisher guide matches the real contract", () => {
     assert.match(read("lib/ads/match-handler.ts"), /"x-blisscco-tracking"/);
   });
 
-  it("documents opt-in, the 400 reason, absence cases, retries, and that a token is NOT an impression/click and nothing is reported yet", () => {
+  it("documents opt-in, the 400 reason, absence cases, retries, and that a token is NOT an impression/click (Day 15: it is sent to the impression endpoint)", () => {
     const g = flat(GUIDE);
     for (const needle of [
       "4a. Optional tracking token", "X-Blisscco-Tracking: 1", "invalid_tracking_header", "tracking</code> object", "When <code>tracking</code> is absent",
-      "does <strong>not</strong> mean the ad was shown, seen or clicked", "There is no endpoint to send tokens to yet",
+      "does <strong>not</strong> mean the ad was shown, seen or clicked", "POST /api/v1/ads/impression",
       "Retrying with the same <code>Idempotency-Key</code> returns the same ad, the same delivery and the identical token",
     ]) assert.ok(g.includes(needle), needle);
-    assert.match(g, /no impression or click reporting/, "the 'no reporting' honesty line is still there");
+    assert.doesNotMatch(g, /There is no endpoint to send tokens to yet/, "stale claim removed");
     assert.match(g, /does not prove that an ad was shown or clicked/);
   });
 
