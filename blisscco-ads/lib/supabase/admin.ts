@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { isValidSupabaseUrl, serverKeyProblem } from "./env";
 
 // SIRF server ke liye. Secret key RLS bypass karti hai.
 // "server-only" ki wajah se ise client component me import karoge toh build fail hoga.
@@ -22,6 +23,20 @@ export function createAdminClient() {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL aur SUPABASE_SECRET_KEY set karo.");
   }
   if (cached && cached.url === url && cached.secretKey === secretKey) return cached.client;
+  // Day 14: galat jagah ki key (publishable / anon / placeholder) ya galat URL ho toh pehle hi saaf error.
+  // Log me sirf NAAM + wajah ka static label jaata hai, value ya uska koi hissa kabhi nahi.
+  const problems: string[] = [];
+  if (!isValidSupabaseUrl(url)) problems.push("NEXT_PUBLIC_SUPABASE_URL format galat hai");
+  const keyProblem = serverKeyProblem(secretKey);
+  if (keyProblem === "publishable_key" || keyProblem === "anon_key") {
+    problems.push("SUPABASE_SECRET_KEY me publishable/anon key lagi hai (sb_secret_... chahiye)");
+  } else if (keyProblem === "placeholder") {
+    problems.push("SUPABASE_SECRET_KEY abhi placeholder hai (asli sb_secret_... daalo)");
+  }
+  if (problems.length > 0) {
+    console.error("[config] invalid server env:", problems.join("; "));
+    throw new Error("Server config galat hai: " + problems.join("; "));
+  }
   const client = createClient(url, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {

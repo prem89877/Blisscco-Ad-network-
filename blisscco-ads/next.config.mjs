@@ -1,3 +1,8 @@
+import { assertPublicEnvIsSafe } from "./config/public-env-guard.mjs";
+
+// Day 14: build/dev start par check: koi secret NEXT_PUBLIC_ variable me ho toh build ruk jata hai.
+assertPublicEnvIsSafe(process.env);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

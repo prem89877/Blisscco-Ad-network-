@@ -24,7 +24,7 @@
    Production + Preview + Development select karke Save.
 3. Deployments > Redeploy (env change ke baad zaroori).
 4. Missing/galat value hogi toh Supabase use karte hi clear error aayega.
-5. Secret key (sb_secret_ / service_role) Vercel ya GitHub me mat daalo.
+5. Secret key (sb_secret_ / service_role) GitHub me kabhi nahi, aur `NEXT_PUBLIC_` ke saath kabhi nahi. (Update, Day 14: ad API ke liye `SUPABASE_SECRET_KEY` ab Vercel me SIRF server variable ke roop me chahiye: poori list `DAY14-PART3-PRODUCTION-ENV.md` me.)
 
 ## Optional check
 `/api/supabase-health` kholo: `{"status":"ok"}` matlab database tak request gayi (pehle `supabase/sql/day-3-7-health-check.sql` chalao). `{"status":"unavailable"}` (HTTP 503) matlab env ya SQL check karo; kaaran sirf Vercel logs me dikhta hai.

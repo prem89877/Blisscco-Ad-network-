@@ -35,6 +35,7 @@ Is review me kuch naya feature nahi bana. Sirf audit me jo mila, wahi theek kiya
 | `SUPABASE_SECRET_KEY` | **NAHI. Kabhi `NEXT_PUBLIC_` mat lagana** | Production (aur chaaho toh Preview) | `sb_secret_...`. "Sensitive" option ON karo. Preview ke liye alag TEST Supabase project ki key behtar hai |
 | `NEXT_PUBLIC_SITE_URL` | Haan, optional | Production | Tumhari site ka URL |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Haan, optional | Production | Privacy page par dikhta hai |
+| `AD_TRACKING_SECRET` | **NAHI. Kabhi `NEXT_PUBLIC_` mat lagana** | Production | Optional (Day 12): kam se kam 32 random characters, "Sensitive" ON. Set na ho toh tracking band, ads normal. Rotation: `AD_TRACKING_SECRET_PREVIOUS`; umr: `AD_TRACKING_TTL_SECONDS` (optional). Detail: `DAY14-PART3-PRODUCTION-ENV.md` |
 
 Zaroori baatein:
 - `NEXT_PUBLIC_...` values build ke time code me ghus jaati hain. Inhe badalne ke baad **Redeploy** karo.

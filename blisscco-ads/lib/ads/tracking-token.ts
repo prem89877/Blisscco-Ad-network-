@@ -57,6 +57,13 @@ function isAcceptableSecret(value: unknown): value is string {
   return true;
 }
 
+/** Sirf diagnosis ke liye (log ka label chunne me): secret set hi nahi, set par code ne reject kiya, ya theek. Value kabhi nahi lautati. */
+export function trackingSecretStatus(env: Record<string, string | undefined>): "not_set" | "rejected" | "ok" {
+  const current = env.AD_TRACKING_SECRET;
+  if (typeof current !== "string" || current.length === 0) return "not_set";
+  return isAcceptableSecret(current) ? "ok" : "rejected";
+}
+
 /**
  * env se config. Secret missing/kamzor/galat ho toh null: tracking band (ad phir bhi pehle jaisa milta hai, bas `tracking` nahi).
  * TTL galat ho toh default; range 60 s .. 24 ghante.

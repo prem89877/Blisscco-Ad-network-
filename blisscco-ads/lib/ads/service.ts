@@ -7,7 +7,7 @@ import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { selectAd } from "./selection";
 import { serveAd, type ServeDeps, type ServeResult } from "./serve";
 import { authorizePublisher, findIdempotentServe, recordServe } from "./serve-db";
-import { mintTrackingToken, readTrackingConfig, type TrackingConfig } from "./tracking-token";
+import { mintTrackingToken, readTrackingConfig, trackingSecretStatus, type TrackingConfig } from "./tracking-token";
 import type { MatchRequest } from "./types";
 // NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
 // Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
@@ -27,7 +27,9 @@ function trackingConfig(): TrackingConfig | null {
   const config = readTrackingConfig(process.env);
   if (!config && !warnedTrackingOff) {
     warnedTrackingOff = true;
-    console.error("[ads/serve] tracking token off"); // sirf static label: secret ki value / naam ka koi hissa log nahi
+    // Sirf static label (secret ki value ya uska koi hissa log nahi). "set hi nahi" aur "set hai par code ne reject kiya" alag label se dikhte hain.
+    if (trackingSecretStatus(process.env) === "rejected") console.error("[ads/serve] tracking secret rejected");
+    else console.error("[ads/serve] tracking token off");
   }
   return config;
 }

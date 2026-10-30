@@ -16,7 +16,7 @@ Node 20 ya 22 (Vercel settings me), Next.js 15, React 19, TypeScript 5.7 (strict
 2. Zip ki files repo me daalo (Spck me import ya GitHub web "Upload files").
 3. Vercel > Add New Project > repo select > Framework: Next.js > Deploy.
 4. Agar `package-lock.json` chahiye: Codespaces kholo > `npm install` > commit.
-5. Baad me Supabase keys Vercel > Settings > Environment Variables me daalo. Keys kabhi commit mat karo.
+5. Baad me Supabase keys Vercel > Settings > Environment Variables me daalo. Keys kabhi commit mat karo. Exact variables ki poori list: `DAY14-PART3-PRODUCTION-ENV.md`.
 
 | Kaam | Spck | Cloud terminal |
 |---|---|---|

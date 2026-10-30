@@ -8,3 +8,10 @@ next-env.d.ts
 *.tsbuildinfo
 .DS_Store
 .test-build
+*.pem
+*.log
+npm-debug.log*
+.supabase
+supabase/.temp
+supabase/.branches
+coverage

@@ -3,6 +3,22 @@ import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseEnv, requireSupabaseEnv } from "./env";
 import { safeNextPath } from "@/lib/auth/redirect";
 
+// Production me config chhoot jaye toh protected pages band (fail closed) ho jaate hain. Wajah Vercel logs me ek baar (har instance) dikhe,
+// sirf variable ke NAAM (value kabhi nahi), taaki "login error=config" ka sabab turant mile.
+let warnedConfig = false;
+function warnConfigUnusableOnce() {
+  if (warnedConfig) return;
+  warnedConfig = true;
+  const names = [
+    process.env.NEXT_PUBLIC_SUPABASE_URL ? "" : "NEXT_PUBLIC_SUPABASE_URL",
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ? "" : "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  ].filter(Boolean);
+  console.error(
+    "[config] public supabase env unusable; /dashboard is blocked.",
+    names.length > 0 ? `missing: ${names.join(", ")}` : "values present but invalid (URL format ya secret key public variable me)"
+  );
+}
+
 /**
  * Har matching request par:
  *  1. session cookie refresh (token expire hone se pehle),
@@ -23,6 +39,7 @@ export async function updateSession(request: NextRequest) {
       env = null;
     }
   }
+  if (!env) warnConfigUnusableOnce();
 
   if (!env) {
     if (isProtected) {
