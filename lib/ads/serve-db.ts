@@ -62,7 +62,12 @@ export async function authorizePublisher(keyHash: string): Promise<AuthorizeOutc
       console.error("[ads/serve] authorize rpc failed", error.code ?? "unknown");
       return { outcome: "error" };
     }
-    return parseAuthorizeResult(data);
+    const parsed = parseAuthorizeResult(data);
+    if (parsed.outcome === "error") {
+      // DEBUG (503 diagnosis): sirf static label + type, koi value/key/hash nahi.
+      console.error("[ads/serve] authorize result shape rejected", typeof data, isRecord(data) ? String(data.outcome) : "n/a");
+    }
+    return parsed;
   } catch {
     console.error("[ads/serve] authorize unexpected failure");
     return { outcome: "error" };

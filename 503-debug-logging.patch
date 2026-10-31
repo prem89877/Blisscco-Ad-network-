@@ -1,0 +1,32 @@
+--- a/lib/ads/serve-db.ts	2026-10-31 05:13:49.828223345 +0000
++++ b/lib/ads/serve-db.ts	2026-10-31 05:13:49.867374935 +0000
+@@ -62,7 +62,12 @@
+       console.error("[ads/serve] authorize rpc failed", error.code ?? "unknown");
+       return { outcome: "error" };
+     }
+-    return parseAuthorizeResult(data);
++    const parsed = parseAuthorizeResult(data);
++    if (parsed.outcome === "error") {
++      // DEBUG (503 diagnosis): sirf static label + type, koi value/key/hash nahi.
++      console.error("[ads/serve] authorize result shape rejected", typeof data, isRecord(data) ? String(data.outcome) : "n/a");
++    }
++    return parsed;
+   } catch {
+     console.error("[ads/serve] authorize unexpected failure");
+     return { outcome: "error" };
+--- a/lib/ads/service.ts	2026-10-31 05:13:49.828326119 +0000
++++ b/lib/ads/service.ts	2026-10-31 05:13:49.867584303 +0000
+@@ -65,8 +65,11 @@
+   },
+ };
+ 
+-export function serveAdForPublisher(keyHash: string, request: MatchRequest): Promise<ServeResult> {
+-  return serveAd(keyHash, request, productionDeps);
++export async function serveAdForPublisher(keyHash: string, request: MatchRequest): Promise<ServeResult> {
++  const result = await serveAd(keyHash, request, productionDeps);
++  // DEBUG (503 diagnosis): sirf static label. serve.ts pure rehta hai (test), isliye log yahan hai.
++  if (result.kind === "unavailable") console.error("[ads/serve] result=unavailable (503)");
++  return result;
+ }
+ 
+ // Day 22 Part 3: Blisscco-FIRST fallback (abhi route/match-handler se juda NAHI hai; publisher ka response contract wahi hai).
