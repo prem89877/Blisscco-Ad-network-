@@ -6,7 +6,7 @@ import * as route from "../../examples/publisher-nextjs/app/api/blisscco-ad/rout
 import { safeHref } from "../../examples/publisher-nextjs/lib/safe-url";
 import { CATEGORY_OPTIONS } from "@/lib/campaigns/constants";
 
-// Day 20 Part 3: Next.js publisher example. MOCKED fetch only: no network, no database, no production code touched.
+// Day 20 Part 3 (updated Day 21 Part 3 for tracking): Next.js publisher example. MOCKED fetch only: no network, no database, no production code touched.
 
 const ROOT = path.join(__dirname, "..", "..", "..");
 const read = (f: string) => readFileSync(path.join(ROOT, "examples/publisher-nextjs", f), "utf8");
@@ -156,7 +156,8 @@ describe("no raw conversation / prompt forwarding", () => {
     await post({ topic: "travel" }, { "content-type": "application/json", cookie: "session=abc", authorization: "Bearer browser-token", "x-forwarded-for": "1.2.3.4", referer: "https://site.example/chat?q=secret", "user-agent": "x" });
     assert.equal(upstream[0].body, JSON.stringify({ topic: "travel" }));
     const names = Object.keys(upstream[0].headers).map((h) => h.toLowerCase()).sort();
-    assert.deepEqual(names, ["accept", "authorization", "content-type", "idempotency-key"]);
+    assert.deepEqual(names, ["accept", "authorization", "content-type", "idempotency-key", "x-blisscco-tracking"]);
+    assert.equal(upstream[0].headers["X-Blisscco-Tracking"], "1");
     assert.equal(upstream[0].headers.Authorization, `Bearer ${KEY}`);
     assert.equal(JSON.stringify(upstream[0]).includes("browser-token"), false);
     assert.equal(JSON.stringify(upstream[0]).includes("secret"), false);
@@ -202,22 +203,32 @@ describe("safe destination handling", () => {
     }
   });
 
-  it("component links with target=_blank, rel sponsored+noopener+noreferrer, re-checks the URL, and never injects HTML", () => {
+  it("component has no direct advertiser link: it re-checks the URL, opens it only from the click handler with noopener+noreferrer, and never injects HTML", () => {
     assert.match(SRC.component, /safeHref\(destination_url\)/);
-    assert.match(SRC.component, /href=\{ad\.href\}/);
-    assert.match(SRC.component, /target="_blank"/);
-    assert.match(SRC.component, /rel="sponsored noopener noreferrer"/);
+    assert.match(SRC.component, /safeHref\(ad\.href\)/);
+    assert.doesNotMatch(SRC.component, /<a\b|href=\{/);
+    assert.match(SRC.component, /window\.open\(target, "_blank", "noopener,noreferrer"\)/);
     assert.doesNotMatch(SRC.component, /dangerouslySetInnerHTML|innerHTML|eval\(|document\.write/);
   });
 });
 
 describe("response whitelist and upstream errors", () => {
-  it("returns only the 5 public ad fields; tracking and extra data are dropped and tracking is not requested", async () => {
-    mockUpstream(200, { ...FILL, ad: { ...AD, advertiser_email: "a@b.com", spent_total: 9 }, tracking: { token: "bt1.a.b", expires_at: "x", events: ["click"], click_ref: "bc1.a.b" }, internal: 1 });
+  it("returns only the 5 public ad fields + { tracking: { token, click_ref } }; expires_at, events and extra data are dropped", async () => {
+    mockUpstream(200, { ...FILL, ad: { ...AD, advertiser_email: "a@b.com", spent_total: 9 }, tracking: { token: "bt1.a.b", expires_at: "x", events: ["impression", "click"], click_ref: "bc1.a.b" }, internal: 1 });
     const body = await (await post({ topic: "gaming" })).json();
-    assert.deepEqual(body, { fill: true, sponsored: true, ad: { ...AD, destination_url: "https://example.com/g" } });
+    assert.deepEqual(body, { fill: true, sponsored: true, ad: { ...AD, destination_url: "https://example.com/g" }, tracking: { token: "bt1.a.b", click_ref: "bc1.a.b" } });
     assert.deepEqual(Object.keys(body.ad).sort(), ["body", "cta_text", "destination_url", "headline", "id"]);
-    assert.equal(upstream[0].headers["X-Blisscco-Tracking"], undefined);
+    assert.equal(upstream[0].headers["X-Blisscco-Tracking"], "1");
+    assert.equal(/expires_at|events/.test(JSON.stringify(body)), false);
+  });
+
+  it("no usable impression tracking (missing, click-only events, malformed token) => ad is returned without tracking", async () => {
+    for (const tracking of [undefined, { token: "bt1.a.b", expires_at: "x", events: ["click"] }, { token: "not-a-token", expires_at: "x", events: ["impression"], click_ref: "not-a-ref" }]) {
+      mockUpstream(200, { ...FILL, ...(tracking ? { tracking } : {}) });
+      const body = await (await post({ topic: "gaming" })).json();
+      assert.equal(body.fill, true);
+      assert.equal("tracking" in body, false);
+    }
   });
 
   it("any upstream or config failure becomes a generic 503 {fill:false,error:'unavailable'} with no leakage", async () => {

@@ -888,7 +888,7 @@ describe("Day 20 part 4: the Next.js example behaves as the quickstart and troub
     assert.equal(upstream.length, 1);
     assert.deepEqual(JSON.parse(upstream[0].body), { topic: "travel" });
     assert.match(upstream[0].headers["Idempotency-Key"], /^[A-Za-z0-9_-]{8,64}$/);
-    assert.equal(upstream[0].headers["X-Blisscco-Tracking"], undefined, "the example never opts in to tracking");
+    assert.equal(upstream[0].headers["X-Blisscco-Tracking"], "1", "the example opts in to impression tracking (Day 21 part 3)");
     assert.equal((await ok.text()).includes(KEY), false);
   });
 
@@ -931,14 +931,15 @@ describe("Day 20 part 4: the Next.js example behaves as the quickstart and troub
     }
   });
 
-  it("no-fill and an unsafe destination both become {fill:false}; the browser never gets tracking data", async () => {
+  it("no-fill and an unsafe destination both become {fill:false}; the browser gets only the impression token and click ref, never expiry or events", async () => {
     mock(200, { fill: false });
     assert.deepEqual(await (await post('{"topic":"gaming"}')).json(), { fill: false });
     mock(200, { fill: true, sponsored: true, ad: { ...AD_ROW, destination_url: "javascript:alert(1)" } });
     assert.deepEqual(await (await post('{"topic":"gaming"}')).json(), { fill: false });
     mock(200, { fill: true, sponsored: true, ad: AD_ROW, tracking: { token: "bt1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE", expires_at: "2099-01-01T00:00:00.000Z", events: ["impression", "click"], click_ref: "bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE" } });
     const text = await (await post('{"topic":"gaming"}')).text();
-    assert.equal(/tracking|bt1\.|bc1\./.test(text), false);
+    assert.equal(/expires_at|events/.test(text), false);
+    assert.deepEqual(JSON.parse(text).tracking, { token: "bt1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE", click_ref: "bc1.EXAMPLE-PAYLOAD.EXAMPLE-SIGNATURE" });
   });
 
   it("the route allowlist is a subset of the supported topics, and every entry is accepted by the real API (alias or active slug)", () => {

@@ -570,7 +570,7 @@ export default async function PublisherGuidePage() {
             <li>The route&apos;s allowlist holds the nine supported topics. Shorten it to the ones you really use. Any other topic gets a 400 from your own route.</li>
             <li>Every failure behind the route (a missing key, 401, 429, 5xx, a timeout) reaches the browser as the same 503, and the component then shows nothing. See the troubleshooting table (section 5a).</li>
             <li>Each browser call makes a new <code>Idempotency-Key</code>, so a second call to your route is a new placement and a new serve.</li>
-            <li>The sample does not opt in to tracking, so it reports no impressions or clicks, and its link goes straight to the advertiser&apos;s https address. That differs from section 6. Use it to check fill and layout only, and follow sections 4a to 4d for counted impressions and clicks.</li>
+            <li>The sample opts in to tracking, reports one impression per ad that is really on screen, and reports a click when the button is pressed. The browser sends only the signed token or click ref to your own route, and your route forwards it server-side. Your route sends the click ref to Blisscco, then the browser opens the ad&apos;s own https destination in a new tab. The browser never supplies a destination. See sections 4a to 4d for the tracking rules behind it.</li>
           </ul>
 
           <p className="mt-4 text-sm font-medium">Rules for every pilot integration</p>

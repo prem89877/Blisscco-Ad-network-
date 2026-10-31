@@ -17,6 +17,8 @@ The publisher API key stays on the server. The browser only sends a topic.
 
 - Never put the key in client code, `NEXT_PUBLIC_*` variables or logs.
 - Send only a topic. Never send chat messages, prompts or user data.
+- Impressions: the component sends only `{ token, event: "impression" }` to your own route once the ad is at least half visible in a visible tab (once per ad). The route forwards it server-side; the token is the only credential.
+- Clicks: the CTA is a button, not a direct link. On press the component sends only `{ click_ref, event: "click" }` to your route, which calls Blisscco's click endpoint server-side (Blisscco validates the ref). Then the validated https destination opens in a new tab with `noopener,noreferrer`. The browser never supplies a destination.
 - Keep the **Sponsored** label. Links open with `rel="sponsored noopener noreferrer"`.
 - No CORS headers: the route is same-origin only.
 - No ad (no-fill, error, unsafe link) = the component renders nothing.

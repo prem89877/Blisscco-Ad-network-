@@ -931,13 +931,16 @@ describe("Day 20 part 4: quickstart points at the real example files and env nam
     assert.match(lines("NODE_QUICKSTART_EXAMPLE"), /baseDelayMs: 2000/);
   });
 
-  it("the Next.js example does not opt in to tracking and links straight to the destination, and the guide says so honestly", () => {
+  it("the Next.js example opts in to impression + click tracking, has no direct advertiser link, and the guide says so honestly", () => {
     const route = read(`${NEXT_DIR}/app/api/blisscco-ad/route.ts`);
     const comp = read(`${NEXT_DIR}/components/SponsoredAd.tsx`);
-    assert.doesNotMatch(route.replace(/\/\/.*$/gm, ""), /tracking|click_ref|X-Blisscco-Tracking/i);
-    assert.match(comp, /href=\{ad\.href\}/);
-    assert.match(g, /does not opt in to tracking, so it reports no impressions or clicks, and its link goes straight to the advertiser&apos;s https address\. That differs from section 6/);
-    assert.match(g, /Use it to check fill and layout only/);
+    const routeCode = route.replace(/\/\/.*$/gm, "");
+    assert.match(routeCode, /tracking: true/);
+    assert.match(routeCode, /reportClick/);
+    assert.match(comp, /click_ref: ref, event: "click"/);
+    assert.doesNotMatch(comp, /href=\{ad\.href\}|<a\b/);
+    assert.match(g, /opts in to tracking, reports one impression per ad that is really on screen, and reports a click when the button is pressed/);
+    assert.match(g, /Your route sends the click ref to Blisscco, then the browser opens the ad&apos;s own https destination in a new tab/);
   });
 });
 
@@ -978,7 +981,7 @@ describe("Day 20 part 4: the pilot rules are documented and match the examples",
     const comp = read("examples/publisher-nextjs/components/SponsoredAd.tsx");
     assert.match(comp, /aria-label="Sponsored"/);
     assert.match(comp, />Sponsored<\/p>/);
-    assert.match(comp, /rel="sponsored noopener noreferrer"/);
+    assert.match(comp, /window\.open\(target, "_blank", "noopener,noreferrer"\)/);
     assert.match(lines("NEXTJS_USAGE_EXAMPLE"), /the assistant's own answer goes here, first/);
   });
 
