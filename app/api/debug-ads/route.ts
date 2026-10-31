@@ -4,6 +4,11 @@ import { loadAdCandidates } from "@/lib/ads/candidate-loader";
 import { authorizePublisher, findIdempotentServe, recordServe } from "@/lib/ads/serve-db";
 import { selectAd } from "@/lib/ads/selection";
 import { serveAd } from "@/lib/ads/serve";
+import { serveV0 } from "./variants/serve-v0";
+import { serveV1 } from "./variants/serve-v1";
+import { serveV2 } from "./variants/serve-v2";
+import { serveV3 } from "./variants/serve-v3";
+
 import { serveAdForPublisher, serveAdWithFallbackForPublisher, serveMatchForPublisher } from "@/lib/ads/service";
 
 // TEMPORARY 503 DIAGNOSIS ROUTE. Kaam hote hi poora folder app/api/debug-ads DELETE kar dena.
@@ -95,6 +100,21 @@ export async function POST(request: Request) {
     );
     return describe(r) + " trace=" + trace.join(",");
   });
+
+  const fake = {
+    authorize: async () => ({ outcome: "ok", publisher: { id: "7e54404f-af97-4dcb-b860-8114d22cccf0", status: "active" }, unitCostUsd: 0.002 }),
+    select: async () => ({ fill: false, reason: "no_eligible_candidates" }),
+    record: async () => ({ outcome: "error" }),
+  };
+  const variants: Array<[string, (h: string, r: never, d: never) => Promise<unknown>]> = [
+    ["V0_exact_copy", serveV0 as never],
+    ["V1_if_instead_of_switch", serveV1 as never],
+    ["V2_V1_plus_index_loops", serveV2 as never],
+    ["V3_catch_with_binding", serveV3 as never],
+  ];
+  for (const [name, fn] of variants) {
+    await run("6_" + name, async () => describe(await fn(hash, { topic } as never, fake as never)) + " (expected kind=no_fill)");
+  }
 
   return NextResponse.json({ topic, steps }, { headers: { "Cache-Control": "no-store" } });
 }

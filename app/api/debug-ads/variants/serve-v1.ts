@@ -1,0 +1,171 @@
+// TEMPORARY debug copy. Delete with app/api/debug-ads.
+import { resolveCategory } from "@/lib/ads/category-matching";
+import type { CategorySlug } from "@/lib/ads/taxonomy";
+import type { SelectionOutcome, SelectionRequest } from "@/lib/ads/selection";
+import type { MatchedAd, MatchRequest, ServeReceipt } from "@/lib/ads/types";
+import type { TrackingGrant } from "@/lib/ads/tracking-token";
+// NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
+// Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
+
+// Serve orchestrator (PURA: koi database/env/server-only nahi; saari cheezein `deps` se aati hain, isliye bina database ke test hota hai).
+//
+// Flow (har kadam fail-closed):
+//   1. authorize   : publisher key + publisher/profile active + rate limit           (database)
+//   2. category    : topic (+ publisher ke optional fallback_topics) ko canonical slugs me badlo; sensitive topic => no-fill, fallback nahi
+//   3. select      : candidates load + eligibility + EK creative                      (TypeScript selection layer)
+//   4. record      : creative dobara verify + serve log + daily counter               (database)
+//   5. respond     : record hone ke BAAD hi ad wapas; warna no-fill
+//
+// Publisher ko SIRF ServeResult milta hai: no-fill ki wajah, campaign, advertiser, budget kuch nahi.
+
+/** Ek request me record_ad_serve ke kul kitne try (pehla chuna hua + selection ke nextAds). Latency ki seema. */
+const MAX_RECORD_ATTEMPTS = 3;
+
+type AuthorizeResult =
+  | { outcome: "ok"; publisher: { id: string; status: string }; unitCostUsd: number }
+  | { outcome: "unauthorized" }
+  | { outcome: "rate_limited" }
+  | { outcome: "error" };
+
+type RecordResult =
+  | { outcome: "recorded"; replayedAd?: MatchedAd; serve?: ServeReceipt }
+  | { outcome: "rejected" }
+  | { outcome: "error" };
+
+type ReplayResult =
+  | { outcome: "found"; ad: MatchedAd; serve?: ServeReceipt }
+  | { outcome: "none" }
+  | { outcome: "rejected" }
+  | { outcome: "unauthorized" }
+  | { outcome: "error" };
+
+type ServeDeps = {
+  authorize: (keyHash: string) => Promise<AuthorizeResult>;
+  /** unitCostUsd authorize se aata hai, isliye selection ka wiring caller ke haath me hai. */
+  select: (request: SelectionRequest, unitCostUsd: number) => Promise<SelectionOutcome>;
+  /** idempotencyKey sirf tab aata hai jab publisher ne `Idempotency-Key` bheji ho. */
+  record: (keyHash: string, creativeId: string, category: CategorySlug, idempotencyKey?: string) => Promise<RecordResult>;
+  /** Optional: selection se PEHLE "ye key pehle charge ho chuki hai?" (retry me wahi ad, dobara charge nahi). */
+  lookupReplay?: (keyHash: string, idempotencyKey: string) => Promise<ReplayResult>;
+  /**
+   * Optional (Day 12 Part 3): tracking token banata hai. Sirf KAMYAB (database me record ho chuki) serve ke liye bulaya jaata hai,
+   * aur sirf tab jab publisher ne opt-in kiya ho. null/throw => ad bina `tracking` ke (serve phir bhi hui hai, bas token nahi).
+   */
+  issueTracking?: (input: { publisherId: string; serveRef: string; servedAtMs: number; creativeId: string }) => TrackingGrant | null;
+};
+
+type ServeResult =
+  | { kind: "ad"; ad: MatchedAd; tracking?: TrackingGrant }
+  | { kind: "no_fill" }
+  | { kind: "unauthorized" }
+  | { kind: "rate_limited" }
+  | { kind: "unavailable" };
+
+/** Sirf 5 public fields (extra property kabhi bahar nahi jaati). */
+function publicFields(ad: MatchedAd): MatchedAd {
+  const { id, headline, body, ctaText, destinationUrl } = ad;
+  return { id, headline, body, ctaText, destinationUrl };
+}
+
+/**
+ * Token sirf tab: opt-in + record ho chuki serve ka receipt + issuer maujood. Kisi bhi gadbad (issuer throw/null) par undefined:
+ * ad pehle jaisa jaata hai, bas `tracking` nahi. Rejected/no-fill/unauthorized/error raaste yahan tak pahunchte hi nahi.
+ */
+function grantFor(
+  request: MatchRequest,
+  deps: ServeDeps,
+  publisherId: string,
+  serve: ServeReceipt | undefined,
+  creativeId: string,
+): TrackingGrant | undefined {
+  if (request.trackingRequested !== true || !serve || !deps.issueTracking) return undefined;
+  try {
+    // creativeId hamesha wahi hai jo asal me serve hua (replay me original creative), caller/publisher ka diya hua nahi.
+    return deps.issueTracking({ publisherId, serveRef: serve.serveRef, servedAtMs: serve.servedAtMs, creativeId }) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Kabhi throw nahi karta: kuch bhi anjaana => "unavailable" (route 503 + fill:false deta hai). */
+export async function serveV1(keyHash: string, request: MatchRequest, deps: ServeDeps): Promise<ServeResult> {
+  try {
+    // 1. Authorization (publisher id caller se kabhi nahi liya jaata: key hash se database batata hai)
+    const auth = await deps.authorize(keyHash);
+    if (auth.outcome === "unauthorized") return { kind: "unauthorized" };
+    if (auth.outcome === "rate_limited") return { kind: "rate_limited" };
+    if (auth.outcome !== "ok") return { kind: "unavailable" };
+
+    // 1b. Retry check: publisher ne `Idempotency-Key` bheji ho aur wo pehle charge ho chuki ho => wahi ad, DOBARA charge nahi.
+    //     Ye selection se pehle hota hai, taaki pehli request se budget khatam ho gaya ho tab bhi retry ko wahi ad mile.
+    //     Lookup fail ho toh 503 (andaza nahi laga sakte ki charge hua ya nahi; dobara charge karne se behtar hai ruk jana).
+    if (request.idempotencyKey !== undefined && deps.lookupReplay) {
+      const replay = await deps.lookupReplay(keyHash, request.idempotencyKey);
+      if (replay.outcome === "found") {
+        const grant = grantFor(request, deps, auth.publisher.id, replay.serve, replay.ad.id);
+        return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}) };
+      }
+      if (replay.outcome === "rejected") return { kind: "no_fill" };
+      if (replay.outcome === "unauthorized") return { kind: "unauthorized" };
+      if (replay.outcome !== "none") return { kind: "unavailable" };
+    }
+
+    // 2. Category plan: `topic` pehle, phir publisher ke diye `fallbackTopics` (max 2, priority order). Sab kuch exact slug/alias
+    //    hai (substring/fuzzy nahi), koi category infer nahi hoti. Sensitive `topic` => seedha no-fill: us par fallback se bhi ad nahi.
+    //    Sensitive/unsupported/duplicate fallback entry chup-chaap chhod di jaati hai. `topic` khud unsupported ho (jaise legacy beauty)
+    //    toh fallbacks try ho sakte hain: publisher ne unhe khud bheja hai.
+    const primary = resolveCategory(request.topic);
+    if (!primary.ok && primary.reason === "sensitive_category") return { kind: "no_fill" };
+    const plan: CategorySlug[] = primary.ok ? [primary.category] : [];
+    for (const raw of request.fallbackTopics ?? []) {
+      const next = resolveCategory(raw);
+      if (next.ok && !plan.includes(next.category)) plan.push(next.category);
+    }
+    if (plan.length === 0) return { kind: "no_fill" };
+
+    // 3 + 4. Har category me: selection, phir record. Record calls ki kul seema poori request ke liye ek hi hai (latency bounded).
+    //    Database creative ko dobara verify karta hai. Record na ho toh ad nahi dete.
+    //    Retry-key hone par wahi key do requests ek saath aayein toh database ek hi baar charge karta hai; doosri ko
+    //    pehle charge hue creative ka ad milta hai (replayedAd), selection ne kuch bhi chuna ho.
+    //    Agar DB chune hue creative ko reject kare (budget khatam / race / paused), toh selection ke agle eligible
+    //    creatives (max 2) try hote hain. Reject par kuch likha nahi jaata (na spend, na idempotency key), isliye agla try safe hai.
+    //    Category me koi ad na mile (ya sab reject) toh agli category. Error par ruk jaate hain (503), koi guess nahi.
+    //    Sirf EK ad charge hota hai: pehla jo record ho jaye.
+    let recordsLeft = MAX_RECORD_ATTEMPTS;
+    for (const category of plan) {
+      if (recordsLeft <= 0) break;
+      const outcome = await deps.select(
+        {
+          publisher: auth.publisher,
+          category,
+          excludeCreativeIds: request.excludeAdIds,
+        },
+        auth.unitCostUsd,
+      );
+      if (!outcome.fill) {
+        // Database padhne me dikkat = outage (503), "koi ad nahi" (200 no-fill) nahi: dono me farak dikhna chahiye.
+        if (outcome.reason === "candidate_load_failed") return { kind: "unavailable" };
+        continue;
+      }
+      const attempts = [outcome.ad, ...(outcome.nextAds ?? [])].slice(0, recordsLeft);
+      for (const attempt of attempts) {
+        recordsLeft -= 1;
+        const recorded =
+          request.idempotencyKey === undefined
+            ? await deps.record(keyHash, attempt.id, category)
+            : await deps.record(keyHash, attempt.id, category, request.idempotencyKey);
+        if (recorded.outcome === "recorded") {
+          // 5. Sirf 5 public fields (+ opt-in par tracking, sirf is record ho chuki serve ke liye)
+          // Concurrent retry me DB pehle charge hue creative (replayedAd) ka ad deta hai: click ref bhi usi original creative se bandhta hai.
+          const served = recorded.replayedAd ?? attempt;
+          const grant = grantFor(request, deps, auth.publisher.id, recorded.serve, served.id);
+          return { kind: "ad", ad: publicFields(served), ...(grant ? { tracking: grant } : {}) };
+        }
+        if (recorded.outcome !== "rejected") return { kind: "unavailable" };
+      }
+    }
+    return { kind: "no_fill" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
