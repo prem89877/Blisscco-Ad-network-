@@ -85,8 +85,6 @@ export type MatchServeOutcome = ServeResult | { kind: "provider_ad"; response: M
 
 export async function serveMatchForPublisher(keyHash: string, request: MatchRequest): Promise<MatchServeOutcome> {
   const routed = await serveAdWithFallbackForPublisher(keyHash, request);
-  // DEBUG (503 diagnosis): sirf static label, koi key/hash/topic/data nahi. Kaam ho jaye toh hata dena.
-  if (routed.source === "blisscco" && routed.result.kind === "unavailable") console.error("[ads/serve] match result=unavailable (503)");
   if (routed.source === "blisscco") return routed.result;
   const response = publicAdFromFallbackFill(routed.fill);
   return response ? { kind: "provider_ad", response } : { kind: "no_fill" };
