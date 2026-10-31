@@ -1007,6 +1007,18 @@ export default async function PublisherGuidePage() {
           </ul>
         </Panel>
 
+        <Panel title="7a. Optional Revive fallback (off by default)" note="Server-side and optional. There is nothing for you to configure or call.">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>Revive fallback is optional and disabled by default. When it is off, Blisscco behaves exactly as described in the rest of this guide.</li>
+            <li>It can only be tried after Blisscco itself has no eligible ad, and it can be switched on only by Blisscco on its own server. You never send a Revive setting, key or flag, and the request body stays <code>topic</code>, <code>fallback_topics</code> and <code>exclude_ad_ids</code>.</li>
+            <li>It may return no-fill. If Revive is off, slow, returns something Blisscco does not accept, or has nothing to show, the answer is the normal <code>{'{"fill":false}'}</code>. Handle it as in section 7: show nothing.</li>
+            <li>A Revive ad is not a Blisscco advertiser impression or billing event. No Blisscco advertiser is charged, no Blisscco serve is recorded for it, and it does not add to your Blisscco earnings. Blisscco does not provide tracking or reporting for Revive ads, so there is no tracking token and no <code>click_ref</code> for one. Do not report an impression or click for it to Blisscco, and do not build a Blisscco click link for it.</li>
+            <li>The public fields do not change: <code>id</code>, <code>headline</code>, <code>body</code>, <code>cta_text</code> and <code>destination_url</code>, with <code>sponsored: true</code>. Show the Sponsored label as in section 6. Raw HTML, scripts and the provider&apos;s own data are never passed on.</li>
+            <li>Only plain-text creatives with a plain <code>https</code> destination are accepted, under the same destination rules as Blisscco ads. Anything else, including an HTML creative, is dropped and counts as no-fill.</li>
+            <li>Limit of this repository: the fallback code is not yet attached to the match endpoint, so today&apos;s responses come only from approved Blisscco campaigns. Its response format has not been verified against a live Revive instance.</li>
+          </ul>
+        </Panel>
+
         <Panel title="8. Why the key must stay on your server">
           <p className="text-sm text-mist/75">
             The key is a password for your publisher account. Anyone who gets it can request ads as you, use up your

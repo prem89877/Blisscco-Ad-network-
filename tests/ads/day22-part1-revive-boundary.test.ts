@@ -237,7 +237,7 @@ describe("day 22 part 1 | isolation from database, billing and production servin
 
   it("not attached to production: nothing else in app, lib or components imports or mentions the Revive adapter", () => {
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
-      if (f === FILE || f === "lib/ads/fallback-provider.ts") continue; // Day 22 Part 3: alag, flag-gated wiring file (service.ts me naam nahi aata)
+      if (f === FILE || f === "lib/ads/fallback-provider.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 22 Part 4: guide sirf text me batata hai (koi import nahi) // Day 22 Part 3: alag, flag-gated wiring file (service.ts me naam nahi aata)
       assert.ok(!/revive/i.test(code(f)), `${f} must not reference Revive`);
     }
     for (const f of ["lib/ads/service.ts", "lib/ads/match-handler.ts", "lib/ads/serve.ts", "lib/ads/click.ts", "lib/ads/click-handler.ts", "lib/ads/impression.ts", "app/api/v1/ads/match/route.ts"]) {

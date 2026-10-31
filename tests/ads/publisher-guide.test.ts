@@ -4,7 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import * as ts from "typescript";
-import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS, PUBLIC_TRACKING_OPTIONAL_FIELDS, buildAdResponse } from "@/lib/ads/contract";
+import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS, PUBLIC_TRACKING_OPTIONAL_FIELDS, buildAdResponse, buildProviderAdResponse } from "@/lib/ads/contract";
+import { reviveFallbackEnabled } from "@/lib/ads/fallback-provider";
 import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
 import { ACTIVE_CATEGORIES } from "@/lib/ads/taxonomy";
 import * as clickRoute from "@/app/api/v1/ads/click/route";
@@ -1101,5 +1102,77 @@ describe("Day 20 part 4: troubleshooting section matches the real API contract",
     assert.match(rowOf("503").action, /SAME Idempotency-Key/);
     assert.match(rowOf("429").action, /Do not loop/);
     assert.match(g, /Retry only 429 and 5xx/);
+  });
+});
+
+describe("Day 22 part 4: the guide describes the optional Revive fallback accurately", () => {
+  const section = (): string => {
+    const g = flat(GUIDE);
+    const start = g.indexOf("7a. Optional Revive fallback");
+    const end = g.indexOf("8. Why the key must stay on your server");
+    assert.ok(start > 0 && end > start, "Revive section must sit between sections 7 and 8");
+    return g.slice(start, end);
+  };
+
+  it("says it is optional, disabled by default, may be no-fill, and is not an advertiser impression or billing event", () => {
+    const t = section();
+    assert.match(t, /optional and disabled by default/);
+    assert.match(t, /may return no-fill/);
+    assert.match(t, /\{"fill":false\}/);
+    assert.match(t, /not a Blisscco advertiser impression or billing event/);
+    assert.match(t, /No Blisscco advertiser is charged/);
+  });
+
+  it("'disabled by default' is true in the code: only the exact value 'true' switches the flag on", () => {
+    assert.equal(reviveFallbackEnabled({}), false);
+    for (const v of ["", "1", "TRUE", "yes", " true", "false"]) assert.equal(reviveFallbackEnabled({ REVIVE_FALLBACK_ENABLED: v }), false, v);
+    assert.equal(reviveFallbackEnabled({ REVIVE_FALLBACK_ENABLED: "true" }), true);
+  });
+
+  it("does not promise tracking or reporting for Revive ads", () => {
+    const t = section();
+    assert.match(t, /does not provide tracking or reporting for Revive ads/);
+    assert.match(t, /no tracking token and no <code>click_ref<\/code>/);
+    assert.doesNotMatch(t, /Revive[^.]*\b(impressions? (are|is) (counted|reported|tracked)|earn(ings)? (are|will be)|will be (tracked|reported|paid))/i);
+    assert.doesNotMatch(t, /\b(reporting|analytics|dashboard) (is|are) available for Revive/i);
+  });
+
+  it("a mapped Revive ad really has no tracking object and only the documented public fields", () => {
+    const out = buildProviderAdResponse("revive", { headline: "H", body: "B", ctaText: null, destinationUrl: "https://example.com/x" });
+    assert.equal(out.ok, true);
+    if (!out.ok) return;
+    assert.ok(!("tracking" in out.response));
+    assert.deepEqual(Object.keys(out.response.ad).sort(), [...PUBLIC_AD_FIELDS].sort());
+    const t = section();
+    for (const field of PUBLIC_AD_FIELDS) assert.ok(t.includes(`<code>${field}</code>`), field);
+  });
+
+  it("the stated limit is true: the match handler and routes are not attached to the fallback yet", () => {
+    assert.match(section(), /not yet attached to the match endpoint/);
+    for (const f of ["lib/ads/match-handler.ts", "app/api/v1/ads/match/route.ts", "app/api/ads/match/route.ts"]) {
+      assert.doesNotMatch(read(f), /serveAdWithFallback|fallback-routing|fallback-provider/, f);
+    }
+  });
+
+  it("publishers are told nothing to configure: no Revive env variable, URL or key appears in the guide", () => {
+    const g = read(GUIDE);
+    assert.doesNotMatch(g, /REVIVE_[A-Z_]+/);
+    assert.doesNotMatch(g, /zoneid|delivery URL|openx/i);
+    assert.match(section(), /You never send a Revive setting, key or flag/);
+  });
+
+  it("states the safety limits that the code enforces: plain-text creatives, https destination, no raw HTML or scripts", () => {
+    const t = section();
+    assert.match(t, /Raw HTML, scripts and the provider&apos;s own data are never passed on/);
+    assert.match(t, /plain-text creatives with a plain <code>https<\/code> destination/);
+    assert.match(t, /including an HTML creative, is dropped and counts as no-fill/);
+    assert.match(t, /has not been verified against a live Revive instance/);
+  });
+
+  it("older guide rules are intact: the Known limitations panel and the no-third-party-integration claim remain", () => {
+    const g = flat(GUIDE);
+    assert.match(g, /Known limitations/);
+    assert.match(g, /no integration with ChatGPT or any other third-party chatbot/);
+    assert.match(g, /No third-party integration has been tested\./);
   });
 });

@@ -2,6 +2,8 @@ import type { MatchedAd } from "./types";
 import { CLICK_REF_PREFIX } from "./click-ref";
 import { MAX_TOKEN_LENGTH, type TrackingEvent, type TrackingGrant } from "./tracking-token";
 import type { ParseFailure } from "./validation";
+import { safeDestination } from "./click";
+import { BODY_MAX, CTA_MAX, HEADLINE_MAX } from "@/lib/campaigns/creative-validation";
 
 // POST /api/v1/ads/match (aur purana /api/ads/match) ka PUBLIC request/response contract.
 // Sirf TYPES + ek chhota mapper. Koi database/env/network nahi (pura pure module).
@@ -147,4 +149,68 @@ function isWellFormedClickRef(ref: unknown): ref is string {
     ref.startsWith(`${CLICK_REF_PREFIX}.`) &&
     CLICK_REF_SHAPE_RE.test(ref)
   );
+}
+
+// ---------------------------------------------------------------------------
+// Day 22 Part 4: external provider ke creative => wahi PUBLIC ad fields (koi naya public field nahi).
+// Provider-neutral. Raw HTML/script, provider ka internal data, kachcha URL kabhi bahar nahi. Tracking/click_ref kabhi nahi:
+// provider ka ad Blisscco ka serve/charge/click-redirect nahi hai, isliye response me `tracking` key banti hi nahi.
+// `provider` sirf INTERNAL attribution hai (response body me nahi jaata).
+// ---------------------------------------------------------------------------
+
+export type ProviderCreativeInput = {
+  headline: string;
+  body: string;
+  ctaText: string | null;
+  destinationUrl: string;
+};
+
+export type ProviderAdRejection = "invalid_provider" | "invalid_text" | "unsafe_destination";
+
+export type ProviderAdOutcome =
+  | { ok: true; provider: string; response: MatchSuccessResponse }
+  | { ok: false; reason: ProviderAdRejection };
+
+const PROVIDER_NAME_RE = /^[a-z][a-z0-9_]{0,29}$/;
+const CONTROL_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+const ENTITY_RE = /&(#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/i;
+
+/** Plain text hi: koi < > ya & entity (encoded markup), koi control char; trim ke baad 1..max. Warna null. */
+function plainText(raw: unknown, max: number): string | null {
+  if (typeof raw !== "string") return null;
+  const text = raw.trim();
+  if (text.length === 0 || text.length > max) return null;
+  if (/[<>]/.test(text) || CONTROL_RE.test(text) || ENTITY_RE.test(text)) return null;
+  return text;
+}
+
+/** Deterministic, non-secret public id (provider ad ka apna id/internal data nahi). Blisscco ad UUID nahi hai. */
+function providerAdId(provider: string, headline: string, destination: string): string {
+  let h = 0x811c9dc5;
+  for (const ch of `${headline}\n${destination}`) {
+    h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193) >>> 0;
+  }
+  return `${provider}_${h.toString(16).padStart(8, "0")}`;
+}
+
+/** Kabhi throw nahi karta. Destination project ke safe-destination rule (click.ts safeDestination) se; fail => reject, executable kuch nahi. */
+export function buildProviderAdResponse(provider: string, creative: ProviderCreativeInput): ProviderAdOutcome {
+  try {
+    if (typeof provider !== "string" || !PROVIDER_NAME_RE.test(provider)) return { ok: false, reason: "invalid_provider" };
+    if (creative === null || typeof creative !== "object") return { ok: false, reason: "invalid_text" };
+    const headline = plainText(creative.headline, HEADLINE_MAX);
+    const body = plainText(creative.body, BODY_MAX);
+    if (headline === null || body === null) return { ok: false, reason: "invalid_text" };
+    let cta: string | null = null;
+    if (creative.ctaText !== null && creative.ctaText !== undefined && creative.ctaText.trim() !== "") {
+      cta = plainText(creative.ctaText, CTA_MAX);
+      if (cta === null) return { ok: false, reason: "invalid_text" };
+    }
+    const destination = safeDestination(creative.destinationUrl);
+    if (destination === null) return { ok: false, reason: "unsafe_destination" };
+    const ad: PublicAd = { id: providerAdId(provider, headline, destination), headline, body, cta_text: cta, destination_url: destination };
+    return { ok: true, provider, response: { fill: true, sponsored: true, ad } };
+  } catch {
+    return { ok: false, reason: "invalid_text" };
+  }
 }

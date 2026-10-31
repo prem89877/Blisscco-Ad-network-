@@ -284,3 +284,79 @@ export function createReviveAdapter(rawConfig?: unknown, deps: ReviveAdapterDeps
 
   return Object.freeze({ name: "revive" as const, requestFill });
 }
+
+// ---------------------------------------------------------------------------
+// Day 22 Part 4: verified fill => sirf EXTRACTED creative fields (koi mapping public response ki nahi; wo contract.ts me hai).
+//
+// Yeh Blisscco ka CONFIGURED JSON contract hai (asli Revive instance ka format deploy se pehle manually verify karna hai):
+//   { "headline": string, "body": string, "cta_text": string | null (optional), "destination_url": string }
+// Sirf yahi 4 fields padhi jaati hain; baaki sab (extra/internal provider data) yahin chhoot jaata hai.
+// "html" format kabhi nahi: raw markup/script aage nahi jaata. Executable-markup wali keys ka creative reject.
+// Destination yahan jaanchi NAHI jaati: contract.ts me project ke safe-destination rule se hoti hai (isliye kachcha URL aage "unvalidated" hai).
+// ---------------------------------------------------------------------------
+
+export const REVIVE_PROVIDER_NAME = "revive" as const;
+
+export type ReviveCreativeFields = Readonly<{
+  headline: string;
+  body: string;
+  ctaText: string | null;
+  destinationUrl: string;
+}>;
+
+export type ReviveCreativeRejection = "not_a_fill" | "unsupported_format" | "unsupported_creative" | "invalid_creative";
+
+export type ReviveCreativeResult =
+  | Readonly<{ ok: true; provider: typeof REVIVE_PROVIDER_NAME; creative: ReviveCreativeFields }>
+  | Readonly<{ ok: false; reason: ReviveCreativeRejection }>;
+
+/** In keys ka matlab executable/markup creative: poora fill reject (field ignore nahi). */
+const REVIVE_EXECUTABLE_KEYS: ReadonlySet<string> = new Set([
+  "html", "script", "scripts", "js", "javascript", "iframe", "tag", "code", "markup", "adm", "creative_html", "ad_html", "body_html", "snippet", "embed", "vast", "xml",
+]);
+
+const rejectCreative = (reason: ReviveCreativeRejection): ReviveCreativeResult => Object.freeze({ ok: false as const, reason });
+const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+
+/**
+ * Part 2 ka `fill` (status:"fill") ya Part 3 ka FallbackFill ({provider:"revive", format, data}) dono le sakta hai. Kabhi throw nahi karta.
+ * Sirf JSON fill chalta hai; html => "unsupported_format". Result me sirf 4 allowlisted string fields aur provider ka naam.
+ */
+export function extractReviveCreative(fill: unknown): ReviveCreativeResult {
+  try {
+    if (fill === null || typeof fill !== "object") return rejectCreative("not_a_fill");
+    const f = fill as Record<string, unknown>;
+    let format: unknown;
+    let data: unknown;
+    if (f.status === "fill") {
+      format = f.format;
+      data = f.format === "json" ? f.payload : f.body;
+    } else if (typeof f.provider === "string") {
+      if (f.provider !== REVIVE_PROVIDER_NAME) return rejectCreative("not_a_fill");
+      format = f.format;
+      data = f.data;
+    } else {
+      return rejectCreative("not_a_fill");
+    }
+    if (format === "html") return rejectCreative("unsupported_format");
+    if (format !== "json") return rejectCreative("not_a_fill");
+    if (data === null || typeof data !== "object" || Array.isArray(data)) return rejectCreative("invalid_creative");
+    const obj = data as Record<string, unknown>;
+    for (const key of Object.keys(obj)) {
+      if (REVIVE_EXECUTABLE_KEYS.has(key.toLowerCase())) return rejectCreative("unsupported_creative");
+    }
+    const str = (k: string): string | undefined => (hasOwn(obj, k) && typeof obj[k] === "string" ? (obj[k] as string) : undefined);
+    const headline = str("headline");
+    const body = str("body");
+    const destinationUrl = str("destination_url");
+    if (headline === undefined || body === undefined || destinationUrl === undefined) return rejectCreative("invalid_creative");
+    let ctaText: string | null = null;
+    if (hasOwn(obj, "cta_text") && obj.cta_text !== null && obj.cta_text !== undefined) {
+      if (typeof obj.cta_text !== "string") return rejectCreative("invalid_creative");
+      ctaText = obj.cta_text;
+    }
+    return Object.freeze({ ok: true as const, provider: REVIVE_PROVIDER_NAME, creative: Object.freeze({ headline, body, ctaText, destinationUrl }) });
+  } catch {
+    return rejectCreative("invalid_creative");
+  }
+}
