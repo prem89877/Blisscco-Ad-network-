@@ -1,10 +1,11 @@
 import "server-only";
 import { loadAdCandidates } from "./candidate-loader";
 import { acceptClick, type ClickResult } from "./click";
+import type { MatchSuccessResponse } from "./contract";
 import { mintClickRef } from "./click-ref";
 import { lookupServeForClick, recordClickEvent } from "./click-db";
 import { routeServeWithFallback, type RoutedServeResult } from "./fallback-routing";
-import { providerFallbackFromEnv } from "./fallback-provider";
+import { providerFallbackFromEnv, publicAdFromFallbackFill } from "./fallback-provider";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { selectAd } from "./selection";
@@ -76,6 +77,18 @@ export function serveAdForPublisher(keyHash: string, request: MatchRequest): Pro
 export function serveAdWithFallbackForPublisher(keyHash: string, request: MatchRequest): Promise<RoutedServeResult> {
   const provider = providerFallbackFromEnv(process.env);
   return routeServeWithFallback(keyHash, request, { serve: serveAdForPublisher, ...provider });
+}
+
+// Day 22 Part 6: match endpoint ka entry point. Blisscco-FIRST: serveAdWithFallbackForPublisher pehle Blisscco ka apna serve chalata hai.
+// Flag band (default) => jawab bilkul purana (serveAdForPublisher jaisa). Sirf Blisscco no_fill + flag ON + provider ka safe fill => `provider_ad`.
+// provider_ad me public response pehle se bana hota hai (tracking nahi, koi serve record/charge/impression nahi). Kabhi throw nahi karta.
+export type MatchServeOutcome = ServeResult | Readonly<{ kind: "provider_ad"; response: MatchSuccessResponse }>;
+
+export async function serveMatchForPublisher(keyHash: string, request: MatchRequest): Promise<MatchServeOutcome> {
+  const routed = await serveAdWithFallbackForPublisher(keyHash, request);
+  if (routed.source === "blisscco") return routed.result;
+  const response = publicAdFromFallbackFill(routed.fill);
+  return response ? { kind: "provider_ad", response } : { kind: "no_fill" };
 }
 
 // Day 12 Part 4: impression. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Token + serve ka milan + atomic write

@@ -1015,7 +1015,7 @@ export default async function PublisherGuidePage() {
             <li>A Revive ad is not a Blisscco advertiser impression or billing event. No Blisscco advertiser is charged, no Blisscco serve is recorded for it, and it does not add to your Blisscco earnings. Blisscco does not provide tracking or reporting for Revive ads, so there is no tracking token and no <code>click_ref</code> for one. Do not report an impression or click for it to Blisscco, and do not build a Blisscco click link for it.</li>
             <li>The public fields do not change: <code>id</code>, <code>headline</code>, <code>body</code>, <code>cta_text</code> and <code>destination_url</code>, with <code>sponsored: true</code>. Show the Sponsored label as in section 6. Raw HTML, scripts and the provider&apos;s own data are never passed on.</li>
             <li>Only plain-text creatives with a plain <code>https</code> destination are accepted, under the same destination rules as Blisscco ads. Anything else, including an HTML creative, is dropped and counts as no-fill.</li>
-            <li>Limit of this repository: the fallback code is not yet attached to the match endpoint, so today&apos;s responses come only from approved Blisscco campaigns. Its response format has not been verified against a live Revive instance.</li>
+            <li>Limit of this repository: the fallback code is attached to the match endpoint but stays off unless Blisscco switches it on at its own server, so by default responses come only from approved Blisscco campaigns. A Revive ad is not idempotent: a retry that reaches the fallback can show a different Revive ad, and it is never charged. Its response format has not been verified against a live Revive instance.</li>
           </ul>
         </Panel>
 

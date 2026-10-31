@@ -100,11 +100,10 @@ describe("day 22 part 3 | provider fallback after Blisscco no-fill", () => {
     assert.equal(html.source, "provider");
   });
 
-  it("sensitive topic (or sensitive fallback topic) or an Idempotency-Key => no provider call", async () => {
+  it("sensitive topic (or sensitive fallback topic) => no provider call; an Idempotency-Key no longer blocks it (Day 22 Part 7)", async () => {
     for (const req of [
       { ...REQ, topic: "health" },
       { ...REQ, fallbackTopics: ["technology", "medical"] },
-      { ...REQ, idempotencyKey: "retry-key-0001" },
     ] as MatchRequest[]) {
       const h = harness({ kind: "no_fill" });
       assert.deepEqual(await run(h, req), NO_FILL_BLISSCCO);
@@ -113,6 +112,11 @@ describe("day 22 part 3 | provider fallback after Blisscco no-fill", () => {
     }
     assert.equal(fallbackAllowedFor(REQ), true);
     assert.equal(fallbackAllowedFor({ ...REQ, topic: "nonexistent_topic" }), true);
+    const keyed = { ...REQ, idempotencyKey: "retry-key-0001" } as MatchRequest;
+    assert.equal(fallbackAllowedFor(keyed), true);
+    const h = harness({ kind: "no_fill" });
+    assert.equal((await run(h, keyed)).source, "provider");
+    assert.equal(h.seen.provider, 1);
   });
 });
 
@@ -343,14 +347,14 @@ describe("day 22 part 3 | static isolation", () => {
       }
     };
     for (const d of ["app", "lib", "components"]) walk(d);
-    assert.deepEqual(users, ["lib/ads/service.ts"], "fallback path is not attached to any route or handler yet");
+    assert.deepEqual(users, ["lib/ads/service.ts"], "only service.ts calls the fallback path; the handler goes through serveMatchForPublisher");
   });
 
-  it("match API contract, handler and routes are untouched and unaware of the fallback", () => {
+  it("match API contract, handler and routes do not name the fallback or Revive (handler only calls the neutral service entry point)", () => {
     for (const f of ["lib/ads/contract.ts", "lib/ads/match-handler.ts", "lib/ads/serve.ts", "lib/ads/serve-db.ts", "app/api/v1/ads/match/route.ts", "app/api/ads/match/route.ts"]) {
       assert.ok(!/fallback-routing|fallback-provider|serveAdWithFallback|revive/i.test(code(f)), f);
     }
-    assert.match(code("lib/ads/match-handler.ts"), /serveAdForPublisher\(hashApiKey\(key\), matchRequest\)/);
+    assert.match(code("lib/ads/match-handler.ts"), /serveMatchForPublisher\(hashApiKey\(key\), matchRequest\)/); // Day 22 Part 6: neutral entry point (service.ts)
   });
 
   it("no SQL, package or workflow change mentions the fallback; no credential env var is committed", () => {

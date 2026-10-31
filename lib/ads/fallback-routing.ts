@@ -44,11 +44,12 @@ const BLISSCCO_NO_FILL: RoutedServeResult = Object.freeze({ source: "blisscco" a
 const NOT_CHARGED = Object.freeze({ charged: false as const, serveRecorded: false as const, impressionClaimed: false as const });
 
 /**
- * Fallback sirf tab jab: retry-key nahi (provider ka fill idempotent nahi hota), aur topic/fallback_topics me koi sensitive category nahi.
+ * Fallback sirf tab jab topic/fallback_topics me koi sensitive category nahi.
+ * Day 22 Part 7: Idempotency-Key ab fallback nahi rokti. Provider fill par koi charge/serve record nahi hota, isliye retry se double charge ka khatra nahi
+ * (retry par Blisscco ka apna serve pehle chalta hai: purana ad replay hota hai). Bas provider ka fill idempotent nahi: do request par do alag ad aa sakte hain.
  * (Blisscco sensitive topic par fallback se bhi no-fill deta hai; provider ko bhi nahi jaane dete.)
  */
 export function fallbackAllowedFor(request: MatchRequest): boolean {
-  if (request.idempotencyKey !== undefined) return false;
   for (const raw of [request.topic, ...(request.fallbackTopics ?? [])]) {
     const r = resolveCategory(raw);
     if (!r.ok && r.reason === "sensitive_category") return false;

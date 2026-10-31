@@ -341,7 +341,7 @@ describe("day 22 part 2 | publishers, browser code and the match API are untouch
     assert.deepEqual(src.match(/^\s*import\s[^;]+;/gm)?.map((i) => i.trim()), ['import type { AdProviderAdapter } from "./provider-adapter";']);
   });
 
-  it("nothing in app, components or any other lib file references Revive (not attached; no browser/publisher exposure)", () => {
+  it("nothing in app, components or any other lib file references Revive (no browser/publisher exposure)", () => {
     for (const f of ["app", "components", "lib", "examples"].flatMap(walk)) {
       if (f === FILE || f === "lib/ads/fallback-provider.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 22 Part 4: guide sirf text // Day 22 Part 3: flag-gated wiring file
       assert.ok(!/revive/i.test(code(f)), `${f} must not reference Revive`);

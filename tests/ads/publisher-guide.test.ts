@@ -1147,8 +1147,10 @@ describe("Day 22 part 4: the guide describes the optional Revive fallback accura
     for (const field of PUBLIC_AD_FIELDS) assert.ok(t.includes(`<code>${field}</code>`), field);
   });
 
-  it("the stated limit is true: the match handler and routes are not attached to the fallback yet", () => {
-    assert.match(section(), /not yet attached to the match endpoint/);
+  it("the stated limit is true (Day 22 Part 6): attached to the match endpoint through service.ts, off by default, not idempotent", () => {
+    assert.match(section(), /attached to the match endpoint but stays off unless Blisscco switches it on/);
+    assert.match(section(), /A Revive ad is not idempotent/);
+    assert.match(read("lib/ads/match-handler.ts"), /serveMatchForPublisher\(hashApiKey\(key\), matchRequest\)/);
     for (const f of ["lib/ads/match-handler.ts", "app/api/v1/ads/match/route.ts", "app/api/ads/match/route.ts"]) {
       assert.doesNotMatch(read(f), /serveAdWithFallback|fallback-routing|fallback-provider/, f);
     }

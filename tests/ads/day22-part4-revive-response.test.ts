@@ -275,7 +275,7 @@ describe("day 22 part 4 | static boundaries", () => {
     assert.deepEqual(imports, ['import type { AdProviderAdapter } from "./provider-adapter";']);
   });
 
-  it("match handler, routes and serving are untouched: the public match response cannot carry a provider ad yet", () => {
+  it("match handler, routes and serving never name the mapper, the adapter or Revive (Part 6 reaches them only through service.ts)", () => {
     for (const f of ["lib/ads/match-handler.ts", "lib/ads/serve.ts", "lib/ads/serve-db.ts", "app/api/v1/ads/match/route.ts", "app/api/ads/match/route.ts"]) {
       assert.ok(!/buildProviderAdResponse|extractReviveCreative|serveAdWithFallback|revive/i.test(code(f)), f);
     }

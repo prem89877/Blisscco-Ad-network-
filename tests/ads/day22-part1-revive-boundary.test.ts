@@ -235,7 +235,7 @@ describe("day 22 part 1 | isolation from database, billing and production servin
     assert.ok(!/apikey|api_key|token|secret|password|authorization|cookie/i.test(src.replace(/password !== ""/g, "").replace(/\.password/g, "")));
   });
 
-  it("not attached to production: nothing else in app, lib or components imports or mentions the Revive adapter", () => {
+  it("no stray references: nothing else in app, lib or components imports or mentions the Revive adapter", () => {
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
       if (f === FILE || f === "lib/ads/fallback-provider.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 22 Part 4: guide sirf text me batata hai (koi import nahi) // Day 22 Part 3: alag, flag-gated wiring file (service.ts me naam nahi aata)
       assert.ok(!/revive/i.test(code(f)), `${f} must not reference Revive`);

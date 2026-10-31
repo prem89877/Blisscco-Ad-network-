@@ -1,4 +1,5 @@
-import { createReviveAdapter, type ReviveAdapterDeps } from "./revive-adapter";
+import { createReviveAdapter, extractReviveCreative, type ReviveAdapterDeps } from "./revive-adapter";
+import { buildProviderAdResponse, type MatchSuccessResponse } from "./contract";
 import type { FallbackOutcome } from "./fallback-routing";
 
 // Day 22 Part 3: Revive ko fallback routing se jodne wali CHHOTI wiring. Env khud nahi padhta (caller `env` deta hai: service.ts).
@@ -44,4 +45,20 @@ export function providerFallbackFromEnv(env: FallbackEnv, deps: ReviveAdapterDep
       }
     },
   };
+}
+
+/**
+ * Day 22 Part 6: provider ka raw fill => publisher ko jaane wala PUBLIC match response (ya null = no-fill).
+ * Raw fill pehle extractReviveCreative (sirf 4 allowlisted text fields), phir buildProviderAdResponse (plain text + safeDestination).
+ * Response me `tracking` kabhi nahi hota. Kabhi throw nahi karta; koi bhi galti => null.
+ */
+export function publicAdFromFallbackFill(fill: unknown): MatchSuccessResponse | null {
+  try {
+    const creative = extractReviveCreative(fill);
+    if (!creative.ok) return null;
+    const mapped = buildProviderAdResponse(creative.provider, creative.creative);
+    return mapped.ok ? mapped.response : null;
+  } catch {
+    return null;
+  }
 }
