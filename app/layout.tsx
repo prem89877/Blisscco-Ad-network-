@@ -1,11 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { siteBaseUrl } from "@/lib/site";
 
-const display = Space_Grotesk({ subsets: ["latin"], weight: "600", variable: "--font-display" });
-const sans = Inter({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-sans" });
-const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
+// Fonts are files in app/fonts (latin subset, woff2): the build never downloads anything from Google.
+// Get the files once with: bash scripts/download-fonts.sh  (then commit app/fonts).
+const display = localFont({
+  src: [{ path: "./fonts/space-grotesk-latin-600-normal.woff2", weight: "600", style: "normal" }],
+  variable: "--font-display",
+  display: "swap",
+});
+const sans = localFont({
+  src: [
+    { path: "./fonts/inter-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/inter-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--font-sans",
+  display: "swap",
+});
+const mono = localFont({
+  src: [
+    { path: "./fonts/jetbrains-mono-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/jetbrains-mono-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 const TITLE = "Blisscco Online Ad Network";
 const DESCRIPTION = "Contextual ads for AI chatbot platforms. Relevant to the conversation, clearly labelled, built for trust.";
