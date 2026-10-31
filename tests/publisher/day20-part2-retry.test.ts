@@ -8,6 +8,7 @@ import {
   BlissccoNetworkError,
   BlissccoRetryExhaustedError,
 } from "../../examples/publisher-node/src/client";
+import type { RetryConfig } from "../../examples/publisher-node/src/types";
 
 // Day 20 Part 2: bounded safe retry. MOCKED fetch + fake sleep (no real waiting): no network, no database, no production code touched.
 
@@ -33,7 +34,7 @@ function script(...steps: Step[]): typeof fetch {
 }
 
 const sleep = async (ms: number) => void sleeps.push(ms);
-const make = (f: typeof fetch, retry?: Record<string, number>) =>
+const make = (f: typeof fetch, retry?: RetryConfig) =>
   new BlissccoClient({ baseUrl: "https://ads.example.com", apiKey: KEY, fetch: f, sleep, random: () => 1, ...(retry ? { retry } : {}) });
 const req = { topic: "gaming" };
 const S503: Step = { status: 503, body: { fill: false, error: "unavailable" } };
