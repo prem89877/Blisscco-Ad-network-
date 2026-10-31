@@ -543,6 +543,7 @@ describe("day 11 part 4 | responsibilities stay separated (serving here; trackin
 
   it("serving code has no impression/click tracking and no Revive Adserver integration", () => {
     for (const f of files) {
+      if (f === "revive-adapter.ts" || f === "fallback-provider.ts") continue; // Day 22 Part 1: alag Revive boundary file (tests/ads/day22-part1 me jaanchi jaati hai)
       const src = strip(readFileSync(path.join(ROOT, "lib/ads", f), "utf8"));
       assert.equal(/revive|adserver|record_impression|record_click|track_impression|track_click|impressions?\b.*\brpc|\.from\(\s*["'](impressions|clicks)/i.test(src), false, f);
     }

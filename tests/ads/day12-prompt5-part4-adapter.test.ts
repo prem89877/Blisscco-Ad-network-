@@ -214,7 +214,7 @@ describe("day 12 prompt 5 part 4 | static boundary (no provider, no credentials,
 
   it("only click.ts imports the adapter; service.ts (production wiring) does not attach one yet", () => {
     const users = ["app", "lib", "components"].flatMap(walk).filter((f) => /provider-adapter/.test(code(f)));
-    assert.deepEqual(users.sort(), ["lib/ads/click.ts"]);
+    assert.deepEqual(users.sort(), ["lib/ads/click.ts", "lib/ads/revive-adapter.ts"]); // Day 22 Part 1: revive-adapter sirf TYPE import karta hai
     assert.ok(!/adapter/i.test(code("lib/ads/service.ts")));
     assert.ok(!/adapter/i.test(code("lib/ads/click-handler.ts")));
     assert.ok(!/adapter/i.test(code("app/api/v1/ads/click/route.ts")));
@@ -222,7 +222,7 @@ describe("day 12 prompt 5 part 4 | static boundary (no provider, no credentials,
 
   it("no Revive code/env/credentials anywhere in app, lib, components, package.json or env example files", () => {
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
-      if (f === "lib/ads/provider-adapter.ts") continue;
+      if (f === "lib/ads/provider-adapter.ts" || f === "lib/ads/revive-adapter.ts" || f === "lib/ads/fallback-provider.ts") continue;
       assert.ok(!/revive|REVIVE_|openx/i.test(code(f)), f);
     }
     assert.ok(!/revive/i.test(read("package.json")));

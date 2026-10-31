@@ -281,7 +281,7 @@ describe("day 11 part 5 | selection never counts anything (no impression/click/s
 
   it("matching code contains no impression / click / revive accounting (source scan)", () => {
     const dir = path.join(ROOT, "lib/ads");
-    for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts"))) {
+    for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts") && n !== "revive-adapter.ts" && n !== "fallback-provider.ts")) { // Day 22 Part 1: alag Revive boundary file
       const code = readFileSync(path.join(dir, f), "utf8")
         .split("\n")
         .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))

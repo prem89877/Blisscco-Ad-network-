@@ -152,7 +152,7 @@ describe("Day 9 part 6: spend accounting stays separate from impression/click tr
   const code = [...sourceFiles("app"), ...sourceFiles("lib"), ...sourceFiles("components")];
 
   it("no code references Revive Adserver (no duplicate tracking has been introduced)", () => {
-    for (const f of code) assert.doesNotMatch(read(f), /revive|adserver|ad-server/i, f);
+    for (const f of code) if (f !== "lib/ads/revive-adapter.ts" && f !== "lib/ads/fallback-provider.ts") assert.doesNotMatch(read(f), /revive|adserver|ad-server/i, f); // Day 22 Part 1: sirf alag Revive boundary + fallback wiring file allowed
     for (const f of allSql) assert.doesNotMatch(read(`${SQL_DIR}/${f}`), /revive|adserver/i, f);
   });
 

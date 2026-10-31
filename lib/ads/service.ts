@@ -3,6 +3,8 @@ import { loadAdCandidates } from "./candidate-loader";
 import { acceptClick, type ClickResult } from "./click";
 import { mintClickRef } from "./click-ref";
 import { lookupServeForClick, recordClickEvent } from "./click-db";
+import { routeServeWithFallback, type RoutedServeResult } from "./fallback-routing";
+import { providerFallbackFromEnv } from "./fallback-provider";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { selectAd } from "./selection";
@@ -65,6 +67,15 @@ const productionDeps: ServeDeps = {
 
 export function serveAdForPublisher(keyHash: string, request: MatchRequest): Promise<ServeResult> {
   return serveAd(keyHash, request, productionDeps);
+}
+
+// Day 22 Part 3: Blisscco-FIRST fallback (abhi route/match-handler se juda NAHI hai; publisher ka response contract wahi hai).
+// serveAdForPublisher PEHLE chalta hai; sirf uska "no_fill" aane par, aur sirf server flag ON hone par, provider ko ek bounded koshish.
+// Provider ka fill alag internal type me aata hai (source: "provider"): koi serve record, budget charge, tracking token ya impression nahi.
+// Flag/URL har request par env se padhe jaate hain; flag default band hai, koi bhi galti => purana no-fill.
+export function serveAdWithFallbackForPublisher(keyHash: string, request: MatchRequest): Promise<RoutedServeResult> {
+  const provider = providerFallbackFromEnv(process.env);
+  return routeServeWithFallback(keyHash, request, { serve: serveAdForPublisher, ...provider });
 }
 
 // Day 12 Part 4: impression. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Token + serve ka milan + atomic write
