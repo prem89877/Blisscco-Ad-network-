@@ -91,39 +91,25 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
   try {
     // 1. Authorization (publisher id caller se kabhi nahi liya jaata: key hash se database batata hai)
     const auth = await deps.authorize(keyHash);
-    switch (auth.outcome) {
-      case "unauthorized":
-        return { kind: "unauthorized" };
-      case "rate_limited":
-        return { kind: "rate_limited" };
-      case "error":
-        return { kind: "unavailable" };
-      case "ok":
-        break;
-      default:
-        return { kind: "unavailable" };
-    }
+    // NOTE: yahan `switch` jaan-boojh kar nahi hai. Vercel/Next production bundle me ye switch galat compile hota tha
+    //       (serveAd undefined deta tha => 503). if-chain same kaam karti hai aur bundle me sahi chalti hai.
+    if (auth.outcome === "unauthorized") return { kind: "unauthorized" };
+    if (auth.outcome === "rate_limited") return { kind: "rate_limited" };
+    if (auth.outcome !== "ok") return { kind: "unavailable" };
 
     // 1b. Retry check: publisher ne `Idempotency-Key` bheji ho aur wo pehle charge ho chuki ho => wahi ad, DOBARA charge nahi.
     //     Ye selection se pehle hota hai, taaki pehli request se budget khatam ho gaya ho tab bhi retry ko wahi ad mile.
     //     Lookup fail ho toh 503 (andaza nahi laga sakte ki charge hua ya nahi; dobara charge karne se behtar hai ruk jana).
     if (request.idempotencyKey !== undefined && deps.lookupReplay) {
       const replay = await deps.lookupReplay(keyHash, request.idempotencyKey);
-      switch (replay.outcome) {
-        case "found": {
-          // Retry: wahi serve, wahi receipt => wahi token (naya serve/naya token nahi). Receipt na ho (purani serve) => token nahi.
-          const grant = grantFor(request, deps, auth.publisher.id, replay.serve, replay.ad.id);
-          return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}) };
-        }
-        case "rejected":
-          return { kind: "no_fill" };
-        case "unauthorized":
-          return { kind: "unauthorized" };
-        case "none":
-          break;
-        default:
-          return { kind: "unavailable" };
+      if (replay.outcome === "found") {
+        // Retry: wahi serve, wahi receipt => wahi token (naya serve/naya token nahi). Receipt na ho (purani serve) => token nahi.
+        const grant = grantFor(request, deps, auth.publisher.id, replay.serve, replay.ad.id);
+        return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}) };
       }
+      if (replay.outcome === "rejected") return { kind: "no_fill" };
+      if (replay.outcome === "unauthorized") return { kind: "unauthorized" };
+      if (replay.outcome !== "none") return { kind: "unavailable" };
     }
 
     // 2. Category plan: `topic` pehle, phir publisher ke diye `fallbackTopics` (max 2, priority order). Sab kuch exact slug/alias
