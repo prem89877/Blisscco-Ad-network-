@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { loadAdCandidates } from "@/lib/ads/candidate-loader";
 import { authorizePublisher } from "@/lib/ads/serve-db";
-import { serveMatchForPublisher } from "@/lib/ads/service";
+import { serveAdForPublisher, serveAdWithFallbackForPublisher, serveMatchForPublisher } from "@/lib/ads/service";
 
 // TEMPORARY 503 DIAGNOSIS ROUTE. Kaam hote hi poora folder app/api/debug-ads DELETE kar dena.
 // Publisher ki apni key (Bearer) chahiye. Jawab me sirf step ka naam, nateeja aur error ka naam/chhota message; key/hash kabhi nahi.
@@ -15,8 +15,10 @@ type Step = { step: string; ms: number; result: string };
 function short(e: unknown): string {
   const name = e instanceof Error ? e.name : typeof e;
   const msg = e instanceof Error ? e.message : String(e);
-  return `${name}: ${msg}`.slice(0, 200);
+  const stack = e instanceof Error && e.stack ? e.stack.split("\n").slice(1, 5).map((l) => l.trim().replace(/\(.*[\\/]/, "(")).join(" | ") : "";
+  return `${name}: ${msg} @ ${stack}`.slice(0, 700);
 }
+const describe = (v: unknown): string => (v === undefined ? "UNDEFINED" : v === null ? "NULL" : "kind=" + String((v as { kind?: unknown; source?: unknown }).kind ?? (v as { source?: unknown }).source));
 
 export async function POST(request: Request) {
   const steps: Step[] = [];
@@ -50,10 +52,12 @@ export async function POST(request: Request) {
     const rows = await loadAdCandidates(topic as never, today);
     return `rows=${rows.length}`;
   });
-  await run("3_serveMatchForPublisher", async () => {
-    const r = await serveMatchForPublisher(hash, { topic } as never);
-    return `kind=${r.kind}`;
+  await run("3a_serveAdForPublisher", async () => describe(await serveAdForPublisher(hash, { topic } as never)));
+  await run("3b_serveAdWithFallbackForPublisher", async () => {
+    const r = await serveAdWithFallbackForPublisher(hash, { topic } as never);
+    return describe(r) + " inner=" + describe((r as { result?: unknown } | undefined)?.result);
   });
+  await run("3c_serveMatchForPublisher", async () => describe(await serveMatchForPublisher(hash, { topic } as never)));
 
   return NextResponse.json({ topic, steps }, { headers: { "Cache-Control": "no-store" } });
 }
