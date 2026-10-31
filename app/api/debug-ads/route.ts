@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { loadAdCandidates } from "@/lib/ads/candidate-loader";
-import { authorizePublisher } from "@/lib/ads/serve-db";
+import { authorizePublisher, findIdempotentServe, recordServe } from "@/lib/ads/serve-db";
+import { selectAd } from "@/lib/ads/selection";
+import { serveAd } from "@/lib/ads/serve";
 import { serveAdForPublisher, serveAdWithFallbackForPublisher, serveMatchForPublisher } from "@/lib/ads/service";
 
 // TEMPORARY 503 DIAGNOSIS ROUTE. Kaam hote hi poora folder app/api/debug-ads DELETE kar dena.
@@ -58,6 +60,41 @@ export async function POST(request: Request) {
     return describe(r) + " inner=" + describe((r as { result?: unknown } | undefined)?.result);
   });
   await run("3c_serveMatchForPublisher", async () => describe(await serveMatchForPublisher(hash, { topic } as never)));
+
+  await run("4_serveAd_PURE_fake_deps(no DB)", async () => {
+    const r = await serveAd(
+      hash,
+      { topic } as never,
+      {
+        authorize: async () => ({ outcome: "ok", publisher: { id: "7e54404f-af97-4dcb-b860-8114d22cccf0", status: "active" }, unitCostUsd: 0.002 }),
+        select: async () => ({ fill: false, reason: "no_eligible_candidates" }),
+        record: async () => ({ outcome: "error" }),
+      } as never,
+    );
+    return describe(r) + " (expected kind=no_fill)";
+  });
+  await run("5_serveAd_real_deps_traced", async () => {
+    const trace: string[] = [];
+    const r = await serveAd(
+      hash,
+      { topic } as never,
+      {
+        authorize: async (h: string) => {
+          const a = await authorizePublisher(h);
+          trace.push("authorize:" + a.outcome);
+          return a;
+        },
+        select: async (req: never, unit: number) => {
+          const o = await selectAd(req, { loadCandidates: loadAdCandidates, now: () => new Date(), unitCostUsd: unit, spendTracking: "reliable" });
+          trace.push("select:" + (o.fill ? "fill" : o.reason));
+          return o;
+        },
+        record: recordServe,
+        lookupReplay: findIdempotentServe,
+      } as never,
+    );
+    return describe(r) + " trace=" + trace.join(",");
+  });
 
   return NextResponse.json({ topic, steps }, { headers: { "Cache-Control": "no-store" } });
 }
