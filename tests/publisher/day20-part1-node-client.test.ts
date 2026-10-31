@@ -119,10 +119,36 @@ describe("malformed configuration", () => {
     assert.equal(calls[0].url, "https://ads.example.com/blisscco/api/v1/ads/match");
   });
 
-  it("fromEnv reads the two env names and fails clearly when missing", () => {
+  it("fromEnv reads the documented env names (BLISSCCO_API_BASE_URL / BLISSCCO_PUBLISHER_API_KEY)", async () => {
+    const c = BlissccoClient.fromEnv({ BLISSCCO_API_BASE_URL: BASE, BLISSCCO_PUBLISHER_API_KEY: KEY });
+    assert.ok(c instanceof BlissccoClient);
+    // Prove the values really arrive: call through a client built from the same env with a mocked fetch.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch(200, { fill: false });
+    try {
+      await BlissccoClient.fromEnv({ BLISSCCO_API_BASE_URL: BASE, BLISSCCO_PUBLISHER_API_KEY: KEY }).match({ topic: "gaming" });
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    assert.equal(calls[0].url, URL_MATCH);
+    assert.equal(calls[0].init.headers.Authorization, `Bearer ${KEY}`);
+  });
+
+  it("fromEnv still accepts the older names (BLISSCCO_BASE_URL / BLISSCCO_API_KEY) as a fallback", () => {
     assert.ok(BlissccoClient.fromEnv({ BLISSCCO_BASE_URL: BASE, BLISSCCO_API_KEY: KEY }));
-    assert.throws(() => BlissccoClient.fromEnv({ BLISSCCO_BASE_URL: BASE }), BlissccoConfigError);
-    assert.throws(() => BlissccoClient.fromEnv({ BLISSCCO_API_KEY: KEY }), BlissccoConfigError);
+    assert.ok(BlissccoClient.fromEnv({ BLISSCCO_API_BASE_URL: BASE, BLISSCCO_API_KEY: KEY }));
+    assert.ok(BlissccoClient.fromEnv({ BLISSCCO_BASE_URL: BASE, BLISSCCO_PUBLISHER_API_KEY: KEY }));
+  });
+
+  it("fromEnv fails with a safe BlissccoConfigError when a value is missing", () => {
+    for (const env of [{}, { BLISSCCO_API_BASE_URL: BASE }, { BLISSCCO_PUBLISHER_API_KEY: KEY }, { BLISSCCO_BASE_URL: BASE }, { BLISSCCO_API_KEY: KEY }, { BLISSCCO_API_BASE_URL: "", BLISSCCO_PUBLISHER_API_KEY: KEY }]) {
+      assert.throws(() => BlissccoClient.fromEnv(env), (e: unknown) => {
+        assert.ok(e instanceof BlissccoConfigError);
+        assert.ok(!(e as Error).message.includes(KEY));
+        assert.ok(!(e as Error).message.includes(BASE));
+        return true;
+      });
+    }
   });
 
   it("rejects bad request input before any network call", async () => {

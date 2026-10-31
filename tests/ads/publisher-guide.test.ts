@@ -901,11 +901,14 @@ describe("Day 20 part 4: quickstart points at the real example files and env nam
     }
   });
 
-  it("the guide warns that BlissccoClient.fromEnv() reads DIFFERENT names, and that is true", () => {
+  it("BlissccoClient.fromEnv() reads the same names as the guide (older names only as a fallback), and the guide says so", () => {
     const client = read(`${NODE_DIR}/src/client.ts`);
-    assert.match(client, /env\.BLISSCCO_BASE_URL/);
-    assert.match(client, /env\.BLISSCCO_API_KEY/);
-    assert.match(g, /<code>BlissccoClient\.fromEnv\(\)<\/code> reads <code>BLISSCCO_BASE_URL<\/code> and <code>BLISSCCO_API_KEY<\/code>/);
+    assert.match(client, /ENV_BASE_URL = "BLISSCCO_API_BASE_URL"/);
+    assert.match(client, /ENV_API_KEY = "BLISSCCO_PUBLISHER_API_KEY"/);
+    assert.match(client, /ENV_BASE_URL_LEGACY = "BLISSCCO_BASE_URL"/);
+    assert.match(client, /ENV_API_KEY_LEGACY = "BLISSCCO_API_KEY"/);
+    assert.match(g, /<code>BlissccoClient\.fromEnv\(\)<\/code> reads <code>BLISSCCO_API_BASE_URL<\/code> and <code>BLISSCCO_PUBLISHER_API_KEY<\/code>, the same names as this guide/);
+    assert.match(g, /older names <code>BLISSCCO_BASE_URL<\/code> and <code>BLISSCCO_API_KEY<\/code> still work as a fallback/);
   });
 
   it("the browser route and method the guide names are the real ones", () => {
@@ -918,11 +921,10 @@ describe("Day 20 part 4: quickstart points at the real example files and env nam
 
   it("the guide's retry numbers are the real client defaults and limits", () => {
     const client = read(`${NODE_DIR}/src/client.ts`);
-    assert.match(client, /DEFAULT_RETRY = \{ maxRetries: 2, baseDelayMs: 200, maxDelayMs: 5000 \}/);
+    assert.match(client, /DEFAULT_RETRY = \{ maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 \}/);
     assert.match(client, /RETRYABLE_STATUS: readonly number\[\] = \[429, 503\]/);
     assert.match(client, /IDEMPOTENCY_KEY_RE = \/\^\[A-Za-z0-9_-\]\{8,64\}\$\//);
-    assert.match(g, /default first wait is about 100 to 200 ms/);
-    assert.match(g, /<code>baseDelayMs: 2000<\/code>, so every wait is at least 1 second/);
+    assert.match(g, /default <code>baseDelayMs<\/code> is 2000 \(jittered to 50 to 100 percent\), so every wait is at least 1 second/);
     assert.match(g, /60 seconds is above its default 5 second cap/);
     assert.match(g, /400, 401, 413 and 415 are never retried/);
     assert.match(g, /8 to 64 letters, digits, <code>_<\/code> or <code>-<\/code>/);

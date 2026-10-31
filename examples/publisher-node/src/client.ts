@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import type {
   ApiErrorCode,
   BlissccoClientConfig,
+  ClickRequest,
+  ClickResult,
+  ImpressionRequest,
+  ImpressionRequestBody,
+  ImpressionResult,
   MatchOptions,
   MatchRequest,
   MatchResult,
@@ -26,8 +31,18 @@ const ERROR_CODES: readonly string[] = [
   "unavailable",
 ];
 const MATCH_PATH = "/api/v1/ads/match";
+const IMPRESSION_PATH = "/api/v1/ads/impression";
+const CLICK_PATH = "/api/v1/ads/click";
+// Tracking routes can also answer 404 `not_found` (click). Kept separate so match error mapping is unchanged.
+const TRACKING_ERROR_CODES: readonly string[] = [...ERROR_CODES, "not_found"];
+// Same limit as lib/ads/tracking-token.ts MAX_TOKEN_LENGTH. Shape only: the server verifies signature/expiry.
+const MAX_TRACKING_VALUE_LENGTH = 512;
+const TRACKING_TOKEN_RE = /^bt1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const CLICK_REF_RE = /^bc1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const RETRYABLE_STATUS: readonly number[] = [429, 503];
-const DEFAULT_RETRY = { maxRetries: 2, baseDelayMs: 200, maxDelayMs: 5000 } as const;
+// Publisher guide rule: wait "1 second or more with jitter" before a retry. Jitter keeps 50-100% of the backoff,
+// so a 2000 ms base gives a first wait of 1000-2000 ms (never below 1 s), then 2000-4000 ms; every wait is capped by maxDelayMs.
+const DEFAULT_RETRY = { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 } as const;
 const MAX_RETRIES_LIMIT = 5;
 const DEFAULT_TIMEOUT_MS = 5000;
 const MAX_RESPONSE_CHARS = 65_536;
@@ -99,6 +114,17 @@ function isLocalHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }
 
+// Documented names (publisher guide, examples/publisher-nextjs) + the older names kept as a fallback.
+const ENV_BASE_URL = "BLISSCCO_API_BASE_URL";
+const ENV_API_KEY = "BLISSCCO_PUBLISHER_API_KEY";
+const ENV_BASE_URL_LEGACY = "BLISSCCO_BASE_URL";
+const ENV_API_KEY_LEGACY = "BLISSCCO_API_KEY";
+
+/** First value that is a non-empty string, else undefined. */
+function firstSet(...values: (string | undefined)[]): string | undefined {
+  return values.find((v) => typeof v === "string" && v !== "");
+}
+
 /** Returns a normalized base URL (no trailing slash) or throws BlissccoConfigError. */
 function parseBaseUrl(value: unknown): string {
   if (typeof value !== "string" || value.trim() === "") throw new BlissccoConfigError("baseUrl is required");
@@ -157,6 +183,8 @@ function parseRetryAfterMs(header: string | null): number | undefined {
   return ms >= 0 && ms <= 86_400_000 ? ms : undefined;
 }
 
+type TrackingResponse = { status: number; body: unknown; retryAfterMs: number | undefined; hasLocation: boolean };
+
 type Retryable = { retry: true; status?: number; code: BlissccoRetryExhaustedError["lastCode"]; retryAfterMs?: number };
 
 function validateRequest(req: MatchRequest): void {
@@ -178,6 +206,17 @@ function validateRequest(req: MatchRequest): void {
   }
 }
 
+/** Checked BEFORE any request. Error messages never contain the supplied values or field names. */
+function validateTrackingInput(req: unknown, field: "token" | "click_ref", re: RegExp): string {
+  if (typeof req !== "object" || req === null || Array.isArray(req)) throw new BlissccoRequestError("request must be an object");
+  const obj = req as Record<string, unknown>;
+  if (Object.keys(obj).some((k) => k !== field)) throw new BlissccoRequestError(`request must contain only ${field}`);
+  const value = obj[field];
+  if (typeof value !== "string" || value.length === 0) throw new BlissccoRequestError(`${field} is required`);
+  if (value.length > MAX_TRACKING_VALUE_LENGTH || !re.test(value)) throw new BlissccoRequestError(`${field} has an invalid format`);
+  return value;
+}
+
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 function looksLikeAd(v: unknown): boolean {
@@ -194,6 +233,8 @@ function looksLikeAd(v: unknown): boolean {
 export class BlissccoClient {
   readonly #apiKey: string;
   readonly #endpoint: string;
+  readonly #impressionEndpoint: string;
+  readonly #clickEndpoint: string;
   readonly #timeoutMs: number;
   readonly #fetch: typeof fetch;
   readonly #retry: { maxRetries: number; baseDelayMs: number; maxDelayMs: number };
@@ -202,7 +243,10 @@ export class BlissccoClient {
 
   constructor(config: BlissccoClientConfig) {
     if (typeof config !== "object" || config === null) throw new BlissccoConfigError("config is required");
-    this.#endpoint = `${parseBaseUrl(config.baseUrl)}${MATCH_PATH}`;
+    const base = parseBaseUrl(config.baseUrl);
+    this.#endpoint = `${base}${MATCH_PATH}`;
+    this.#impressionEndpoint = `${base}${IMPRESSION_PATH}`;
+    this.#clickEndpoint = `${base}${CLICK_PATH}`;
     this.#apiKey = parseApiKey(config.apiKey);
     this.#timeoutMs = parseTimeout(config.timeoutMs);
     this.#retry = parseRetry(config.retry);
@@ -212,9 +256,20 @@ export class BlissccoClient {
     if (typeof this.#fetch !== "function") throw new BlissccoConfigError("fetch is not available");
   }
 
-  /** Reads BLISSCCO_BASE_URL and BLISSCCO_API_KEY (server environment only). */
+  /**
+   * Reads the environment names used by the publisher guide and the Next.js example (server environment only):
+   *   BLISSCCO_API_BASE_URL and BLISSCCO_PUBLISHER_API_KEY.
+   * Compatibility fallback (older Day 20 names), used ONLY when the documented name is unset or empty:
+   *   BLISSCCO_BASE_URL and BLISSCCO_API_KEY.
+   * If both names are set, the documented one wins. Missing values throw BlissccoConfigError naming the
+   * variables only (never a value). Other problems (bad URL / key format) keep the normal constructor errors.
+   */
   static fromEnv(env: Record<string, string | undefined> = process.env): BlissccoClient {
-    return new BlissccoClient({ baseUrl: env.BLISSCCO_BASE_URL ?? "", apiKey: env.BLISSCCO_API_KEY ?? "" });
+    const baseUrl = firstSet(env[ENV_BASE_URL], env[ENV_BASE_URL_LEGACY]);
+    const apiKey = firstSet(env[ENV_API_KEY], env[ENV_API_KEY_LEGACY]);
+    const missing = [...(baseUrl === undefined ? [ENV_BASE_URL] : []), ...(apiKey === undefined ? [ENV_API_KEY] : [])];
+    if (missing.length > 0) throw new BlissccoConfigError(`Missing environment variable(s): ${missing.join(", ")}`);
+    return new BlissccoClient({ baseUrl: baseUrl as string, apiKey: apiKey as string });
   }
 
   /** Safe against JSON.stringify(client). */
@@ -274,6 +329,80 @@ export class BlissccoClient {
       const wait = out.retryAfterMs ?? Math.round(backoff * (0.5 + 0.5 * this.#random())); // jittered, never above maxDelayMs
       await this.#sleep(wait);
     }
+  }
+
+  /**
+   * POST /api/v1/ads/impression with `{ token, event: "impression" }`. SERVER-SIDE: call it only after the ad was really shown.
+   * The endpoint needs NO API key, so this call sends none (only Content-Type/Accept). The token is the only credential.
+   * Resolves `{ ok: true, status: "recorded" | "duplicate" }`. Single attempt (no retry): resending is safe because
+   * the server counts only the first impression per serve, so the caller may retry on BlissccoNetworkError / 429 / 503.
+   * Throws BlissccoRequestError (bad input, nothing sent), BlissccoNetworkError, BlissccoApiError.
+   */
+  async reportImpression(request: ImpressionRequest): Promise<ImpressionResult> {
+    const token = validateTrackingInput(request, "token", TRACKING_TOKEN_RE);
+    const body: ImpressionRequestBody = { token, event: "impression" };
+    const res = await this.#sendTracking(this.#impressionEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      redirect: "error",
+    });
+    if (res.status === 200 && isObj(res.body) && res.body.ok === true && (res.body.status === "recorded" || res.body.status === "duplicate")) {
+      return { ok: true, status: res.body.status };
+    }
+    throw this.#trackingError(res);
+  }
+
+  /**
+   * GET /api/v1/ads/click?ref=<click_ref>. SERVER-SIDE: call it only for a real user click (never for prefetch/crawlers).
+   * The endpoint needs NO API key, so none is sent. The 302 redirect is NOT followed and its target is NOT returned.
+   * Resolves `{ ok: true, status: "accepted" }` on the 302 (the server does not reveal recorded vs duplicate).
+   * Single attempt. Throws BlissccoRequestError (bad input, nothing sent), BlissccoNetworkError, BlissccoApiError.
+   */
+  async reportClick(request: ClickRequest): Promise<ClickResult> {
+    const ref = validateTrackingInput(request, "click_ref", CLICK_REF_RE);
+    const res = await this.#sendTracking(`${this.#clickEndpoint}?ref=${encodeURIComponent(ref)}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      redirect: "manual", // never follow into the advertiser's site
+    });
+    if (res.status === 302 && res.hasLocation) return { ok: true, status: "accepted" };
+    throw this.#trackingError(res);
+  }
+
+  /** One tracking HTTP attempt. Only status/parsed body/Retry-After are kept; no URL, header or raw text leaves this method. */
+  async #sendTracking(url: string, init: { method: string; headers: Record<string, string>; body?: string; redirect: "error" | "manual" }): Promise<TrackingResponse> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
+    try {
+      const res = await this.#fetch(url, { ...init, cache: "no-store", signal: controller.signal });
+      let body: unknown;
+      try {
+        const text = await res.text();
+        body = text.length > MAX_RESPONSE_CHARS ? undefined : JSON.parse(text);
+      } catch {
+        body = undefined;
+      }
+      return { status: res.status, body, retryAfterMs: parseRetryAfterMs(res.headers.get("retry-after")), hasLocation: res.headers.has("location") };
+    } catch {
+      throw new BlissccoNetworkError();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Non-success tracking response -> safe error (allow-listed code/reason only; raw body is never copied). */
+  #trackingError(res: TrackingResponse): BlissccoApiError {
+    if (res.status < 400) return new BlissccoApiError({ status: res.status, code: "invalid_response" });
+    const b = res.body;
+    const code = isObj(b) && typeof b.error === "string" && TRACKING_ERROR_CODES.includes(b.error) ? (b.error as ApiErrorCode) : "unknown_error";
+    const reason = isObj(b) && typeof b.reason === "string" && /^[a-z_]{1,40}$/.test(b.reason) ? b.reason : undefined;
+    return new BlissccoApiError({
+      status: res.status,
+      code,
+      ...(reason ? { reason } : {}),
+      ...(res.status === 429 && res.retryAfterMs !== undefined ? { retryAfterSeconds: Math.ceil(res.retryAfterMs / 1000) } : {}),
+    });
   }
 
   /** One HTTP attempt. Returns a result, or a Retryable marker; throws for permanent errors. */

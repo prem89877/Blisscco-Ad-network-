@@ -49,7 +49,9 @@ export type ApiErrorCode =
   | "payload_too_large"
   | "unsupported_media_type"
   | "rate_limited"
-  | "unavailable";
+  | "unavailable"
+  /** Click endpoint only (GET /api/v1/ads/click): every bad/expired/unknown ref looks the same. */
+  | "not_found";
 
 /** Non-2xx JSON body. `reason` only exists for `invalid_request`; `fill:false` only for 503. */
 export type ApiErrorResponse = {
@@ -73,16 +75,19 @@ export type MatchResult =
 export type RetryConfig = {
   /** Extra attempts after the first (0-5). Default 2. 0 disables retries. */
   maxRetries?: number;
-  /** First backoff delay in ms (doubles each retry, jittered). Default 200. */
+  /**
+   * First backoff delay in ms (doubles each retry, jittered to 50-100%). Default 2000, so the first wait is 1000-2000 ms
+   * and never below the publisher guide's "1 second or more". A smaller value is allowed but is your own choice.
+   */
   baseDelayMs?: number;
-  /** Cap for any wait (backoff and Retry-After) in ms. Default 5000. A longer Retry-After stops retrying. */
+  /** Cap for any wait (backoff and Retry-After) in ms. Default 5000 (max 60000). A longer Retry-After stops retrying. */
   maxDelayMs?: number;
 };
 
 export type BlissccoClientConfig = {
-  /** e.g. "https://api.example.com". https required (http only for localhost). No credentials/query/hash. */
+  /** e.g. "https://api.example.com". https required (http only for localhost). No credentials/query/hash. `fromEnv()` reads BLISSCCO_API_BASE_URL (fallback: BLISSCCO_BASE_URL). */
   baseUrl: string;
-  /** Publisher API key `blc_live_<64 hex>`. Server-side only. */
+  /** Publisher API key `blc_live_<64 hex>`. Server-side only. `fromEnv()` reads BLISSCCO_PUBLISHER_API_KEY (fallback: BLISSCCO_API_KEY). */
   apiKey: string;
   /** Per-request timeout. Default 5000, allowed 100-30000. */
   timeoutMs?: number;
@@ -94,4 +99,40 @@ export type BlissccoClientConfig = {
   random?: () => number;
   /** Injectable for tests. Default: global fetch. */
   fetch?: typeof fetch;
+};
+
+// ---------------------------------------------------------------------------
+// Tracking (Day 21): impression + click. Mirrors lib/ads/impression.ts, lib/ads/click.ts,
+// lib/ads/tracking-token.ts (bt1 token), lib/ads/click-ref.ts (bc1 ref) and the v1 tracking routes.
+// ---------------------------------------------------------------------------
+
+/** Input of `client.reportImpression()`. `token` = `tracking.token` from a match response (`bt1.<payload>.<sig>`). */
+export type ImpressionRequest = {
+  token: string;
+};
+
+/** Exact wire body of POST /api/v1/ads/impression. Only these 2 fields are accepted; `event` is added by the client. */
+export type ImpressionRequestBody = {
+  token: string;
+  event: "impression";
+};
+
+/** 200 from POST /api/v1/ads/impression. `duplicate` = this serve already had its impression (safe, nothing new counted). */
+export type ImpressionResult = {
+  ok: true;
+  status: "recorded" | "duplicate";
+};
+
+/** Input of `client.reportClick()`. `click_ref` = `tracking.click_ref` from a match response (`bc1.<payload>.<sig>`). */
+export type ClickRequest = {
+  click_ref: string;
+};
+
+/**
+ * The click endpoint answers with a 302 redirect (it never says recorded/duplicate), so success is just `accepted`.
+ * The redirect target is deliberately NOT returned and NOT followed.
+ */
+export type ClickResult = {
+  ok: true;
+  status: "accepted";
 };

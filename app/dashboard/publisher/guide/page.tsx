@@ -550,9 +550,9 @@ export default async function PublisherGuidePage() {
           <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-mist/75">
             <li><code>match()</code> resolves on a 200 (an ad or a no-fill) and throws on everything else.</li>
             <li>It retries only network errors, timeouts, 429 and 503, up to <code>maxRetries</code> times, with the same <code>Idempotency-Key</code> and body. 400, 401, 413 and 415 are never retried.</li>
-            <li>The client&apos;s default first wait is about 100 to 200 ms. The sample above sets <code>baseDelayMs: 2000</code>, so every wait is at least 1 second, as section 5 asks.</li>
+            <li>The client&apos;s default <code>baseDelayMs</code> is 2000 (jittered to 50 to 100 percent), so every wait is at least 1 second, as section 5 asks. The sample above sets the same value explicitly.</li>
             <li>It does not report impressions or clicks. Pass <code>{"{ tracking: true }"}</code> to <code>match()</code> to opt in to tracking, then follow sections 4a to 4d.</li>
-            <li><code>BlissccoClient.fromEnv()</code> reads <code>BLISSCCO_BASE_URL</code> and <code>BLISSCCO_API_KEY</code>, which are different names from the ones in this guide. Use the constructor as shown, or set the names <code>fromEnv()</code> reads.</li>
+            <li><code>BlissccoClient.fromEnv()</code> reads <code>BLISSCCO_API_BASE_URL</code> and <code>BLISSCCO_PUBLISHER_API_KEY</code>, the same names as this guide. The older names <code>BLISSCCO_BASE_URL</code> and <code>BLISSCCO_API_KEY</code> still work as a fallback when the documented name is not set.</li>
           </ul>
 
           <p className="mt-4 text-sm font-medium">Next.js: examples/publisher-nextjs/</p>

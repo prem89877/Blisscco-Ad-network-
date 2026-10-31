@@ -262,3 +262,75 @@ describe("exhausted retries", () => {
     }
   });
 });
+
+describe("default retry delay follows the publisher guide (1 second or more)", () => {
+  const fresh = (f: typeof fetch, random: () => number, retry?: RetryConfig) =>
+    new BlissccoClient({ baseUrl: "https://ads.example.com", apiKey: KEY, fetch: f, sleep, random, ...(retry ? { retry } : {}) });
+
+  it("with default config every jittered wait is at least 1000 ms, even with the lowest jitter", async () => {
+    await assert.rejects(fresh(script(S503), () => 0).match(req, { idempotencyKey: IDEM }), BlissccoRetryExhaustedError);
+    assert.deepEqual(sleeps, [1000, 2000]); // 50% of 2000 and 50% of 4000
+    assert.ok(sleeps.every((ms) => ms >= 1000));
+  });
+
+  it("with default config the highest jitter gives 2000 ms then 4000 ms, below the 5000 ms cap", async () => {
+    await assert.rejects(fresh(script(S503), () => 1).match(req, { idempotencyKey: IDEM }), BlissccoRetryExhaustedError);
+    assert.deepEqual(sleeps, [2000, 4000]);
+  });
+
+  it("stays bounded: default is 2 retries (3 calls) and total waiting is at most 6000 ms", async () => {
+    await assert.rejects(fresh(script(S503), () => 1).match(req), (e: unknown) => e instanceof BlissccoRetryExhaustedError && e.attempts === 3);
+    assert.equal(calls.length, 3);
+    assert.equal(sleeps.length, 2);
+    assert.ok(sleeps.reduce((a, b) => a + b, 0) <= 6000);
+    assert.ok(sleeps.every((ms) => ms <= 5000));
+  });
+
+  it("network errors use the same default delays", async () => {
+    await assert.rejects(fresh(script("network"), () => 0).match(req), BlissccoRetryExhaustedError);
+    assert.deepEqual(sleeps, [1000, 2000]);
+  });
+
+  it("the cap still wins over a large backoff, and an explicit smaller baseDelayMs is honoured", async () => {
+    await assert.rejects(fresh(script(S503), () => 1, { maxRetries: 4 }).match(req), BlissccoRetryExhaustedError);
+    assert.deepEqual(sleeps, [2000, 4000, 5000, 5000]); // 2000, 4000, 8000->5000, 16000->5000
+    sleeps = [];
+    await assert.rejects(fresh(script(S503), () => 1, { baseDelayMs: 100 }).match(req), BlissccoRetryExhaustedError);
+    assert.deepEqual(sleeps, [100, 200]);
+  });
+
+  it("default delays do not change the idempotency key, body or headers across retries", async () => {
+    await assert.rejects(fresh(script(S503), () => 0).match({ topic: "gaming" }, { idempotencyKey: IDEM, tracking: true }), BlissccoRetryExhaustedError);
+    assert.equal(calls.length, 3);
+    for (const c of calls) {
+      assert.equal(c.headers["Idempotency-Key"], IDEM);
+      assert.deepEqual(c, calls[0]);
+    }
+  });
+
+  it("a generated key is created once per placement and reused by the retries", async () => {
+    const r = await fresh(script(S503, S503, { status: 200, body: OK }), () => 0).match(req);
+    const keys = calls.map((c) => c.headers["Idempotency-Key"]);
+    assert.equal(new Set(keys).size, 1);
+    assert.equal(r.idempotencyKey, keys[0]);
+    assert.deepEqual(sleeps, [1000, 2000]);
+  });
+
+  it("Retry-After rules are unchanged (exact wait; longer than the cap stops at once)", async () => {
+    await fresh(script(S429("3"), { status: 200, body: OK }), () => 0).match(req);
+    assert.deepEqual(sleeps, [3000]);
+    sleeps = [];
+    calls = [];
+    await assert.rejects(fresh(script(S429("60")), () => 0).match(req), (e: unknown) => e instanceof BlissccoRetryExhaustedError && e.attempts === 1);
+    assert.deepEqual(sleeps, []);
+    assert.equal(calls.length, 1);
+  });
+
+  it("the secret key never appears in the retry error", async () => {
+    await assert.rejects(fresh(script("network"), () => 0).match(req), (e: unknown) => {
+      const text = [String(e), (e as Error).stack ?? "", JSON.stringify(e)].join("\n");
+      assert.ok(!text.includes(KEY));
+      return true;
+    });
+  });
+});
