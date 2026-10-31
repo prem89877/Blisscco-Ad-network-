@@ -37,7 +37,7 @@ function mockFetch(status: number, body: unknown, headers: Record<string, string
     return new Response(raw ? (body as string) : JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
   }) as typeof fetch;
 }
-const make = (f: typeof fetch, extra: Record<string, unknown> = {}) => new BlissccoClient({ baseUrl: BASE, apiKey: KEY, fetch: f, ...extra });
+const make = (f: typeof fetch, extra: Record<string, unknown> = {}) => new BlissccoClient({ baseUrl: BASE, apiKey: KEY, fetch: f, retry: { maxRetries: 0 }, ...extra });
 
 beforeEach(() => {
   calls = [];

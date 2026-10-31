@@ -70,6 +70,15 @@ export type MatchResult =
   | ({ idempotencyKey: string } & MatchSuccessResponse)
   | ({ idempotencyKey: string } & MatchNoFillResponse);
 
+export type RetryConfig = {
+  /** Extra attempts after the first (0-5). Default 2. 0 disables retries. */
+  maxRetries?: number;
+  /** First backoff delay in ms (doubles each retry, jittered). Default 200. */
+  baseDelayMs?: number;
+  /** Cap for any wait (backoff and Retry-After) in ms. Default 5000. A longer Retry-After stops retrying. */
+  maxDelayMs?: number;
+};
+
 export type BlissccoClientConfig = {
   /** e.g. "https://api.example.com". https required (http only for localhost). No credentials/query/hash. */
   baseUrl: string;
@@ -77,6 +86,12 @@ export type BlissccoClientConfig = {
   apiKey: string;
   /** Per-request timeout. Default 5000, allowed 100-30000. */
   timeoutMs?: number;
+  /** Bounded retry for network errors, HTTP 429 and 503 only. */
+  retry?: RetryConfig;
+  /** Injectable for tests. Default: setTimeout. */
+  sleep?: (ms: number) => Promise<void>;
+  /** Injectable for tests (jitter). Default: Math.random. */
+  random?: () => number;
   /** Injectable for tests. Default: global fetch. */
   fetch?: typeof fetch;
 };
