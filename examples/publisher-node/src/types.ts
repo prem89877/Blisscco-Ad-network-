@@ -1,0 +1,82 @@
+// Blisscco v1 ads/match: minimal public types for a SERVER-SIDE publisher client.
+// Standalone on purpose (no imports from the Blisscco app). Mirrors lib/ads/contract.ts.
+
+export type TrackingEvent = "impression" | "click";
+
+/** POST /api/v1/ads/match body. Only these 3 fields are accepted by the API. */
+export type MatchRequest = {
+  /** Lowercase slug ^[a-z0-9_]{1,50}$ (e.g. "gaming"). Never free text / prompts. */
+  topic: string;
+  /** Max 2 extra topic slugs, tried in order only if `topic` has no fill. */
+  fallback_topics?: string[];
+  /** Max 20 previously shown ad ids (UUID). */
+  exclude_ad_ids?: string[];
+};
+
+export type PublicAd = {
+  id: string;
+  headline: string;
+  body: string;
+  cta_text: string | null;
+  destination_url: string;
+};
+
+export type PublicTracking = {
+  token: string;
+  expires_at: string;
+  events: TrackingEvent[];
+  click_ref?: string;
+};
+
+/** 200: ad found. */
+export type MatchSuccessResponse = {
+  fill: true;
+  sponsored: true;
+  ad: PublicAd;
+  /** Only present when tracking was opted in. */
+  tracking?: PublicTracking;
+};
+
+/** 200: no eligible ad. */
+export type MatchNoFillResponse = {
+  fill: false;
+};
+
+/** Error codes the API can return in `error`. */
+export type ApiErrorCode =
+  | "invalid_request"
+  | "unauthorized"
+  | "payload_too_large"
+  | "unsupported_media_type"
+  | "rate_limited"
+  | "unavailable";
+
+/** Non-2xx JSON body. `reason` only exists for `invalid_request`; `fill:false` only for 503. */
+export type ApiErrorResponse = {
+  error: ApiErrorCode;
+  reason?: string;
+  fill?: false;
+};
+
+export type MatchOptions = {
+  /** 8-64 chars [A-Za-z0-9_-]. Reuse the SAME key when retrying the SAME request. Auto-generated if omitted. */
+  idempotencyKey?: string;
+  /** Opt in to tracking token (sends `X-Blisscco-Tracking: 1`). */
+  tracking?: boolean;
+};
+
+/** What `client.match()` returns on HTTP 200. Errors are thrown (see client.ts). */
+export type MatchResult =
+  | ({ idempotencyKey: string } & MatchSuccessResponse)
+  | ({ idempotencyKey: string } & MatchNoFillResponse);
+
+export type BlissccoClientConfig = {
+  /** e.g. "https://api.example.com". https required (http only for localhost). No credentials/query/hash. */
+  baseUrl: string;
+  /** Publisher API key `blc_live_<64 hex>`. Server-side only. */
+  apiKey: string;
+  /** Per-request timeout. Default 5000, allowed 100-30000. */
+  timeoutMs?: number;
+  /** Injectable for tests. Default: global fetch. */
+  fetch?: typeof fetch;
+};
