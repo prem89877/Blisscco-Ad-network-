@@ -13,6 +13,7 @@ export const metadata: Metadata = { title: "Integration Guide | Blisscco Dashboa
 // Publisher integration guide for the versioned Ad API: POST /api/v1/ads/match, POST /api/v1/ads/impression, GET /api/v1/ads/click.
 // Source of truth for the contract: DAY6-ADS-MATCH-CONTRACT.md, lib/ads/contract.ts and the impression and click route handlers.
 // Day 15 Part 4: tests/ads/publisher-guide.test.ts checks this page against the real code. This page imports none of those modules.
+// Day 20 Part 4: pilot quickstart (examples/publisher-node, examples/publisher-nextjs) and troubleshooting, checked by the same tests.
 // Rules for this page: no real key, no real publisher, no deployment URL, no claim about third-party chatbots,
 // no claim of production readiness. Code samples are plain strings (no template literals) so nothing is interpolated.
 
@@ -353,6 +354,60 @@ const RENDER_EXAMPLE = [
   '}',
 ].join("\n");
 
+// Day 20 Part 4: quickstart samples. They match examples/publisher-node/src/client.ts and examples/publisher-nextjs/.
+const NODE_QUICKSTART_EXAMPLE = [
+  '// Runs on YOUR backend only. Copy examples/publisher-node/src/client.ts and types.ts next to this file.',
+  'import { randomUUID } from "node:crypto";',
+  'import { BlissccoClient } from "./client";',
+  '',
+  '// Server environment variables. Never give them a public prefix. Built on first use, so a missing or malformed',
+  '// value is caught below as "no ad" instead of stopping your server at start-up.',
+  'let client: BlissccoClient | null = null;',
+  'function getClient(): BlissccoClient {',
+  '  client ??= new BlissccoClient({',
+  '    baseUrl: process.env.BLISSCCO_API_BASE_URL ?? "", // given to you by Blisscco',
+  '    apiKey: process.env.BLISSCCO_PUBLISHER_API_KEY ?? "", // secret, kept out of git',
+  '    timeoutMs: 3000,',
+  '    retry: { maxRetries: 2, baseDelayMs: 2000, maxDelayMs: 5000 }, // network errors, 429 and 503 only; waits are jittered, 1 second at least',
+  '  });',
+  '  return client;',
+  '}',
+  '',
+  '// topic: a supported slug that YOUR code chose, never conversation text.',
+  '// placementKey: one new random value per ad placement. The client reuses it for its own retries, and so should you.',
+  'export async function sponsoredAdFor(topic: string, placementKey: string = randomUUID()) {',
+  '  try {',
+  '    const result = await getClient().match({ topic: topic }, { idempotencyKey: placementKey });',
+  '    return result.fill ? result.ad : null; // no-fill is normal: show nothing',
+  '  } catch (err) {',
+  '    // 400, 401, 413 and 415 throw BlissccoApiError (fix the request). A temporary failure that used up its retries',
+  '    // throws BlissccoRetryExhaustedError. Either way: no ad. Log the class name only, never the message or the key.',
+  '    console.error("[blisscco] ad request failed:", err instanceof Error ? err.name : "unknown");',
+  '    return null;',
+  '  }',
+  '}',
+].join("\n");
+
+const NEXTJS_ENV_EXAMPLE = [
+  '# .env.local: server only, never commit it. Neither name gets a NEXT_PUBLIC_ prefix.',
+  'BLISSCCO_PUBLISHER_API_KEY=paste-your-key-from-the-publisher-page',
+  'BLISSCCO_API_BASE_URL=https://YOUR-BLISSCCO-API-HOST',
+].join("\n");
+
+const NEXTJS_USAGE_EXAMPLE = [
+  '// Any page or component in your app. The topic is a fixed literal that YOUR code chose.',
+  'import SponsoredAd from "../components/SponsoredAd";',
+  '',
+  'export default function Page() {',
+  '  return (',
+  '    <main>',
+  "      {/* the assistant's own answer goes here, first */}",
+  '      <SponsoredAd topic="gaming" />',
+  '    </main>',
+  '  );',
+  '}',
+].join("\n");
+
 type Row = { status: string; body: string; meaning: string; action: string };
 
 const IMPRESSION_ERRORS: Row[] = [
@@ -375,6 +430,18 @@ const CLICK_ERRORS: Row[] = [
   { status: "405", body: "method_not_allowed + Allow: GET", meaning: "Any method other than GET, including HEAD and POST, so a crawler cannot count a click.", action: "Do not retry. Use GET." },
   { status: "429", body: "rate_limited", meaning: "Too many requests, or too many malformed click links (400) or rejected references (404), from one IP address in the current minute. The response carries Retry-After: 60.", action: "Wait for Retry-After, then try again." },
   { status: "503", body: "unavailable", meaning: "Temporary failure on Blisscco's side. The person is not redirected.", action: "Trying the same link again later is safe." },
+];
+
+const TROUBLESHOOTING: Row[] = [
+  { status: "400", body: "invalid_request + reason", meaning: "Match reasons: invalid_json, invalid_body, unknown_field (any field other than topic, fallback_topics and exclude_ad_ids, for example prompt, messages or user_id), invalid_topic (not 1 to 50 of a-z, 0-9 and underscore, or a bad fallback topic), invalid_exclude_ad_ids (more than 20, or not UUIDs), invalid_idempotency_key (not 8 to 64 letters, digits, _ or -) and invalid_tracking_header (X-Blisscco-Tracking is not exactly 1). Your own Next.js route also answers 400 invalid_topic for a topic outside its allowlist, and unknown_field for anything except topic.", action: "Do not retry. Read reason, fix the request and send only a topic." },
+  { status: "401", body: "unauthorized", meaning: "The key was not accepted: missing, not sent as Bearer, a space and the key, edited, revoked, expired, or the publisher account is not Approved. On the impression endpoint it means the token was not accepted (section 4c).", action: "Do not retry. Check that the server really loads BLISSCCO_PUBLISHER_API_KEY (restart or redeploy after changing it), then check the key and the account status on the Publisher page, and rotate the key if needed (section 2). Behind the Next.js example you only see 503, so reproduce with cURL (section 3)." },
+  { status: "413", body: "payload_too_large", meaning: "The match body is over 2048 bytes (impression: 1024 bytes). The usual cause is conversation text or a long list in the body. Your own Next.js route has a smaller limit of 1024 characters.", action: "Do not retry. Send only the topic. Never forward conversation text." },
+  { status: "415", body: "unsupported_media_type", meaning: "Content-Type is not application/json.", action: "Do not retry. Send Content-Type: application/json, also on the browser call to your own route." },
+  { status: "429", body: "rate_limited + Retry-After: 60", meaning: "Too many requests for this key in the current minute, or too many wrong keys from your IP address. The Node client does not wait it out: 60 seconds is above its default 5 second cap, so it stops at once and throws BlissccoRetryExhaustedError (last status 429).", action: "Stop asking for ads for that long, then send one request. Do not loop. If it keeps happening with a correct key, slow down." },
+  { status: "503", body: "fill:false + error:unavailable", meaning: "Temporary failure on Blisscco's side. The Next.js example also returns this 503 to the browser for ANY failure behind it: a missing or malformed key or base URL (BlissccoConfigError in your server log), a 401 or a 429.", action: "Retry at most twice, after 1 second or more, with the SAME Idempotency-Key (the Node client does this by itself). If it never clears, check the error class name in your server log and your two environment variables, then reproduce with cURL." },
+  { status: "200 no-fill", body: "fill:false", meaning: "Not an error, and the reason is never disclosed: an unsupported or sensitive topic, no eligible approved ad for that category, or an ad that could not be recorded. The Next.js example also returns fill:false when the ad's destination is not a plain https link.", action: "Show nothing. Try another supported topic, and ask Blisscco whether your test setup has an eligible ad for it (section 9). Do not retry in a loop." },
+  { status: "200 without tracking", body: "no tracking object, or tracking without click_ref", meaning: "You did not send X-Blisscco-Tracking: 1 (Node client: pass tracking: true in the match options; the Next.js example never opts in), the response was a no-fill or an error, tracking is switched off at Blisscco, a retry came after expires_at, or Blisscco could not sign a click_ref.", action: "Normal. Show the ad with the Sponsored label, report no impression and build no Blisscco click link. Never invent a token or click_ref, and never use destination_url as a stand-in (section 4a)." },
+  { status: "401 / 404", body: "unauthorized (impression) / not_found (click)", meaning: "The token or click_ref is past its expires_at (counted from the serve: one hour by default, never more than 24 hours), or it was edited, or it was never valid. All of these look the same on purpose. A match retry with the same Idempotency-Key after expires_at returns the ad but no tracking.", action: "Do not retry and do not try to refresh it: drop it. Report impressions soon after display, and check expires_at before sending. A new ad request with a NEW Idempotency-Key is a new serve and is charged as a new serve." },
 ];
 
 function StatusTable({ caption, rows }: { caption: string; rows: Row[] }) {
@@ -455,6 +522,67 @@ export default async function PublisherGuidePage() {
       </div>
 
       <div className="mt-6 grid gap-4">
+        <Panel
+          title="Pilot quickstart: Node.js and Next.js"
+          note="Samples from the Blisscco repository, not a published package. Their automated tests use a mocked Blisscco API. No third-party integration has been tested."
+        >
+          <p className="text-sm text-mist/75">
+            For a first pilot, start from <code>examples/publisher-node/</code> (a dependency-free server client, Node 18 or newer) or{" "}
+            <code>examples/publisher-nextjs/</code> (a server route plus a small component). Everything runs on your own server; the
+            browser never sees the key. Sections 1 to 10 below remain the full contract.
+          </p>
+          <p className="mt-3 text-sm font-medium">Before you start</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>Your publisher account is Approved and you created a key on the Publisher page (section 2).</li>
+            <li>You have the API host from Blisscco. This guide does not publish one (section 3).</li>
+            <li>Both samples are server-side. Use a test key and the test setup Blisscco confirms (section 9).</li>
+          </ul>
+
+          <p className="mt-4 text-sm font-medium">Node.js: examples/publisher-node/</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-mist/75">
+            <li>Copy <code>src/client.ts</code> and <code>src/types.ts</code> into your backend.</li>
+            <li>Set <code>BLISSCCO_API_BASE_URL</code> and <code>BLISSCCO_PUBLISHER_API_KEY</code> in your server environment.</li>
+            <li>Call <code>client.match()</code> once per ad placement, as below.</li>
+          </ol>
+          <div className="mt-3">
+            <CodeBlock code={NODE_QUICKSTART_EXAMPLE} label="Node.js quickstart (server-side TypeScript)" />
+          </div>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li><code>match()</code> resolves on a 200 (an ad or a no-fill) and throws on everything else.</li>
+            <li>It retries only network errors, timeouts, 429 and 503, up to <code>maxRetries</code> times, with the same <code>Idempotency-Key</code> and body. 400, 401, 413 and 415 are never retried.</li>
+            <li>The client&apos;s default first wait is about 100 to 200 ms. The sample above sets <code>baseDelayMs: 2000</code>, so every wait is at least 1 second, as section 5 asks.</li>
+            <li>It does not report impressions or clicks. Pass <code>{"{ tracking: true }"}</code> to <code>match()</code> to opt in to tracking, then follow sections 4a to 4d.</li>
+            <li><code>BlissccoClient.fromEnv()</code> reads <code>BLISSCCO_BASE_URL</code> and <code>BLISSCCO_API_KEY</code>, which are different names from the ones in this guide. Use the constructor as shown, or set the names <code>fromEnv()</code> reads.</li>
+          </ul>
+
+          <p className="mt-4 text-sm font-medium">Next.js: examples/publisher-nextjs/</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-mist/75">
+            <li>Copy <code>app/api/blisscco-ad/route.ts</code>, <code>components/SponsoredAd.tsx</code> and <code>lib/safe-url.ts</code> into your app, plus the two Node client files above. Fix the client import path in <code>route.ts</code>.</li>
+            <li>Create <code>.env.local</code> from <code>.env.example</code> with your own values. On your host, add the same two variables without a public prefix and redeploy.</li>
+            <li>Render the component after your assistant&apos;s answer.</li>
+          </ol>
+          <div className="mt-3 grid gap-3">
+            <CodeBlock code={NEXTJS_ENV_EXAMPLE} label="Environment variables (placeholders, not a real key)" />
+            <CodeBlock code={NEXTJS_USAGE_EXAMPLE} label="Using the component" />
+          </div>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-mist/75">
+            <li>The browser calls your own <code>POST /api/blisscco-ad</code> with only <code>{'{"topic":"gaming"}'}</code>. Your route calls Blisscco with the key. The key is read in that route and nowhere else.</li>
+            <li>The route&apos;s allowlist holds the nine supported topics. Shorten it to the ones you really use. Any other topic gets a 400 from your own route.</li>
+            <li>Every failure behind the route (a missing key, 401, 429, 5xx, a timeout) reaches the browser as the same 503, and the component then shows nothing. See the troubleshooting table (section 5a).</li>
+            <li>Each browser call makes a new <code>Idempotency-Key</code>, so a second call to your route is a new placement and a new serve.</li>
+            <li>The sample does not opt in to tracking, so it reports no impressions or clicks, and its link goes straight to the advertiser&apos;s https address. That differs from section 6. Use it to check fill and layout only, and follow sections 4a to 4d for counted impressions and clicks.</li>
+          </ul>
+
+          <p className="mt-4 text-sm font-medium">Rules for every pilot integration</p>
+          <ul className="mt-1 list-disc space-y-2 pl-5 text-sm text-mist/75">
+            <li><strong>Key storage:</strong> the API key lives only in your server&apos;s environment variables or secret manager. Never put it in browser code, a mobile app, a variable with a public prefix such as <code>NEXT_PUBLIC_</code>, git, logs, tickets or chat. If it may have leaked, revoke it on the Publisher page first (section 2).</li>
+            <li><strong>Idempotency-Key reuse:</strong> use one new random key per ad placement (a UUID works; 8 to 64 letters, digits, <code>_</code> or <code>-</code>). When you retry that same placement after a timeout, a 429 or a 5xx, send the same key, so no second serve is counted. A new placement gets a new key, and a key never contains a user id or text.</li>
+            <li><strong>Sponsored disclosure:</strong> show the visible word <strong>Sponsored</strong> as text on every ad, in its own box after the assistant&apos;s answer, and never present it as the chatbot&apos;s own words (section 6). Show nothing at all for a no-fill.</li>
+            <li><strong>Topic categories:</strong> request only these supported topics, <code>developer_tools</code>, <code>education</code>, <code>finance</code>, <code>fitness</code>, <code>food</code>, <code>gaming</code>, <code>lifestyle</code>, <code>technology</code>, <code>travel</code>. Your code picks one from a fixed list. Sensitive topics never return an ad (section 1).</li>
+            <li><strong>No raw conversations:</strong> never forward a chatbot conversation to Blisscco: no user message, assistant answer, prompt, transcript, summary or keyword list, and no user id, email or session id. The only signal is the topic slug your code chose. The API rejects any other field with a 400.</li>
+          </ul>
+        </Panel>
+
         <Panel title="1. What the API does">
           <p className="text-sm text-mist/75">
             Your server sends one small request: a topic such as <code>gaming</code>. Blisscco replies with at most one
@@ -828,6 +956,20 @@ export default async function PublisherGuidePage() {
             <li>Rate limits are per key, per minute (60 by default; Blisscco can change it). The window is fixed, so a burst right at a minute boundary can briefly reach about twice the limit. Requests rejected before the key check (400, 413, 415) do not use up this quota. Separately, about 20 wrong keys per minute from one IP address earn a 429 for that IP.</li>
             <li>Error bodies never contain internal details. If you see one that does, report it to Blisscco.</li>
           </ul>
+        </Panel>
+
+        <Panel
+          title="5a. Troubleshooting"
+          note="Match status codes are from section 5; impression and click codes are in sections 4c and 4d."
+        >
+          <p className="text-sm text-mist/75">
+            Find the symptom, check the likely cause, then apply the fix. If you use the Next.js example, your own route sits in
+            between: it answers 400 for a bad or non-allowlisted topic and hides every upstream failure behind its own 503. Send the
+            same request with cURL (section 3) and your key to see the real status.
+          </p>
+          <div className="mt-3">
+            <StatusTable caption="Troubleshooting: symptom, cause and fix" rows={TROUBLESHOOTING} />
+          </div>
         </Panel>
 
         <Panel title="6. Showing the ad with a Sponsored label">

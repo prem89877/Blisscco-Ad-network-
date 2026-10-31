@@ -1,11 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import * as ts from "typescript";
 import { PUBLIC_AD_FIELDS, PUBLIC_TRACKING_FIELDS, PUBLIC_TRACKING_OPTIONAL_FIELDS, buildAdResponse } from "@/lib/ads/contract";
-import { parseMatchRequest } from "@/lib/ads/validation";
+import { MAX_BODY_BYTES, parseMatchRequest } from "@/lib/ads/validation";
+import { ACTIVE_CATEGORIES } from "@/lib/ads/taxonomy";
 import * as clickRoute from "@/app/api/v1/ads/click/route";
 import { handleClickGet, REQUESTS_PER_MINUTE_PER_IP as CLICK_REQ_LIMIT, FAILURES_PER_MINUTE_PER_IP as CLICK_FAIL_LIMIT } from "@/lib/ads/click-handler";
 import { handleImpressionPost, REQUESTS_PER_MINUTE_PER_IP as IMP_REQ_LIMIT, FAILURES_PER_MINUTE_PER_IP as IMP_FAIL_LIMIT } from "@/lib/ads/impression-handler";
@@ -859,5 +860,241 @@ describe("Day 15 part 6: guide matches the real impression and click routes", ()
     assert.equal(res.status, 405);
     assert.equal(res.headers.get("allow"), "GET");
     assert.deepEqual(await res.json(), { error: "method_not_allowed" });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Day 20 Part 4: pilot quickstart + troubleshooting. Guide ke daave asli examples/ files, asli routes, retry rules aur security
+// requirements se mel khate rahen. Koi network / database nahi.
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe("Day 20 part 4: quickstart points at the real example files and env names", () => {
+  const g = flat(GUIDE);
+  const NODE_DIR = "examples/publisher-node";
+  const NEXT_DIR = "examples/publisher-nextjs";
+
+  it("both example folders are named, and every examples/ path the guide mentions exists", () => {
+    assert.match(g, /Pilot quickstart: Node\.js and Next\.js/);
+    assert.ok(g.includes(`${NODE_DIR}/`) && g.includes(`${NEXT_DIR}/`));
+    const mentioned = new Set([...(read(GUIDE).matchAll(/examples\/publisher-(?:node|nextjs)\/[A-Za-z0-9_./-]*/g))].map((m) => m[0].replace(/[.]+$/, "")));
+    assert.ok(mentioned.size >= 3, "guide examples/ paths ka zikr kare");
+    for (const f of mentioned) assert.ok(existsSync(path.join(ROOT, f)), `${f} exist nahi karta`);
+  });
+
+  it("every example file the quickstart tells you to copy exists", () => {
+    for (const f of [`${NODE_DIR}/src/client.ts`, `${NODE_DIR}/src/types.ts`, `${NEXT_DIR}/app/api/blisscco-ad/route.ts`, `${NEXT_DIR}/components/SponsoredAd.tsx`, `${NEXT_DIR}/lib/safe-url.ts`, `${NEXT_DIR}/.env.example`]) {
+      assert.ok(existsSync(path.join(ROOT, f)), f);
+    }
+    for (const name of ["src/client.ts", "src/types.ts", "app/api/blisscco-ad/route.ts", "components/SponsoredAd.tsx", "lib/safe-url.ts", ".env.example"]) {
+      assert.ok(g.includes(name), `guide ${name} ka naam nahi leta`);
+    }
+  });
+
+  it("the env variable names are the ones the Next.js route reads and the example .env.example declares", () => {
+    const route = read(`${NEXT_DIR}/app/api/blisscco-ad/route.ts`);
+    const env = read(`${NEXT_DIR}/.env.example`);
+    for (const name of ["BLISSCCO_PUBLISHER_API_KEY", "BLISSCCO_API_BASE_URL"]) {
+      assert.ok(route.includes(`process.env.${name}`), `route ${name} nahi padhta`);
+      assert.match(env, new RegExp(`^${name}=`, "m"));
+      assert.ok(lines("NODE_QUICKSTART_EXAMPLE").includes(`process.env.${name}`), name);
+      assert.match(lines("NEXTJS_ENV_EXAMPLE"), new RegExp(`^${name}=`, "m"));
+    }
+  });
+
+  it("the guide warns that BlissccoClient.fromEnv() reads DIFFERENT names, and that is true", () => {
+    const client = read(`${NODE_DIR}/src/client.ts`);
+    assert.match(client, /env\.BLISSCCO_BASE_URL/);
+    assert.match(client, /env\.BLISSCCO_API_KEY/);
+    assert.match(g, /<code>BlissccoClient\.fromEnv\(\)<\/code> reads <code>BLISSCCO_BASE_URL<\/code> and <code>BLISSCCO_API_KEY<\/code>/);
+  });
+
+  it("the browser route and method the guide names are the real ones", () => {
+    assert.match(g, /<code>POST \/api\/blisscco-ad<\/code>/);
+    const route = read(`${NEXT_DIR}/app/api/blisscco-ad/route.ts`);
+    assert.match(route, /export async function POST\(/);
+    assert.doesNotMatch(route, /export async function (GET|PUT|PATCH|DELETE|HEAD|OPTIONS)\(/);
+    assert.match(read(`${NEXT_DIR}/components/SponsoredAd.tsx`), /fetch\("\/api\/blisscco-ad", \{\s*method: "POST"/);
+  });
+
+  it("the guide's retry numbers are the real client defaults and limits", () => {
+    const client = read(`${NODE_DIR}/src/client.ts`);
+    assert.match(client, /DEFAULT_RETRY = \{ maxRetries: 2, baseDelayMs: 200, maxDelayMs: 5000 \}/);
+    assert.match(client, /RETRYABLE_STATUS: readonly number\[\] = \[429, 503\]/);
+    assert.match(client, /IDEMPOTENCY_KEY_RE = \/\^\[A-Za-z0-9_-\]\{8,64\}\$\//);
+    assert.match(g, /default first wait is about 100 to 200 ms/);
+    assert.match(g, /<code>baseDelayMs: 2000<\/code>, so every wait is at least 1 second/);
+    assert.match(g, /60 seconds is above its default 5 second cap/);
+    assert.match(g, /400, 401, 413 and 415 are never retried/);
+    assert.match(g, /8 to 64 letters, digits, <code>_<\/code> or <code>-<\/code>/);
+    assert.match(lines("NODE_QUICKSTART_EXAMPLE"), /baseDelayMs: 2000/);
+  });
+
+  it("the Next.js example does not opt in to tracking and links straight to the destination, and the guide says so honestly", () => {
+    const route = read(`${NEXT_DIR}/app/api/blisscco-ad/route.ts`);
+    const comp = read(`${NEXT_DIR}/components/SponsoredAd.tsx`);
+    assert.doesNotMatch(route.replace(/\/\/.*$/gm, ""), /tracking|click_ref|X-Blisscco-Tracking/i);
+    assert.match(comp, /href=\{ad\.href\}/);
+    assert.match(g, /does not opt in to tracking, so it reports no impressions or clicks, and its link goes straight to the advertiser&apos;s https address\. That differs from section 6/);
+    assert.match(g, /Use it to check fill and layout only/);
+  });
+});
+
+describe("Day 20 part 4: the pilot rules are documented and match the examples", () => {
+  const g = flat(GUIDE);
+
+  it("server-side key storage: documented, and the quickstart code and env sample never expose the key", () => {
+    assert.match(g, /<strong>Key storage:<\/strong> the API key lives only in your server&apos;s environment variables or secret manager/);
+    assert.match(g, /Never put it in browser code, a mobile app, a variable with a public prefix such as <code>NEXT_PUBLIC_<\/code>, git, logs, tickets or chat/);
+    for (const name of ["NODE_QUICKSTART_EXAMPLE", "NEXTJS_ENV_EXAMPLE", "NEXTJS_USAGE_EXAMPLE"]) {
+      const src = lines(name);
+      assert.doesNotMatch(src, /blc_live_/, name);
+      assert.doesNotMatch(src, /^\s*(NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC)_/m, `${name}: public-prefix variable`);
+      assert.doesNotMatch(src, /localStorage|document\.|window\./, name);
+    }
+    assert.doesNotMatch(lines("NODE_QUICKSTART_EXAMPLE"), /NEXT_PUBLIC|VITE_|REACT_APP/);
+    assert.match(lines("NODE_QUICKSTART_EXAMPLE"), /Runs on YOUR backend only/);
+    assert.match(lines("NEXTJS_ENV_EXAMPLE"), /server only, never commit it/);
+    assert.match(lines("NEXTJS_ENV_EXAMPLE"), /YOUR-BLISSCCO-API-HOST/);
+    assert.equal(/"use client"|'use client'/.test(read(GUIDE)), false);
+  });
+
+  it("Idempotency-Key reuse during retries: documented, and the Node quickstart passes one placement key", () => {
+    assert.match(g, /<strong>Idempotency-Key reuse:<\/strong> use one new random key per ad placement/);
+    assert.match(g, /send the same key, so no second serve is counted/);
+    assert.match(g, /A new placement gets a new key, and a key never contains a user id or text/);
+    assert.match(g, /Each browser call makes a new <code>Idempotency-Key<\/code>, so a second call to your route is a new placement and a new serve/);
+    const sample = lines("NODE_QUICKSTART_EXAMPLE");
+    assert.match(sample, /placementKey: string = randomUUID\(\)/);
+    assert.match(sample, /\{ idempotencyKey: placementKey \}/);
+    assert.match(read("examples/publisher-node/src/client.ts"), /options\.idempotencyKey \?\? randomUUID\(\)/);
+    assert.doesNotMatch(read("examples/publisher-nextjs/app/api/blisscco-ad/route.ts"), /idempotencyKey/);
+  });
+
+  it("Sponsored disclosure: documented, and the Next.js component always renders the word as text", () => {
+    assert.match(g, /<strong>Sponsored disclosure:<\/strong> show the visible word <strong>Sponsored<\/strong> as text on every ad, in its own box after the assistant&apos;s answer/);
+    assert.match(g, /Show nothing at all for a no-fill/);
+    const comp = read("examples/publisher-nextjs/components/SponsoredAd.tsx");
+    assert.match(comp, /aria-label="Sponsored"/);
+    assert.match(comp, />Sponsored<\/p>/);
+    assert.match(comp, /rel="sponsored noopener noreferrer"/);
+    assert.match(lines("NEXTJS_USAGE_EXAMPLE"), /the assistant's own answer goes here, first/);
+  });
+
+  it("topic categories: the guide lists exactly the active taxonomy, and the Next.js allowlist is the same set", () => {
+    const bullet = /<strong>Topic categories:<\/strong>([^]*?)Your code picks one/.exec(read(GUIDE));
+    assert.ok(bullet);
+    const documented = [...bullet[1].matchAll(/<code>([a-z_]+)<\/code>/g)].map((m) => m[1]).sort();
+    assert.deepEqual(documented, ACTIVE_CATEGORIES.map((c) => c.slug).sort());
+    const route = read("examples/publisher-nextjs/app/api/blisscco-ad/route.ts");
+    const list = /ALLOWED_TOPICS: ReadonlySet<string> = new Set\(\[([^\]]*)\]\)/.exec(route);
+    assert.ok(list);
+    assert.deepEqual([...list[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]).sort(), documented);
+    assert.match(g, /Sensitive topics never return an ad/);
+  });
+
+  it("no raw chatbot conversations: documented, and the Next.js route and the API both reject anything but a topic", () => {
+    assert.match(g, /<strong>No raw conversations:<\/strong> never forward a chatbot conversation to Blisscco: no user message, assistant answer, prompt, transcript, summary or keyword list, and no user id, email or session id/);
+    assert.match(g, /The only signal is the topic slug your code chose/);
+    assert.match(g, /The API rejects any other field with a 400/);
+    for (const field of ["messages", "prompt", "user_id", "conversation_id"]) {
+      assert.deepEqual(parseMatchRequest(JSON.stringify({ topic: "gaming", [field]: "x" })), { ok: false, reason: "unknown_field" }, field);
+    }
+    assert.match(read("examples/publisher-nextjs/app/api/blisscco-ad/route.ts"), /Object\.keys\(body\)\.some\(\(k\) => k !== "topic"\)\) return invalid\("unknown_field"\)/);
+    assert.match(read("examples/publisher-nextjs/components/SponsoredAd.tsx"), /JSON\.stringify\(\{ topic \}\)/);
+  });
+
+  it("honesty: no production-ready or tested-with-third-party claim, and the existing disclaimers remain", () => {
+    assert.match(g, /No third-party integration has been tested\./);
+    assert.match(g, /Their automated tests use a mocked Blisscco API/);
+    assert.match(g, /Not ready for production use/);
+    assert.match(g, /so do not roll this out to real users yet/);
+    assert.equal(/production[- ]ready/i.test(g), false);
+    assert.equal(/(successfully|already|fully) (tested|verified|validated) (with|by|on)/i.test(g), false);
+    assert.equal(/(works|runs|is live) (with|in|on) (chatgpt|openai|gemini|claude|perplexity|copilot)/i.test(g), false);
+  });
+});
+
+describe("Day 20 part 4: troubleshooting section matches the real API contract", () => {
+  const g = flat(GUIDE);
+  const src = read(GUIDE);
+  const table = src.slice(src.indexOf("const TROUBLESHOOTING"), src.indexOf("function StatusTable"));
+  const rowOf = (status: string) => {
+    const m = new RegExp(`status: "${status.replace(/[/ ]/g, (c) => `\\${c}`)}", body: "([^"]+)", meaning: "([^"]+)", action: "([^"]+)"`).exec(table);
+    assert.ok(m, `troubleshooting row ${status}`);
+    return { body: m[1], meaning: m[2], action: m[3] };
+  };
+
+  it("the section exists, is placed after section 5 and covers every required symptom", () => {
+    assert.match(g, /5a\. Troubleshooting/);
+    assert.ok(g.indexOf("5. Errors and retries") < g.indexOf("5a. Troubleshooting"));
+    assert.ok(g.indexOf("5a. Troubleshooting") < g.indexOf("6. Showing the ad with a Sponsored label"));
+    for (const status of ["400", "401", "413", "415", "429", "503", "200 no-fill", "200 without tracking", "401 / 404"]) rowOf(status);
+    assert.match(g, /Troubleshooting: symptom, cause and fix/);
+  });
+
+  it("every 400 reason the guide lists is one the real validators produce, and nothing is missing", () => {
+    const documented = [...rowOf("400").meaning.matchAll(/\b(invalid_[a-z_]+|unknown_field)\b/g)].map((m) => m[1]);
+    const real = new Set<string>();
+    for (const body of ["{", "[]", '{"topic":"gaming","x":1}', '{"topic":"Gaming"}', '{"topic":"gaming","fallback_topics":["Bad"]}', '{"topic":"gaming","exclude_ad_ids":["nope"]}']) {
+      const r = parseMatchRequest(body);
+      assert.equal(r.ok, false, body);
+      if (!r.ok) real.add(r.reason);
+    }
+    real.add("invalid_idempotency_key"); // match-handler: parseIdempotencyKey ok:false
+    real.add("invalid_tracking_header"); // match-handler: parseTrackingOptIn ok:false
+    assert.deepEqual([...new Set(documented)].sort(), [...real].sort());
+    assert.match(read("lib/ads/match-handler.ts"), /invalid_idempotency_key/);
+    assert.match(read("lib/ads/match-handler.ts"), /invalid_tracking_header/);
+  });
+
+  it("413 / 415 / 429 / 503 numbers and names are the real ones", () => {
+    assert.equal(MAX_BODY_BYTES, 2048);
+    assert.match(rowOf("413").meaning, /over 2048 bytes \(impression: 1024 bytes\)/);
+    assert.match(rowOf("413").meaning, /Next\.js route has a smaller limit of 1024 characters/);
+    assert.match(read("examples/publisher-nextjs/app/api/blisscco-ad/route.ts"), /MAX_BODY_CHARS = 1024/);
+    assert.equal(MAX_IMPRESSION_BODY_BYTES, 1024);
+    assert.equal(rowOf("415").body, "unsupported_media_type");
+    assert.equal(rowOf("413").body, "payload_too_large");
+    assert.equal(rowOf("401").body, "unauthorized");
+    assert.equal(rowOf("429").body, "rate_limited + Retry-After: 60");
+    assert.equal(rowOf("503").body, "fill:false + error:unavailable");
+    assert.match(read("lib/ads/match-handler.ts"), /"Retry-After": "60"/);
+    assert.match(rowOf("429").meaning, /BlissccoRetryExhaustedError \(last status 429\)/);
+    assert.match(read("examples/publisher-node/src/client.ts"), /readonly lastStatus\?: number/);
+  });
+
+  it("the Next.js route behaviour described in the table is what its source does (503 for any failure, own 400 invalid_topic)", () => {
+    const route = read("examples/publisher-nextjs/app/api/blisscco-ad/route.ts");
+    assert.match(route, /const unavailable = \(\) => reply\(\{ fill: false, error: "unavailable" \}, 503\)/);
+    assert.match(route, /ALLOWED_TOPICS\.has\(topic\)\) return invalid\("invalid_topic"\)/);
+    assert.match(route, /err instanceof Error \? err\.name : "unknown"/);
+    assert.match(rowOf("503").meaning, /BlissccoConfigError/);
+    assert.match(rowOf("400").meaning, /Next\.js route also answers 400 invalid_topic/);
+    assert.match(rowOf("200 no-fill").meaning, /not a plain https link/);
+  });
+
+  it("missing and expired tracking credentials: the causes named are real contract behaviour", () => {
+    const miss = rowOf("200 without tracking");
+    assert.match(miss.meaning, /X-Blisscco-Tracking: 1/);
+    assert.match(miss.meaning, /tracking: true/);
+    assert.match(miss.action, /Never invent a token or click_ref/);
+    assert.match(read("examples/publisher-node/src/client.ts"), /options\.tracking === true\) headers\["X-Blisscco-Tracking"\] = "1"/);
+    assert.match(read("lib/ads/validation.ts"), /header\.trim\(\) === "1"/);
+    const exp = rowOf("401 / 404");
+    assert.equal(exp.body, "unauthorized (impression) / not_found (click)");
+    assert.match(exp.meaning, /one hour by default, never more than 24 hours/);
+    assert.match(exp.meaning, /after expires_at returns the ad but no tracking/);
+    assert.match(exp.action, /NEW Idempotency-Key is a new serve and is charged as a new serve/);
+    assert.match(exp.action, /Do not retry and do not try to refresh it: drop it/);
+  });
+
+  it("the troubleshooting text keeps every older rule: nothing is retried except 429 / 5xx, one key per placement", () => {
+    assert.match(rowOf("400").action, /^Do not retry/);
+    assert.match(rowOf("413").action, /^Do not retry/);
+    assert.match(rowOf("415").action, /^Do not retry/);
+    assert.match(rowOf("401").action, /^Do not retry/);
+    assert.match(rowOf("503").action, /SAME Idempotency-Key/);
+    assert.match(rowOf("429").action, /Do not loop/);
+    assert.match(g, /Retry only 429 and 5xx/);
   });
 });
