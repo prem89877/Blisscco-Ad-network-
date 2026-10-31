@@ -4,7 +4,8 @@ import { acceptClick, type ClickResult } from "./click";
 import { mintClickRef } from "./click-ref";
 import { lookupServeForClick, recordClickEvent } from "./click-db";
 import { routeServeWithFallback, type RoutedServeResult } from "./fallback-routing";
-import { providerFallbackFromEnv } from "./fallback-provider";
+import { providerFallbackFromEnv, publicAdFromFallbackFill } from "./fallback-provider";
+import type { MatchSuccessResponse } from "./contract";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { selectAd } from "./selection";
@@ -65,11 +66,8 @@ const productionDeps: ServeDeps = {
   },
 };
 
-export async function serveAdForPublisher(keyHash: string, request: MatchRequest): Promise<ServeResult> {
-  const result = await serveAd(keyHash, request, productionDeps);
-  // DEBUG (503 diagnosis): sirf static label. serve.ts pure rehta hai (test), isliye log yahan hai.
-  if (result.kind === "unavailable") console.error("[ads/serve] result=unavailable (503)");
-  return result;
+export function serveAdForPublisher(keyHash: string, request: MatchRequest): Promise<ServeResult> {
+  return serveAd(keyHash, request, productionDeps);
 }
 
 // Day 22 Part 3: Blisscco-FIRST fallback (abhi route/match-handler se juda NAHI hai; publisher ka response contract wahi hai).
@@ -79,6 +77,19 @@ export async function serveAdForPublisher(keyHash: string, request: MatchRequest
 export function serveAdWithFallbackForPublisher(keyHash: string, request: MatchRequest): Promise<RoutedServeResult> {
   const provider = providerFallbackFromEnv(process.env);
   return routeServeWithFallback(keyHash, request, { serve: serveAdForPublisher, ...provider });
+}
+
+// Day 22 Part 6: match endpoint ka neutral entry point (match-handler sirf isi ko bulata hai). Blisscco ka jawab jas ka tas;
+// provider fill => { kind: "provider_ad", response } (tracking nahi, serve/charge nahi), ya safe no_fill.
+export type MatchServeOutcome = ServeResult | { kind: "provider_ad"; response: MatchSuccessResponse };
+
+export async function serveMatchForPublisher(keyHash: string, request: MatchRequest): Promise<MatchServeOutcome> {
+  const routed = await serveAdWithFallbackForPublisher(keyHash, request);
+  // DEBUG (503 diagnosis): sirf static label, koi key/hash/topic/data nahi. Kaam ho jaye toh hata dena.
+  if (routed.source === "blisscco" && routed.result.kind === "unavailable") console.error("[ads/serve] match result=unavailable (503)");
+  if (routed.source === "blisscco") return routed.result;
+  const response = publicAdFromFallbackFill(routed.fill);
+  return response ? { kind: "provider_ad", response } : { kind: "no_fill" };
 }
 
 // Day 12 Part 4: impression. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Token + serve ka milan + atomic write
