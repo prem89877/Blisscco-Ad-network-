@@ -358,3 +358,73 @@ describe("day 24 part 2 | isolated prototype: nothing else is connected", () => 
     assert.match(read("middleware.ts"), /matcher:\s*\["\/dashboard\/:path\*", "\/login", "\/signup"\]/);
   });
 });
+
+// Day 27 Part 3: regression hardening of the REAL route (route.GET), not just the handler.
+describe("day 27 part 3 | real route: disabled 404, JSON content type, no-store, no redirect", () => {
+  const SECURITY_HEADERS = ["cache-control", "content-type", "x-content-type-options"];
+  const FORBIDDEN_HEADERS = ["location", "refresh", "set-cookie", "access-control-allow-origin", "access-control-allow-credentials", "www-authenticate", "link", "content-location"];
+
+  it("disabled (flag unset / not exact 'true'): 404, exact fixed body, JSON content type, no-store, nosniff, nothing else", async () => {
+    for (const v of [undefined, "", "false", "1", "TRUE", " true", "true "]) {
+      const r = await withEnv(v, () => route.GET());
+      assert.equal(r.status, 404, String(v));
+      assert.equal(await text(r), NOT_FOUND, String(v));
+      assert.equal(r.headers.get("content-type"), "application/json; charset=utf-8");
+      assert.equal(r.headers.get("cache-control"), "no-store");
+      assert.equal(r.headers.get("x-content-type-options"), "nosniff");
+      assert.deepEqual(Object.keys(hdr(r)).sort(), SECURITY_HEADERS);
+    }
+  });
+
+  it("disabled 404 is byte-for-byte identical for every disabled state (cannot distinguish 'off' from 'garbage')", async () => {
+    const seen = new Set<string>();
+    for (const v of [undefined, "", "false", "yes", "TRUE"]) {
+      const r = await withEnv(v, () => route.GET());
+      seen.add(`${r.status}|${JSON.stringify(hdr(r))}|${await text(r)}`);
+    }
+    assert.equal(seen.size, 1);
+  });
+
+  it("enabled: 200, JSON content type, no-store, nosniff, body parses to one object", async () => {
+    const r = await withEnv("true", () => route.GET());
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get("content-type"), "application/json; charset=utf-8");
+    assert.equal(r.headers.get("cache-control"), "no-store");
+    assert.equal(r.headers.get("x-content-type-options"), "nosniff");
+    assert.deepEqual(Object.keys(hdr(r)).sort(), SECURITY_HEADERS);
+    const body = JSON.parse(await text(r)) as unknown;
+    assert.ok(body !== null && typeof body === "object" && !Array.isArray(body));
+  });
+
+  it("never a redirect: status is never 3xx, redirected is false, and no redirect/cookie/CORS/link header exists (disabled and enabled)", async () => {
+    for (const v of [undefined, "true"]) {
+      const r = await withEnv(v, () => route.GET());
+      assert.ok(r.status === 200 || r.status === 404, String(r.status));
+      assert.ok(!(r.status >= 300 && r.status < 400));
+      assert.equal(r.redirected, false);
+      assert.equal(r.type, "default");
+      for (const h of FORBIDDEN_HEADERS) assert.equal(r.headers.get(h), null, h);
+    }
+  });
+
+  it("a mocked fetch is never called by the route (no outbound request in either state)", async () => {
+    const realFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => { calls += 1; throw new Error("test: preview route must not fetch"); }) as typeof fetch;
+    try {
+      for (const v of [undefined, "true"]) await withEnv(v, () => route.GET());
+      assert.equal(calls, 0);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("an HTTP client that refuses redirects (redirect:'error' semantics) sees the response directly: status 200/404 only", async () => {
+    // Simulates what the manual check does: if the route ever produced a 3xx it would be visible as status/Location here.
+    for (const v of [undefined, "true"]) {
+      const r = await withEnv(v, () => route.GET());
+      assert.equal(r.headers.get("location"), null);
+      assert.ok([200, 404].includes(r.status));
+    }
+  });
+});

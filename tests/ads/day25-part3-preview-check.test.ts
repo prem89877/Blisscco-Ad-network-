@@ -403,3 +403,80 @@ function existsRoute(): boolean {
     return false;
   }
 }
+
+// Day 27 Part 3: the manual check refuses production targets by default, arbitrary paths, query strings and redirects.
+describe("day 27 part 3 | manual check: production, paths, queries and redirects", () => {
+  const sendsNothing = async (env: Env, reason: string) => {
+    const r = await run(env, () => jsonRes(fixture()));
+    assert.deepEqual([r.result.ok, r.result.code, r.result.reason], [false, 2, reason]);
+    assert.equal(r.calls.length, 0, "no request may be sent");
+    assert.equal(r.out.length, 0);
+  };
+
+  it("production is never the default: without the exact confirmation 'yes', no request is sent (every near-miss value)", async () => {
+    for (const v of [undefined, "", "no", "YES", "Yes", "true", "1", " yes", "yes ", "yes\n", "y"]) {
+      await sendsNothing({ BLISSCCO_PREVIEW_URL: PREVIEW, BLISSCCO_PREVIEW_CHECK_CONFIRM: v }, "preview_not_confirmed");
+    }
+  });
+
+  it("a production host is refused even with the confirmation, regardless of case; the refusal sends nothing", async () => {
+    for (const prod of ["blisscco-preview-abc.example.app", "BLISSCCO-PREVIEW-ABC.EXAMPLE.APP", "  blisscco-preview-abc.example.app  "]) {
+      await sendsNothing({ ...GOOD_ENV, BLISSCCO_PRODUCTION_HOST: prod }, "production_host_refused");
+    }
+    const other = await run({ ...GOOD_ENV, BLISSCCO_PRODUCTION_HOST: "blisscco.example.com" }, () => jsonRes(fixture()));
+    assert.equal(other.result.ok, true, "a different production host does not block a real preview host");
+    assert.equal(other.calls.length, 1);
+  });
+
+  it("the production-host refusal and the unconfirmed refusal never print the host, URL or env values", async () => {
+    const r = await run({ ...GOOD_ENV, BLISSCCO_PRODUCTION_HOST: "blisscco-preview-abc.example.app" }, () => jsonRes(fixture()));
+    assert.ok(!r.all.includes("example.app") && !r.all.includes("blisscco-preview"));
+    assert.match(r.err[0], /^FAIL production_host_refused$/);
+  });
+
+  it("arbitrary paths are rejected before any request, including encoded, nested and trailing-slash variants", async () => {
+    for (const p of ["/api/other", "/api/revive-json-preview", "/api/revive-json-preview/", "/admin", "/api/v1/ads/match", "/%2e%2e/admin", "/a/b/c", "//evil.example.org", "/api/revive-json-preview%2f"]) {
+      await sendsNothing({ ...GOOD_ENV, BLISSCCO_PREVIEW_URL: `${PREVIEW}${p}` }, "invalid_preview_url");
+    }
+  });
+
+  it("query strings and fragments are rejected before any request (including empty, encoded and repeated markers)", async () => {
+    for (const q of ["?", "/?", "?a=1", "/?a=1&b=2", "/?url=https://evil.example.org", "/?%3Fa", "/#", "/#frag", "/?a=1#frag", "?destination_url=https://evil.example.org"]) {
+      await sendsNothing({ ...GOOD_ENV, BLISSCCO_PREVIEW_URL: `${PREVIEW}${q}` }, "invalid_preview_url");
+    }
+  });
+
+  it("whatever is accepted always produces exactly origin + the fixed path (nothing from the input path survives)", async () => {
+    for (const u of [PREVIEW, `${PREVIEW}/`, `${PREVIEW}:443`, `${PREVIEW}/.`, `${PREVIEW}/./`]) {
+      const r = await run({ ...GOOD_ENV, BLISSCCO_PREVIEW_URL: u }, () => jsonRes(fixture()));
+      if (r.calls.length > 0) assert.equal(r.calls[0].url, `${PREVIEW}/api/revive-json-preview`, u);
+    }
+  });
+
+  it("every 3xx status fails as unexpected_redirect with redirect:'manual', for all three expectations, and Location is never followed or printed", async () => {
+    for (const expect of [undefined, "enabled", "disabled", "unavailable"]) {
+      for (const status of [300, 301, 302, 303, 305, 307, 308]) {
+        const r = await run({ ...GOOD_ENV, BLISSCCO_PREVIEW_CHECK_EXPECT: expect }, () => new Response(null, { status, headers: { location: "https://prod.example.org/api/revive-json-preview?LOCSECRET=1" } }));
+        assert.deepEqual([r.result.ok, r.result.code, r.result.reason], [false, 1, "unexpected_redirect"], `${expect}/${status}`);
+        assert.equal(r.calls.length, 1, "the redirect target is never requested");
+        assert.equal(r.calls[0].init.redirect, "manual");
+        assert.ok(!r.all.includes("LOCSECRET") && !r.all.includes("prod.example.org"));
+      }
+    }
+  });
+
+  it("a redirect to production is not followed even when its body looks like a valid fixture", async () => {
+    const r = await run(GOOD_ENV, () => new Response(JSON.stringify(fixture()), { status: 302, headers: { "content-type": "application/json", "cache-control": "no-store", location: "https://prod.example.org/" } }));
+    assert.equal(r.result.reason, "unexpected_redirect");
+    assert.equal(r.calls.length, 1);
+  });
+
+  it("only HTTPS preview origins are contacted: http, ftp, javascript and data URLs send nothing", async () => {
+    for (const u of ["http://blisscco-preview-abc.example.app", "ftp://blisscco-preview-abc.example.app", "javascript:alert(1)", "data:text/html,x", "//blisscco-preview-abc.example.app"]) {
+      const r = await run({ ...GOOD_ENV, BLISSCCO_PREVIEW_URL: u }, () => jsonRes(fixture()));
+      assert.equal(r.result.ok, false, u);
+      assert.equal(r.result.code, 2, u);
+      assert.equal(r.calls.length, 0, u);
+    }
+  });
+});

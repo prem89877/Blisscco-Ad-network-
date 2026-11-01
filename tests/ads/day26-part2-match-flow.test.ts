@@ -18,6 +18,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 const idle = { status: "idle" } as never;
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const REVIVE_ID = /^revive_[0-9a-f]{8}$/;
 const PUBLIC_AD_FIELDS = ["id", "headline", "body", "cta_text", "destination_url"].sort();
 const ENV_KEYS = ["REVIVE_FALLBACK_ENABLED", "REVIVE_DELIVERY_URL", "REVIVE_TIMEOUT_MS", "REVIVE_RESPONSE_FORMAT"] as const;
 const FAILURE_SCENARIOS = HARNESS_SCENARIOS.filter((s) => s !== "valid-fill");
@@ -130,6 +132,8 @@ describe("day 26 part 2 | Blisscco eligible fill always wins", () => {
       assert.deepEqual(Object.keys(body.ad).sort(), PUBLIC_AD_FIELDS);
       assert.equal(body.ad.headline, "Visible headline");
       assert.ok(!String(body.ad.id).startsWith("revive_"));
+      assert.match(String(body.ad.id), UUID_SHAPE, "Blisscco ad identity is a UUID");
+      assert.ok(!("provider" in body) && !("provider" in body.ad), "provider is internal, never a public field");
       assert.equal(h.calls.length, 0);
       assert.equal(h.unexpectedCalls, 0);
       assert.equal(serveRpcs(), 1);
@@ -182,7 +186,9 @@ describe("day 26 part 2 | Revive only after Blisscco no-fill AND only with the s
     assert.equal(body.fill, true);
     assert.equal(body.sponsored, true);
     assert.deepEqual(Object.keys(body.ad).sort(), PUBLIC_AD_FIELDS);
-    assert.match(String(body.ad.id), /^revive_[0-9a-f]{8}$/);
+    assert.match(String(body.ad.id), REVIVE_ID);
+    assert.ok(!UUID_SHAPE.test(String(body.ad.id)), "Revive ad identity is never UUID-shaped");
+    assert.ok(!("provider" in body) && !("provider" in body.ad), "provider is internal, never a public field");
     assert.equal(body.ad.headline, HARNESS_CREATIVE.headline);
     assert.equal(body.ad.body, HARNESS_CREATIVE.body);
     assert.equal(body.ad.cta_text, HARNESS_CREATIVE.cta_text);
@@ -203,6 +209,8 @@ describe("day 26 part 2 | Revive only after Blisscco no-fill AND only with the s
       assert.equal(await assertNoInternalExposure(res, key), '{"fill":false}');
       assert.equal(h.calls.length, 1);
       assert.equal(serveRpcs(), 0);
+      const parsed = JSON.parse(await (await match(key)).text()) as Record<string, unknown>;
+      assert.deepEqual(Object.keys(parsed), ["fill"], "no-fill carries no ad and no provider identity");
     });
   }
 

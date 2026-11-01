@@ -1,11 +1,12 @@
 # Day 26 Part 5 — Completion Report
 
 ## Changed paths
-- `DAY26-PART5-COMPLETION-REPORT.md` (new). No source, test, SQL, config or package files changed in this part.
+- `DAY26-PART5-COMPLETION-REPORT.md` (new, updated after Part 3 run).
+- `tests/ads/day26-part3-billing-tracking-isolation.test.ts` (supplied by user, copied unchanged). No source, test, SQL, config or package files changed in this part.
 - (Part 4, already delivered: `tests/ads/day26-part4-fallback-resilience.test.ts`.)
 
-## IMPORTANT: missing file
-- `tests/ads/day26-part3-billing-tracking-isolation.test.ts` is **NOT in the project zip**. It could not be run, so its result is **not verified**. Add it to the project and re-run it.
+## Part 3 test file
+- `tests/ads/day26-part3-billing-tracking-isolation.test.ts` was missing from the first zip; it was supplied later (copied into `tests/ads/` unchanged) and has now been run.
 
 ## Environment note
 - No usable network: `npm ci` crashed ("Exit handler never called") and left a partial `node_modules` (no `next`, `@types/node` incomplete).
@@ -17,9 +18,9 @@
 |---|---|---|---|---|
 | day26-part1-provider-harness | 31 | 31 | 0 | 0 |
 | day26-part2-match-flow | 33 | 33 | 0 | 0 |
-| day26-part3-billing-tracking-isolation | file missing — NOT RUN | - | - | - |
+| day26-part3-billing-tracking-isolation | 19 | 19 | 0 | 0 |
 | day26-part4-fallback-resilience | 52 | 52 | 0 | 0 |
-| **Total (3 run)** | **116** | **116** | **0** | **0** |
+| **Total** | **135** | **135** | **0** | **0** |
 
 ## Regressions
 | Suite | Tests | Pass | Fail | Skip |
@@ -38,7 +39,7 @@
 | `npm ci` | FAILED (npm crash, no network; partial install) |
 | `npm run lint` (`tsc --noEmit`) | FAILED (exit 1) — environment: `next` / `@types/node` not installed |
 | `npm test` (as written) | FAILED (exit 2) — its `tsc` step fails for the same reason |
-| `npm test` equivalent (temp tsconfig, see note) | 4080 tests, 4079 pass, **1 fail**, 0 skip, 0 cancelled |
+| `npm test` equivalent (temp tsconfig, see note) | 4099 tests, 4098 pass, **1 fail**, 0 skip, 0 cancelled |
 | `npm run lint:eslint` | NOT RUN — `next: not found` |
 | `npm run build` | NOT RUN — `next: not found` |
 
@@ -57,6 +58,5 @@ The 1 failure: `tests/ads/publisher-examples.test.ts` › "the example compiles 
 - None. No production or test defect found in the runs above.
 
 ## Remaining
-1. Add/run the missing `day26-part3-billing-tracking-isolation.test.ts`.
-2. On a networked machine: `npm ci`, then `npm run lint`, `npm test`, `npm run lint:eslint`, `npm run build`.
-3. Real Revive JSON endpoint preview check, and TEST PostgreSQL with confirmation env for DB integration tests.
+1. On a networked machine: `npm ci`, then `npm run lint`, `npm test`, `npm run lint:eslint`, `npm run build`.
+2. Real Revive JSON endpoint preview check, and TEST PostgreSQL with confirmation env for DB integration tests.
