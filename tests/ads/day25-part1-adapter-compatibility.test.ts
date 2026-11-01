@@ -29,7 +29,7 @@ const NO_FILL_REASONS = ["disabled", "invalid_config", "no_fetcher", "timeout", 
 type Res = Awaited<ReturnType<ReviveFetcher>>;
 const asRes = (r: Response) => r as unknown as Res;
 const jsonRes = (body: unknown, ct = "application/json") => asRes(new Response(typeof body === "string" ? body : JSON.stringify(body), { status: 200, headers: { "content-type": ct } }));
-const bytesRes = (bytes: Uint8Array, ct = "application/json") => asRes(new Response(bytes, { status: 200, headers: { "content-type": ct } }));
+const bytesRes = (bytes: Uint8Array, ct = "application/json") => asRes(new Response(bytes as unknown as BodyInit, { status: 200, headers: { "content-type": ct } }));
 
 let calls: string[] = [];
 const run = (fetcher: ReviveFetcher, over: Record<string, unknown> = {}) =>
