@@ -83,10 +83,66 @@ export function parseReviveConfig(input: unknown): ReviveConfigResult {
       responseFormat = raw.responseFormat;
     }
 
-    return { ok: true, config: Object.freeze({ enabled: true, deliveryUrl: parsed.href, timeoutMs, responseFormat }) };
+    return { ok: true, config: redacted({ enabled: true, deliveryUrl: parsed.href, timeoutMs, responseFormat }) };
   } catch {
     return { ok: false, reason: "invalid_config" };
   }
+}
+
+/** Day 23 Part 1: config galti se JSON.stringify / console / inspect ho jaye toh delivery URL (query samet) bahar na jaye. Enumerable fields same rehti hain. */
+function redacted(config: ReviveServerConfig): ReviveServerConfig {
+  const safe = () => ({ enabled: config.enabled, deliveryUrl: "[redacted]", timeoutMs: config.timeoutMs, responseFormat: config.responseFormat });
+  Object.defineProperty(config, "toJSON", { value: safe, enumerable: false });
+  Object.defineProperty(config, Symbol.for("nodejs.util.inspect.custom"), { value: safe, enumerable: false });
+  return Object.freeze(config);
+}
+
+// ---------------------------------------------------------------------------
+// Day 23 Part 1: chaaron server-only env variables ek hi jagah, ek hi tarah parse hote hain.
+// Yeh module env KHUD nahi padhta: caller ek plain record deta hai (fallback-provider.ts). Sab galti => sirf reason code, kabhi throw nahi.
+//   REVIVE_FALLBACK_ENABLED  exact "true" ke bina => disabled (baaki sab variables ko dekha bhi nahi jaata)
+//   REVIVE_DELIVERY_URL      https URL (parseReviveConfig ke niyam), kabhi error/log me nahi
+//   REVIVE_TIMEOUT_MS        optional; sirf 1-5 digits ka integer, 1..REVIVE_MAX_TIMEOUT_MS, warna invalid_config
+//   REVIVE_RESPONSE_FORMAT   optional; exact "json" ya "html", warna invalid_config
+// ---------------------------------------------------------------------------
+
+export type ReviveEnv = Readonly<Record<string, string | undefined>>;
+
+export const REVIVE_ENV_FLAG = "REVIVE_FALLBACK_ENABLED";
+export const REVIVE_ENV_URL = "REVIVE_DELIVERY_URL";
+export const REVIVE_ENV_TIMEOUT = "REVIVE_TIMEOUT_MS";
+export const REVIVE_ENV_FORMAT = "REVIVE_RESPONSE_FORMAT";
+
+/** Sirf exact "true" (koi trim/case-folding nahi). */
+export function reviveEnvEnabled(env: ReviveEnv | null | undefined): boolean {
+  try {
+    return env !== null && env !== undefined && env[REVIVE_ENV_FLAG] === "true";
+  } catch {
+    return false;
+  }
+}
+
+/** Env => parseReviveConfig ka raw input. Bad timeout => NaN (parseReviveConfig use invalid_config karta hai). Kabhi throw nahi karta. */
+export function reviveRawConfigFromEnv(env: ReviveEnv | null | undefined): Record<string, unknown> {
+  try {
+    if (!reviveEnvEnabled(env)) return { enabled: false };
+    const e = env as ReviveEnv;
+    const timeout = e[REVIVE_ENV_TIMEOUT];
+    const format = e[REVIVE_ENV_FORMAT];
+    return {
+      enabled: true,
+      deliveryUrl: e[REVIVE_ENV_URL],
+      ...(timeout === undefined || timeout === "" ? {} : { timeoutMs: /^\d{1,5}$/.test(timeout) ? Number(timeout) : Number.NaN }),
+      ...(format === undefined || format === "" ? {} : { responseFormat: format }),
+    };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+/** Env => { ok:true, config } | { ok:false, reason: "disabled" | "invalid_config" }. Kabhi throw nahi karta. */
+export function parseReviveEnv(env: ReviveEnv | null | undefined): ReviveConfigResult {
+  return parseReviveConfig(reviveRawConfigFromEnv(env));
 }
 
 export type ReviveNoFillReason =
