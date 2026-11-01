@@ -15,7 +15,14 @@
 //      valid UTF-8, json => sirf object. Baaki sab => no-fill.
 //   5. Result me sirf reason code hota hai: delivery URL, provider error ya raw response kabhi nahi. Koi log nahi.
 //   6. Fill ka data Blisscco ke billing, ledger, click ya impression ko nahi chhuta.
+//   8. Day 25 Part 2: redirect (3xx, redirected:true, opaque redirect ya final URL != configured URL) => http_error, kabhi follow nahi.
+//      Status + content-type body padhne SE PEHLE jaanche jaate hain; reject par body cancel + request abort (connection khuli nahi rehti).
+//      Deadline ke baad aaya late response bhi cancel hota hai. Timer har raste par clear hota hai; adapter koi listener nahi lagata.
+//   7. Day 25 Part 1: json response ab revive-json-endpoint-contract validator se guzarti hai (size, utf-8, object, 4 fields, plain text,
+//      https destination, executable keys). Fail => fixed no-fill reason (too_large ya bad_response). Validator ka detail/raw input bahar nahi jaata.
+//      HTML/JavaScript ad tag kabhi creative nahi banta (extractReviveCreative me html => unsupported_format).
 
+import { validateJsonEndpointText } from "./revive-json-endpoint-contract";
 import type { AdProviderAdapter } from "./provider-adapter";
 
 export type ReviveResponseFormat = "json" | "html";
@@ -172,7 +179,11 @@ export type ReviveBodyReader = Readonly<{
 export type ReviveFetchResponse = Readonly<{
   status: number;
   headers: Readonly<{ get(name: string): string | null }>;
-  body?: Readonly<{ getReader(): ReviveBodyReader }> | null;
+  /** Day 25 Part 2: optional (global fetch ke Response me hote hain); redirect ka koi bhi sanket => reject. */
+  redirected?: boolean;
+  type?: string;
+  url?: string;
+  body?: Readonly<{ getReader(): ReviveBodyReader; cancel?(reason?: unknown): Promise<void> }> | null;
   text(): Promise<string>;
 }>;
 
@@ -196,6 +207,33 @@ export interface ReviveFallbackAdapter extends AdProviderAdapter {
 }
 
 const noFill = (reason: ReviveNoFillReason): ReviveFillResult => Object.freeze({ status: "no-fill" as const, reason });
+
+/** Day 25 Part 2: reject par body kabhi padhi nahi jaati; connection/stream khuli na rahe isliye best-effort cancel. Kabhi throw nahi karta. */
+function discardBody(res: unknown): void {
+  try {
+    const body = (res as { body?: { cancel?: () => Promise<void>; getReader?: () => ReviveBodyReader } | null } | null | undefined)?.body;
+    if (!body) return;
+    if (typeof body.cancel === "function") {
+      body.cancel().catch(() => undefined);
+    } else if (typeof body.getReader === "function") {
+      body.getReader().cancel().catch(() => undefined);
+    }
+  } catch {
+    // best-effort: cancel fail hone par bhi koi detail bahar nahi jaati
+  }
+}
+
+/** Day 25 Part 2: kisi bhi tarah ka redirect => true. Configured URL se alag final URL bhi redirect maana jaata hai. Kabhi throw nahi karta. */
+function looksRedirected(res: ReviveFetchResponse, requestedUrl: string): boolean {
+  try {
+    if (res.redirected === true) return true;
+    if (typeof res.type === "string" && (res.type === "opaqueredirect" || res.type === "opaque")) return true;
+    if (typeof res.url === "string" && res.url !== "" && new URL(res.url).href !== requestedUrl) return true;
+    return false;
+  } catch {
+    return true; // final URL samajh na aaye => bharosa nahi
+  }
+}
 
 /** Fill ko galti se JSON me serialize karne par raw body bahar na jaye: sirf status + format dikhta hai. */
 function sealed<T extends object>(fill: T, format: ReviveResponseFormat): Readonly<T> {
@@ -221,6 +259,7 @@ type ReadOutcome = { ok: true; text: string } | { ok: false; reason: ReviveNoFil
 async function readBounded(res: ReviveFetchResponse, deadline: Promise<"timeout">): Promise<ReadOutcome> {
   const declared = res.headers.get("content-length");
   if (declared !== null && /^\d+$/.test(declared.trim()) && Number(declared.trim()) > REVIVE_MAX_BODY_BYTES) {
+    discardBody(res); // Day 25 Part 2: declared size hi zyada => body padhe bina band
     return { ok: false, reason: "too_large" };
   }
   const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -293,6 +332,7 @@ export function createReviveAdapter(rawConfig?: unknown, deps: ReviveAdapterDeps
 
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let delivered = false; // sirf poora padha hua fill => request ko abort nahi karna; baaki har raste par abort (connection release)
     try {
       const deadline = new Promise<"timeout">((resolve) => {
         timer = setTimeout(() => {
@@ -312,17 +352,34 @@ export function createReviveAdapter(rawConfig?: unknown, deps: ReviveAdapterDeps
       );
       call.catch(() => undefined); // timeout ke baad late reject => unhandled rejection nahi
       const res = await Promise.race([call, deadline]);
-      if (res === "timeout") return noFill("timeout");
+      if (res === "timeout") {
+        call.then((late) => discardBody(late)).catch(() => undefined); // deadline ke baad aaya response bhi band
+        return noFill("timeout");
+      }
       if (!res || typeof res.status !== "number" || res.status < 200 || res.status > 299 || !res.headers || typeof res.headers.get !== "function") {
+        discardBody(res);
         return noFill("http_error");
       }
-      if (!contentTypeMatches(res.headers.get("content-type"), responseFormat)) return noFill("bad_content_type");
+      if (looksRedirected(res, deliveryUrl)) {
+        discardBody(res);
+        return noFill("http_error");
+      }
+      if (!contentTypeMatches(res.headers.get("content-type"), responseFormat)) {
+        discardBody(res);
+        return noFill("bad_content_type");
+      }
 
       const read = await readBounded(res, deadline);
       if (!read.ok) return noFill(read.reason);
       if (read.text.trim() === "") return noFill("empty_response");
 
-      if (responseFormat === "html") return sealed({ status: "fill" as const, format: "html" as const, body: read.text }, "html");
+      if (responseFormat === "html") {
+        delivered = true;
+        return sealed({ status: "fill" as const, format: "html" as const, body: read.text }, "html");
+      }
+      // Day 25 Part 1: documented contract validator (size, utf-8, JSON object, plain-text fields, https destination, no executable keys).
+      const checked = validateJsonEndpointText(read.text);
+      if (!checked.ok) return noFill(checked.reason === "too_large" ? "too_large" : "bad_response");
       let payload: unknown;
       try {
         payload = JSON.parse(read.text);
@@ -330,11 +387,13 @@ export function createReviveAdapter(rawConfig?: unknown, deps: ReviveAdapterDeps
         return noFill("bad_response");
       }
       if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return noFill("bad_response");
+      delivered = true;
       return sealed({ status: "fill" as const, format: "json" as const, payload }, "json");
     } catch {
       return noFill("network_error"); // provider error text kabhi aage nahi jaata
     } finally {
       if (timer !== undefined) clearTimeout(timer);
+      if (!delivered && !controller.signal.aborted) controller.abort(); // reject/error par bhi request band (adapter koi listener nahi lagata)
     }
   }
 

@@ -17,6 +17,7 @@ const code = (f: string) => read(f).split("\n").filter((l) => !l.trim().startsWi
 const KEY = "hash_abc";
 const AD: MatchedAd = { id: "00000000-0000-4000-8000-0000000000c1", headline: "H", body: "B", ctaText: "Go", destinationUrl: "https://advertiser.example.com/x" };
 const REQ: MatchRequest = { topic: "gaming", excludeAdIds: [] };
+const GOOD_CREATIVE = { headline: "Sample headline", body: "Sample body text.", cta_text: "Learn more", destination_url: "https://example.com/landing" }; // Day 25 Part 1: adapter ab documented contract se validate karta hai
 const FILL: FallbackOutcome = { provider: "revive", format: "json", data: { marker: "RAW-DATA-42" } };
 const NO_FILL_BLISSCCO = { source: "blisscco", result: { kind: "no_fill" } };
 
@@ -269,11 +270,11 @@ describe("day 22 part 3 | production wiring from server env (flag default off)",
   });
 
   it("flag exactly 'true' + valid URL => provider fill attributed to revive", async () => {
-    const { fetcher, calls } = jsonFetcher('{"a":1}');
+    const { fetcher, calls } = jsonFetcher(JSON.stringify(GOOD_CREATIVE));
     const out = await via({ REVIVE_FALLBACK_ENABLED: "true", REVIVE_DELIVERY_URL: URL_OK, REVIVE_TIMEOUT_MS: "500" }, fetcher);
     assert.equal(out.source, "provider");
     assert.equal(out.source === "provider" && out.provider, "revive");
-    assert.deepEqual(out.source === "provider" && out.fill.data, { a: 1 });
+    assert.deepEqual(out.source === "provider" && out.fill.data, GOOD_CREATIVE);
     assert.equal(calls.length, 1);
     assert.equal(calls[0], new URL(URL_OK).href);
   });

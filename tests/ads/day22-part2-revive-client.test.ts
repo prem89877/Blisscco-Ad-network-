@@ -18,6 +18,7 @@ const walk = (dir: string): string[] =>
 const SECRET_KEY = "SUPERSECRET123";
 const HOST = "delivery.internal-revive.example.com";
 const URL_WITH_SECRET = `https://${HOST}/serve?zoneid=7&key=${SECRET_KEY}`;
+const GOOD_CREATIVE = { headline: "Sample headline", body: "Sample body text.", cta_text: "Learn more", destination_url: "https://example.com/landing" }; // Day 25 Part 1: adapter ab documented contract se validate karta hai
 const RAW_MARK = "RAW-PROVIDER-BODY-9d1";
 const ERR_MARK = "PROVIDER-ERROR-TEXT-77";
 const cfg = (over: Record<string, unknown> = {}) => ({ enabled: true, deliveryUrl: URL_WITH_SECRET, timeoutMs: 60, ...over });
@@ -49,9 +50,9 @@ afterEach(() => {
 
 describe("day 22 part 2 | valid response", () => {
   it("one server-side GET to ONLY the configured URL, with safe request options", async () => {
-    mockFetch(async () => json({ anything: [1, 2] }));
+    mockFetch(async () => json(GOOD_CREATIVE));
     const out = await run();
-    assert.deepEqual(out, { status: "fill", format: "json", payload: { anything: [1, 2] } });
+    assert.deepEqual(out, { status: "fill", format: "json", payload: GOOD_CREATIVE });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, new URL(URL_WITH_SECRET).href);
     assert.equal(calls[0].init.method, "GET");
@@ -71,19 +72,22 @@ describe("day 22 part 2 | valid response", () => {
 
   it("content-type matching is case-insensitive and accepts only utf-8 charset", async () => {
     for (const ct of ["application/json", "Application/JSON", "application/json; charset=utf-8", 'application/json; charset="UTF-8"', "application/json;"]) {
-      mockFetch(async () => json({ ok: true }, ct));
+      mockFetch(async () => json(GOOD_CREATIVE, ct));
       assert.equal(reasonOf(await run()), "fill", ct);
     }
   });
 
   it("a body of exactly the size limit is accepted", async () => {
-    const pad = "x".repeat(REVIVE_MAX_BODY_BYTES - `{"a":""}`.length);
-    mockFetch(async () => new Response(`{"a":"${pad}"}`, { headers: { "content-type": "application/json" } }));
+    const base = JSON.stringify({ ...GOOD_CREATIVE, pad: "" }); // Day 25 Part 1: valid creative + ignorable extra field se exact limit
+    const pad = "x".repeat(REVIVE_MAX_BODY_BYTES - base.length);
+    const exact = JSON.stringify({ ...GOOD_CREATIVE, pad });
+    assert.equal(new TextEncoder().encode(exact).byteLength, REVIVE_MAX_BODY_BYTES);
+    mockFetch(async () => new Response(exact, { headers: { "content-type": "application/json" } }));
     assert.equal(reasonOf(await run()), "fill");
   });
 
   it("the fill result does not leak the raw body if it is accidentally serialized", async () => {
-    mockFetch(async () => json({ marker: RAW_MARK }));
+    mockFetch(async () => json({ ...GOOD_CREATIVE, marker: RAW_MARK }));
     const out = await run();
     assert.equal(out.status, "fill");
     assert.ok(!JSON.stringify(out).includes(RAW_MARK));
@@ -338,7 +342,7 @@ describe("day 22 part 2 | publishers, browser code and the match API are untouch
     assert.ok(!/process\.env|console\.|server-only|"use client"|XMLHttpRequest|localStorage|document\.|window\./.test(src));
     assert.ok(!/supabase|createAdminClient|ledger|payout|billing|spend|budget|serve-db|click-db|impression-db/i.test(src));
     assert.equal((src.match(/globalThis/g) ?? []).length, 1);
-    assert.deepEqual(src.match(/^\s*import\s[^;]+;/gm)?.map((i) => i.trim()), ['import type { AdProviderAdapter } from "./provider-adapter";']);
+    assert.deepEqual(src.match(/^\s*import\s[^;]+;/gm)?.map((i) => i.trim()), ['import { validateJsonEndpointText } from "./revive-json-endpoint-contract";', 'import type { AdProviderAdapter } from "./provider-adapter";']);
   });
 
   it("nothing in app, components or any other lib file references Revive (no browser/publisher exposure)", () => {

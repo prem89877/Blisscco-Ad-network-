@@ -396,7 +396,7 @@ describe("day 24 part 1 | scope: not wired in, no side effects", () => {
           )
         : [];
     for (const f of [...walk("lib"), ...walk("app"), ...walk("components"), "middleware.ts"]) {
-      if (f === MODULE || f === "lib/ads/revive-json-preview.ts" || !/\.(ts|tsx)$/.test(f)) continue; // Day 24 Part 2: alag flag wala preview prototype ise import karta hai
+      if (f === MODULE || f === "lib/ads/revive-json-preview.ts" || f === "lib/ads/revive-adapter.ts" || !/\.(ts|tsx)$/.test(f)) continue; // Day 24 Part 2: alag flag wala preview prototype ise import karta hai // Day 25 Part 1: Revive adapter ise response validate karne ke liye import karta hai (tests/ads/day25-part1 usse bandhta hai)
       assert.doesNotMatch(readFileSync(path.join(ROOT, f), "utf8"), /revive-json-endpoint-contract/, f);
     }
   });

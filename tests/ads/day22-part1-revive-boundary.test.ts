@@ -24,6 +24,7 @@ const walk = (dir: string): string[] =>
     e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}/${e.name}`] : [],
   );
 
+const GOOD_CREATIVE = { headline: "Sample headline", body: "Sample body text.", cta_text: "Learn more", destination_url: "https://example.com/landing" }; // Day 25 Part 1: adapter ab documented contract se validate karta hai
 const URL_OK = "https://delivery.example.com/serve";
 const good = (over: Record<string, unknown> = {}) => ({ enabled: true, deliveryUrl: URL_OK, ...over });
 const res = (status: number, body: string, contentType = "application/json"): ReviveFetchResponse => ({ status, headers: { get: (n: string) => (n.toLowerCase() === "content-type" ? contentType : null) }, text: async () => body });
@@ -50,9 +51,9 @@ describe("day 22 part 1 | adapter contract", () => {
   });
 
   it("valid config + fetcher: one plain GET to the configured URL, nothing extra added", async () => {
-    const { fetcher, calls } = spyFetcher(async () => res(200, '{"any":"shape"}'));
+    const { fetcher, calls } = spyFetcher(async () => res(200, JSON.stringify(GOOD_CREATIVE)));
     const out = await createReviveAdapter(good(), { fetcher }).requestFill();
-    assert.deepEqual(out, { status: "fill", format: "json", payload: { any: "shape" } });
+    assert.deepEqual(out, { status: "fill", format: "json", payload: GOOD_CREATIVE });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, new URL(URL_OK).href);
     assert.equal(calls[0].init.method, "GET");
@@ -223,7 +224,7 @@ describe("day 22 part 1 | isolation from database, billing and production servin
   it("module only has a TYPE import of provider-adapter; no DB, billing, ledger, env, server-only or client modules", () => {
     const src = code(FILE);
     const imports = src.match(/^\s*import\s[^;]+;/gm) ?? [];
-    assert.deepEqual(imports.map((i) => i.replace(/\s+/g, " ").trim()), ['import type { AdProviderAdapter } from "./provider-adapter";']);
+    assert.deepEqual(imports.map((i) => i.replace(/\s+/g, " ").trim()), ['import { validateJsonEndpointText } from "./revive-json-endpoint-contract";', 'import type { AdProviderAdapter } from "./provider-adapter";']);
     assert.ok(!/\brequire\(|import\(/.test(src));
     assert.ok(!/supabase|createAdminClient|ledger|payout|billing|spend|budget|campaigns|serve-db|click-db|impression-db|candidate/i.test(src));
     assert.ok(!/process\.env|server-only|"use client"|'use client'|console\.|\bfetch\(|XMLHttpRequest|localStorage|document\.|window\./.test(src));

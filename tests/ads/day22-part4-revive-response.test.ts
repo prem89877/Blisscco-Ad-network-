@@ -253,11 +253,9 @@ describe("day 22 part 4 | end to end through the real adapter and routing (fake 
 
   it("an unsafe provider creative ends as no-fill material: nothing mappable comes out", async () => {
     const out = await route(ENV, fetcherFor(JSON.stringify({ ...GOOD, destination_url: "javascript:alert(1)" })));
-    assert.equal(out.source, "provider");
-    if (out.source !== "provider") return;
-    const x = extractReviveCreative(out.fill);
-    const mapped = x.ok ? buildProviderAdResponse(x.provider, x.creative) : x;
-    assert.equal(mapped.ok, false);
+    // Day 25 Part 1: adapter ab unsafe destination khud reject karta hai => provider fill hi nahi banta, Blisscco no-fill rehta hai
+    assert.equal(out.source, "blisscco");
+    assert.deepEqual(out, { source: "blisscco", result: { kind: "no_fill" } });
   });
 });
 
@@ -272,7 +270,7 @@ describe("day 22 part 4 | static boundaries", () => {
 
   it("revive-adapter.ts still imports only the provider-adapter type (no click, contract, db or env)", () => {
     const imports = (code("lib/ads/revive-adapter.ts").match(/^\s*import\s[^;]+;/gm) ?? []).map((i) => i.replace(/\s+/g, " ").trim());
-    assert.deepEqual(imports, ['import type { AdProviderAdapter } from "./provider-adapter";']);
+    assert.deepEqual(imports, ['import { validateJsonEndpointText } from "./revive-json-endpoint-contract";', 'import type { AdProviderAdapter } from "./provider-adapter";']);
   });
 
   it("match handler, routes and serving never name the mapper, the adapter or Revive (Part 6 reaches them only through service.ts)", () => {
