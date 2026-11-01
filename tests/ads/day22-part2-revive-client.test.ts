@@ -343,7 +343,7 @@ describe("day 22 part 2 | publishers, browser code and the match API are untouch
 
   it("nothing in app, components or any other lib file references Revive (no browser/publisher exposure)", () => {
     for (const f of ["app", "components", "lib", "examples"].flatMap(walk)) {
-      if (f === FILE || f === "lib/ads/fallback-provider.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 22 Part 4: guide sirf text // Day 22 Part 3: flag-gated wiring file
+      if (f === FILE || f === "lib/ads/fallback-provider.ts" || f === "lib/ads/revive-json-preview.ts" || f === "lib/ads/revive-json-preview-provider.ts" || f === "app/api/revive-json-preview/route.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 24 Part 2: alag flag wala preview prototype (tests/ads/day24-part2 usse bandhta hai) // Day 22 Part 4: guide sirf text // Day 22 Part 3: flag-gated wiring file
       assert.ok(!/revive/i.test(code(f)), `${f} must not reference Revive`);
     }
   });

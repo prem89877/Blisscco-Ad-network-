@@ -222,7 +222,7 @@ describe("day 12 prompt 5 part 4 | static boundary (no provider, no credentials,
 
   it("no Revive code/env/credentials anywhere in app, lib, components, package.json or env example files", () => {
     for (const f of ["app", "lib", "components"].flatMap(walk)) {
-      if (f === "lib/ads/provider-adapter.ts" || f === "lib/ads/revive-adapter.ts" || f === "lib/ads/fallback-provider.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 22 Part 4: guide sirf text me batata hai
+      if (f === "lib/ads/provider-adapter.ts" || f === "lib/ads/revive-adapter.ts" || f === "lib/ads/fallback-provider.ts" || f === "lib/ads/revive-json-preview.ts" || f === "lib/ads/revive-json-preview-provider.ts" || f === "app/api/revive-json-preview/route.ts" || f === "app/dashboard/publisher/guide/page.tsx") continue; // Day 22 Part 4: guide sirf text me batata hai
       assert.ok(!/revive|REVIVE_|openx/i.test(code(f)), f);
     }
     assert.ok(!/revive/i.test(read("package.json")));

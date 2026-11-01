@@ -141,7 +141,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
 describe("Day 10 part 6: API surface and docs match the code", () => {
   it("only the two match routes, the impression route and the click route exist under app/api (plus the health check) and all export only POST", () => {
     const routes = walk("app/api", [".ts"]).map((f) => f.split(path.sep).join("/")).sort();
-    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/click/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
+    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/revive-json-preview/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/click/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
     for (const mod of [legacyRoute, v1Route, impressionRoute]) {
       assert.deepEqual(Object.keys(mod).filter((k) => /^[A-Z]+$/.test(k)), ["POST"]);
     }
@@ -181,7 +181,7 @@ describe("Day 10 part 6: Revive Adserver and tracking are not claimed or duplica
   const code = [...sourceFiles, ...walk("supabase/sql", [".sql"])];
 
   it("no source or SQL mentions Revive / an adserver integration", () => {
-    for (const f of code) if (!["lib/ads/revive-adapter.ts", "lib/ads/fallback-provider.ts", "app/dashboard/publisher/guide/page.tsx"].includes(f.split(path.sep).join("/"))) assert.equal(/revive|adserver|ad server|openx/i.test(read(f)), false, `${f} mentions an external ad server`); // Day 22 Part 1: sirf alag Revive boundary file allowed
+    for (const f of code) if (!["lib/ads/revive-adapter.ts", "lib/ads/fallback-provider.ts", "lib/ads/revive-json-preview.ts", "lib/ads/revive-json-preview-provider.ts", "app/api/revive-json-preview/route.ts", "app/dashboard/publisher/guide/page.tsx"].includes(f.split(path.sep).join("/"))) assert.equal(/revive|adserver|ad server|openx/i.test(read(f)), false, `${f} mentions an external ad server`); // Day 22 Part 1: sirf alag Revive boundary file allowed
   });
 
   it("no impression / click / conversion route, table, pixel or beacon exists", () => {
