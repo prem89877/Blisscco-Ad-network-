@@ -223,9 +223,11 @@ describe("day 16 part 1: analytics functions on a real TEST database", { skip: s
   it("CTR is rounded to 4 decimals (1 click / 3 impressions style data)", async (t) => {
     if (!ready(t)) return;
     const c = await makeCampaign(ids.adv1, "ROUND");
-    await addServe(ids.pub1, c, ["impression", "click"]);
-    await addServe(ids.pub1, c, ["impression"]);
-    await addServe(ids.pub1, c, ["impression"]);
+    // Traffic comes from the suspended publisher, so it counts for the campaign but does not change pub1's totals,
+    // which a later test checks (pub1 = 5 impressions / 3 clicks / ctr 60).
+    await addServe(ids.pubSusp, c, ["impression", "click"]);
+    await addServe(ids.pubSusp, c, ["impression"]);
+    await addServe(ids.pubSusp, c, ["impression"]);
     const rows = await campaignRows(users.adv1, c);
     assert.deepEqual([num(rows[0].impressions), num(rows[0].clicks), num(rows[0].ctr)], [3, 1, 33.3333]);
   });
