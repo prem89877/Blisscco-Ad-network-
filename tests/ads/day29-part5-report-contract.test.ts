@@ -79,6 +79,7 @@ describe("day 29 part 5: changed paths are real and honest", () => {
       const part = Number(row.charAt(2));
       for (const m of row.matchAll(/`([^`]+)`/g)) {
         const f = m[1];
+        if (!f.includes("/")) continue; // a bare word in backticks (e.g. `setup-guidance`) is a module name in prose, not a file path
         if (part >= 3 || f.startsWith("tests/")) continue; // Part 3/4 files are checked by their own tests; tests carry the name
         assert.match(read(f), /Day 29 Part [12]|setup-guidance/, `${f} has no Day 29 Part ${part} marker`);
       }
