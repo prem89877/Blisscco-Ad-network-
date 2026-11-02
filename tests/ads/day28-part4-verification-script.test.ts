@@ -188,7 +188,7 @@ function runScript(opts: { nodeMajor?: string; failStep?: string; failCode?: num
       STUB_FAIL_CODE: String(opts.failCode ?? 1),
     };
     if (opts.withCanaries) for (const n of CANARY_NAMES) env[n] = canary(n);
-    const res = spawnSync(BASH as string, [path.join(ROOT, SCRIPT)], { cwd: dir, env, encoding: "utf8" });
+    const res = spawnSync(BASH as string, [path.join(ROOT, SCRIPT)], { cwd: dir, env: env as unknown as NodeJS.ProcessEnv, encoding: "utf8" });
     return { status: res.status, out: `${res.stdout}\n${res.stderr}`, log: readFileSync(log, "utf8").split("\n").filter(Boolean) };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -203,7 +203,7 @@ describe("day 28 part 4 | behaviour with fake node and npm (nothing real runs)",
     try {
       writeFileSync(path.join(dir, "npm"), "#!/bin/sh\nexit 0\n");
       chmodSync(path.join(dir, "npm"), 0o755);
-      const res = spawnSync(BASH as string, ["-c", "command -v npm"], { env: { PATH: `${dir}:/usr/bin:/bin` }, encoding: "utf8" });
+      const res = spawnSync(BASH as string, ["-c", "command -v npm"], { env: { PATH: `${dir}:/usr/bin:/bin` } as unknown as NodeJS.ProcessEnv, encoding: "utf8" });
       assert.equal(res.stdout.trim(), path.join(dir, "npm"));
     } finally {
       rmSync(dir, { recursive: true, force: true });
