@@ -2,6 +2,7 @@ name: CI
 
 # Har push / pull request par: type check, tests, ESLint, production build.
 # Koi bhi check fail ho toh job laal (fail) hoga. Koi step skip hone par "passed" nahi dikhaya jata.
+# Node version .nvmrc se aati hai (package.json engines se mel khati hai); install sirf package-lock.json se (`npm ci`).
 # Secrets ya asli Supabase credentials yahan use nahi hote (build ke liye sirf dummy values).
 on:
   push:
@@ -25,24 +26,10 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Detect lockfile
-        id: lock
-        run: |
-          if [ -f package-lock.json ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-            echo "package-lock.json mila: npm ci use hoga."
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=package-lock.json missing::Reproducible install nahi hai. 'npm install' fallback chalega aur generated lockfile artifact me milega. Usse repo me commit karo."
-          fi
-
-      - name: Install (npm ci)
-        if: steps.lock.outputs.present == 'true'
+      # Reproducible install: sirf `npm ci` (package-lock.json se exact versions). Lockfile missing ya package.json se
+      # mismatch ho toh yeh step fail hoga; `npm install` fallback nahi hai, taaki CI kabhi chupke se alag versions na le.
+      - name: Install (npm ci, lockfile only)
         run: npm ci
-
-      - name: Install (npm install fallback, lockfile missing)
-        if: steps.lock.outputs.present != 'true'
-        run: npm install
 
       - name: Installed versions (next, react)
         run: npm ls next react react-dom
@@ -67,11 +54,3 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_dummy
           SUPABASE_SECRET_KEY: sb_secret_dummy
-
-      - name: Upload generated package-lock.json (only when it was missing)
-        if: ${{ !cancelled() && steps.lock.outputs.present != 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lock
-          path: package-lock.json
-          if-no-files-found: warn

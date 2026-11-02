@@ -232,7 +232,7 @@ describe("day 26 part 1 | the harness cannot be enabled through the production m
     try {
       void HARNESS_FALLBACK_ENV; // importing/holding the record does not enable anything
       assert.equal(process.env.REVIVE_FALLBACK_ENABLED, undefined);
-      assert.equal(process.env.REVIVE_DELIVERY_URL, undefined);
+      assert.equal("REVIVE_DELIVERY_URL" in process.env, false); // presence only: a failure message must never echo the value
       assert.deepEqual(await (await match(key)).json(), { fill: false });
     } finally { restore(); }
     assert.equal(h.calls.length, 0);

@@ -18,6 +18,7 @@ import { MAX_IMPRESSION_BODY_BYTES } from "@/lib/ads/impression";
 import { handleClickGet } from "@/lib/ads/click-handler";
 import { handleImpressionPost } from "@/lib/ads/impression-handler";
 import { createIpGuard } from "@/lib/ads/ip-guard";
+import { PROJECT_ROOT, compileForPublisherExample } from "./helpers/publisher-example-compiler";
 import { mintTrackingToken, verifyTrackingToken, readTrackingConfig } from "@/lib/ads/tracking-token";
 
 // Day 10 Part 4: publisher guide ke SERVER-SIDE examples (TypeScript aur JavaScript) asli API handler ke against CHALAYE jaate hain.
@@ -146,16 +147,10 @@ const ENV_OK = { BLISSCCO_API_BASE_URL: API_BASE, BLISSCCO_PUBLISHER_API_KEY: KE
 
 describe("guide TypeScript example runs against the real API handler", () => {
   it("the example compiles with no type errors (strict)", () => {
-    const fileName = "example.ts";
-    const options: ts.CompilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, strict: true, noEmit: true, lib: ["lib.es2022.d.ts", "lib.dom.d.ts"], types: ["node"], skipLibCheck: true };
-    const host = ts.createCompilerHost(options);
-    const original = host.getSourceFile.bind(host);
-    host.getSourceFile = (name, lang, ...rest) => (name === fileName ? ts.createSourceFile(name, TS_SOURCE, lang) : original(name, lang, ...rest));
-    const originalExists = host.fileExists.bind(host);
-    host.fileExists = (name) => name === fileName || originalExists(name);
-    const program = ts.createProgram([fileName], options, host);
-    const diagnostics = ts.getPreEmitDiagnostics(program).filter((d) => d.file?.fileName === fileName);
-    assert.deepEqual(diagnostics.map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n")), []);
+    // Day 28 Part 1: project ke apne @types/node (absolute typeRoots) aur project root se; cwd par depend nahi. Missing Node types par saaf error.
+    const virtualFile = path.join(PROJECT_ROOT, "tests", "ads", "__virtual__", "guide-server-example.ts");
+    const diagnostics = compileForPublisherExample([virtualFile], { virtualFiles: { [virtualFile]: TS_SOURCE } });
+    assert.deepEqual(diagnostics, []);
   });
 
   it("success: returns the ad; sends the documented URL, headers and ONLY topic + exclude_ad_ids", async () => {
@@ -635,14 +630,8 @@ describe("Day 20 part 4: the guide's Node.js quickstart runs against the real AP
       writeFileSync(path.join(dir, "client.ts"), read("examples/publisher-node/src/client.ts"));
       writeFileSync(path.join(dir, "types.ts"), read("examples/publisher-node/src/types.ts"));
       writeFileSync(path.join(dir, "sample.ts"), lines("NODE_QUICKSTART_EXAMPLE"));
-      const options: ts.CompilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, strict: true, noEmit: true, lib: ["lib.es2022.d.ts", "lib.dom.d.ts"], types: ["node"], skipLibCheck: true };
-      const program = ts.createProgram([path.join(dir, "sample.ts")], options);
-      const diagnostics = ts
-        .getPreEmitDiagnostics(program)
-        .filter((d) => d.file && d.file.fileName.startsWith(dir))
-        .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"))
-        // Kuch machines par @types/node installed nahi hota; baaki har type error asli hai.
-        .filter((m) => !/Cannot find (name|module) '(process|console|node:crypto)'/.test(m));
+      // Day 28 Part 1: same shared strict options; koi bhi diagnostic filter nahi hota (pehle process/console/node:crypto ke errors chhupte the).
+      const diagnostics = compileForPublisherExample([path.join(dir, "sample.ts")]);
       assert.deepEqual(diagnostics, []);
     } finally {
       rmSync(dir, { recursive: true, force: true });

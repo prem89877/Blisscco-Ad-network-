@@ -94,6 +94,15 @@ Evidence required before any claim of compatibility:
 
 Goal: check one real endpoint on a Vercel Preview deployment, without touching Production and without exposing the URL.
 
+**Preflight checklist (Day 28).** Every box must be a plain yes before step 1 below. If one is not, stop; nothing has been changed yet.
+
+- [ ] **Preview environment label:** the deployment you will test shows the Environment label Preview in the Vercel dashboard, and the variables will be added for Preview only (Production and Development unticked).
+- [ ] **Dedicated test publisher key:** a Preview-only test publisher with its own key, made just for this test. Never a real publisher's key. Keep it in a terminal variable only, and revoke it at cleanup.
+- [ ] **Endpoint owner approval:** the endpoint owner has agreed, in writing, to test requests from Blisscco's Preview server. Record only "approved" and the date, never the URL.
+- [ ] **Verified HTTPS JSON response:** all eight gate items in section 1 passed by hand (HTTPS, fields, size, content type, no redirect, timeout, safe destination, attribution).
+- [ ] **Cleanup ready:** the cleanup in step 9 below is understood, and a named person will run it straight after the test.
+
+
 1. Get a **dedicated** endpoint from its owner. Dedicated means it exists only for this test, returns a test creative, and can be rotated or deleted afterwards. Do not point a test at an endpoint that serves live advertisers.
 2. Run the manual checks from `DAY25-REVIVE-ENDPOINT-COMPATIBILITY.md` section 6 first, with the URL entered without echo. Stop on any fail.
 3. In Vercel: project > Settings > Environment Variables. Add these as **server-side** variables, **Preview only**. Leave Production and Development unticked. Never use a `NEXT_PUBLIC_` prefix.
@@ -111,9 +120,9 @@ Goal: check one real endpoint on a Vercel Preview deployment, without touching P
 7. Send a request for a topic that has an approved Blisscco campaign. Expect the Blisscco ad, not the provider ad: the provider is only a fallback.
 8. Check Production separately. It must still answer `{"fill":false}` for the no-campaign topic.
 9. Cleanup, in this order:
-   1. Delete `REVIVE_FALLBACK_ENABLED` and `REVIVE_DELIVERY_URL` (and the two optional ones if you added them) from Preview.
-   2. Redeploy Preview without the build cache and wait until it is Ready.
-   3. Repeat the no-campaign request. Expect `{"fill":false}`.
+   1. Delete `REVIVE_FALLBACK_ENABLED` and `REVIVE_DELIVERY_URL` from Preview, plus any of `REVIVE_RESPONSE_FORMAT`, `REVIVE_TIMEOUT_MS` and `REVIVE_JSON_PREVIEW_ENABLED` that you added. Check that Production and Development hold none of these names.
+   2. Redeploy Preview without the build cache and wait until it is Ready. Variable changes apply to new deployments only, so the old deployment keeps the fallback on until then.
+   3. Repeat the no-campaign request. Expect `{"fill":false}`, which shows fallback is disabled again.
    4. Ask the endpoint owner to rotate or delete the dedicated endpoint.
    5. Clear the terminal values with `unset`.
 
