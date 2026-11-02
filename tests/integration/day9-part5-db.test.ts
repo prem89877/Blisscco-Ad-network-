@@ -57,7 +57,14 @@ describe("day 9 part 5: record_ad_serve on a real TEST database", { skip: skipRe
     );
     const creativeId = String(cr.rows[0].id);
     creatives.push(creativeId);
-    await pool.query(`update public.ad_creatives set status = $2, reviewed_at = now() where id = $1`, [creativeId, opts.creative ?? "approved"]);
+    // The database requires a rejection reason whenever a creative is rejected (ad_creatives_rejection_reason_check).
+    await pool.query(
+      `update public.ad_creatives
+          set status = $2::text, reviewed_at = now(),
+              rejection_reason = case when $2::text = 'rejected' then 'TEST: rejected by the integration test' else null end
+        where id = $1`,
+      [creativeId, opts.creative ?? "approved"],
+    );
     await pool.query(`update public.campaigns set status = $2 where id = $1`, [campaignId, opts.status ?? "active"]);
     if (opts.endOffset !== undefined && opts.endOffset !== null) {
       await pool.query(`update public.campaigns set end_date = current_date + $2::int where id = $1`, [campaignId, opts.endOffset]);
