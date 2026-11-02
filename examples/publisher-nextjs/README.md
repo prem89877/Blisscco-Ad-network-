@@ -7,11 +7,22 @@ The publisher API key stays on the server. The browser only sends a topic.
 
 1. Copy `app/api/blisscco-ad/route.ts`, `components/SponsoredAd.tsx` and `lib/safe-url.ts` into your Next.js app,
    plus `examples/publisher-node/src/client.ts` and `types.ts`. Fix the client import path in `route.ts`.
-2. `cp .env.example .env.local` and fill in:
+2. `cp .env.example .env.local` and fill in (server only, never commit it):
    - `BLISSCCO_PUBLISHER_API_KEY`: your `blc_live_...` key (Publisher dashboard -> API keys).
-   - `BLISSCCO_API_BASE_URL`: your Blisscco site URL (`http://localhost:3000` for local testing).
+   - `BLISSCCO_API_BASE_URL`: the API host Blisscco gives you (`http://localhost:3000` for local testing).
+   - Neither variable gets a `NEXT_PUBLIC_` prefix (no `NEXT_PUBLIC_` prefix, ever).
 3. On Vercel add the same two variables (no `NEXT_PUBLIC_` prefix), then redeploy.
-4. Use it: `<SponsoredAd topic="gaming" />`. Topics are limited to the allowlist in `route.ts`.
+4. Use it after your assistant's answer: `<SponsoredAd topic="gaming" />`. Topics are limited to the allowlist in `route.ts`.
+
+## Routes
+
+Browser -> your own route (same origin) -> Blisscco:
+
+| Step | Your route | Calls Blisscco | Body from the browser |
+| --- | --- | --- | --- |
+| Request an ad | `POST /api/blisscco-ad` | `POST /api/v1/ads/match` (with the key) | `{ "topic": "gaming" }` |
+| Impression | `POST /api/blisscco-ad` | `POST /api/v1/ads/impression` (no key) | `{ "token": "...", "event": "impression" }` |
+| Click | `POST /api/blisscco-ad` | `GET /api/v1/ads/click?ref=...` (no key) | `{ "click_ref": "...", "event": "click" }` |
 
 ## Rules
 

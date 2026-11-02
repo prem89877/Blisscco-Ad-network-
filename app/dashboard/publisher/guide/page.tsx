@@ -14,6 +14,8 @@ export const metadata: Metadata = { title: "Integration Guide | Blisscco Dashboa
 // Source of truth for the contract: DAY6-ADS-MATCH-CONTRACT.md, lib/ads/contract.ts and the impression and click route handlers.
 // Day 15 Part 4: tests/ads/publisher-guide.test.ts checks this page against the real code. This page imports none of those modules.
 // Day 20 Part 4: pilot quickstart (examples/publisher-node, examples/publisher-nextjs) and troubleshooting, checked by the same tests.
+// Day 29 Part 1: quick-start sequence (key, base URL, request, render, impression/click) and route table. Checked against the real routes by tests/publisher/day29-part1-quick-start.test.ts.
+// Day 29 Part 4: section 6a (disclosure and publisher responsibility). Checked by tests/landing/day29-part4-trust-pages.test.ts.
 // Rules for this page: no real key, no real publisher, no deployment URL, no claim about third-party chatbots,
 // no claim of production readiness. Code samples are plain strings (no template literals) so nothing is interpolated.
 
@@ -408,6 +410,20 @@ const NEXTJS_USAGE_EXAMPLE = [
   '}',
 ].join("\n");
 
+// Day 29 Part 1: quick-start env sample. Placeholders only: names match examples/publisher-nextjs/.env.example and the Node client's fromEnv().
+const QUICK_START_ENV_EXAMPLE = [
+  '# Server environment only. Never commit it, and never give either name a public prefix.',
+  'BLISSCCO_PUBLISHER_API_KEY=paste-your-key-from-the-publisher-page',
+  'BLISSCCO_API_BASE_URL=https://YOUR-BLISSCCO-API-HOST',
+].join("\n");
+
+// Day 29 Part 1: the three real routes and what each one requires. Every entry is checked against app/api/v1/ads/* and its parsers.
+const QUICK_START_ROUTES: Array<{ route: string; auth: string; required: string; optional: string }> = [
+  { route: "POST /api/v1/ads/match", auth: "Authorization: Bearer <your key>", required: "Content-Type: application/json, body field topic", optional: "Idempotency-Key header, X-Blisscco-Tracking: 1 header, fallback_topics and exclude_ad_ids body fields" },
+  { route: "POST /api/v1/ads/impression", auth: "None (the token is the permission)", required: "Content-Type: application/json, body fields token and event (the value impression)", optional: "None" },
+  { route: "GET /api/v1/ads/click", auth: "None (the click_ref is the permission)", required: "Query parameter ref, exactly once", optional: "None" },
+];
+
 type Row = { status: string; body: string; meaning: string; action: string };
 
 const IMPRESSION_ERRORS: Row[] = [
@@ -516,12 +532,52 @@ export default async function PublisherGuidePage() {
           </p>
         </Panel>
 
-        <Panel title="Integration steps">
+        <Panel title="Integration steps" note="Create a key, configure the base URL, request an ad, render it, then send impression and click events.">
           <IntegrationSteps />
         </Panel>
       </div>
 
       <div className="mt-6 grid gap-4">
+        <Panel
+          title="Quick start: five steps"
+          note="The short version. Sections 1 to 10 below remain the full contract."
+        >
+          <ol className="list-decimal space-y-2 pl-5 text-sm text-mist/75">
+            <li><strong>Create a publisher key.</strong> Once your account is approved, create a key on the Publisher page and copy it straight into <code>BLISSCCO_PUBLISHER_API_KEY</code> on your server (section 2).</li>
+            <li><strong>Configure the API base URL.</strong> Set <code>BLISSCCO_API_BASE_URL</code> to the host Blisscco gives you (section 3).</li>
+            <li><strong>Request an ad.</strong> Your server calls <code>POST /api/v1/ads/match</code> with a <code>topic</code> and the key in the <code>Authorization</code> header. Add <code>X-Blisscco-Tracking: 1</code> to receive <code>tracking.token</code> and <code>tracking.click_ref</code> (sections 3 and 4a).</li>
+            <li><strong>Render the sponsored item.</strong> Show the five public ad fields with the visible <strong>Sponsored</strong> label, after the assistant&apos;s answer. On no-fill or any error, show nothing (sections 6 and 7).</li>
+            <li><strong>Send impression and click events.</strong> After the ad is on screen, send <code>tracking.token</code> to <code>POST /api/v1/ads/impression</code>. Link the call-to-action to <code>GET /api/v1/ads/click?ref=</code> plus the encoded <code>tracking.click_ref</code> (sections 4c and 4d).</li>
+          </ol>
+          <div className="mt-3">
+            <CodeBlock code={QUICK_START_ENV_EXAMPLE} label="Server environment variables (placeholders, not a real key)" />
+          </div>
+          <p className="mt-4 text-sm font-medium">Routes and required request fields</p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-left text-sm">
+              <caption className="sr-only">The three Ad API routes, their credentials and their required request fields</caption>
+              <thead>
+                <tr className="border-b border-line text-xs uppercase tracking-wide text-mist/55">
+                  <th scope="col" className="py-2 pr-3 font-medium">Route</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">Credential</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">Required</th>
+                  <th scope="col" className="py-2 font-medium">Optional</th>
+                </tr>
+              </thead>
+              <tbody>
+                {QUICK_START_ROUTES.map((r) => (
+                  <tr key={r.route} className="border-b border-line/60 align-top text-mist/75">
+                    <td className="py-2 pr-3 font-mono text-xs">{r.route}</td>
+                    <td className="py-2 pr-3">{r.auth}</td>
+                    <td className="py-2 pr-3">{r.required}</td>
+                    <td className="py-2">{r.optional}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+
         <Panel
           title="Pilot quickstart: Node.js and Next.js"
           note="Samples from the Blisscco repository, not a published package. Their automated tests use a mocked Blisscco API. No third-party integration has been tested."
@@ -994,6 +1050,19 @@ export default async function PublisherGuidePage() {
             <p className="mt-2 text-sm font-medium">Sample Advertiser: example headline</p>
             <p className="mt-1 text-sm text-mist/65">Example ad text shown after the assistant&apos;s own answer. This is not a real ad.</p>
           </div>
+        </Panel>
+
+        <Panel
+          title="6a. Disclosure and your responsibilities"
+          note="You run your own chatbot product. Blisscco does not review your interface, and this guide is not legal advice."
+        >
+          <ul className="list-disc space-y-2 pl-5 text-sm text-mist/75">
+            <li><strong>Disclose sponsored placements.</strong> Make it clear to people that an ad is sponsored, every time one is shown. The visible <strong>Sponsored</strong> label in section 6 is the minimum, not a replacement for any disclosure you owe your users.</li>
+            <li><strong>You own your chatbot UI.</strong> How, where and when an ad appears in your product, and how it looks next to your assistant&apos;s answers, is your decision and your responsibility. Keep the ad separate from the assistant&apos;s own words and never present it as the assistant&apos;s advice.</li>
+            <li><strong>You own your user-facing disclosures.</strong> If your product shows sponsored placements, say so in your own terms or privacy notice. Mention that a click opens a Blisscco link that redirects to the advertiser&apos;s site. Blisscco does not write or check your notices, and it does not promise that the integration meets any law or platform rule that applies to you.</li>
+            <li><strong>Share only the topic.</strong> The topic slug is the only signal Blisscco accepts (section 1). Do not request ads in sensitive conversations.</li>
+            <li><strong>Do not promise outcomes.</strong> A request can return no ad (section 7), and this guide does not promise ad fill or earnings. Impression and click counts depend on your integration reporting honestly (section 10).</li>
+          </ul>
         </Panel>
 
         <Panel title="7. Handling no-fill without breaking the chat">

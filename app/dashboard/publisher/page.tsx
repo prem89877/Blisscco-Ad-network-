@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import IntegrationSteps from "@/components/dashboard/IntegrationSteps";
@@ -10,6 +11,7 @@ import { requireRole } from "@/lib/auth/session";
 import { loadMyPublisher } from "@/lib/publisher/queries";
 import { categoryLabel } from "@/lib/campaigns/constants";
 import { listPublisherKeys } from "@/lib/publisher/keys-db";
+import { buildSetupSteps, type SetupState } from "@/lib/publisher/setup-guidance";
 
 export const metadata: Metadata = { title: "Publisher | Blisscco Dashboard" };
 export const dynamic = "force-dynamic";
@@ -22,6 +24,16 @@ const PRIVACY_POINTS: string[] = [
   "API keys are shown once when created. Only a scrambled (hashed) copy is stored, so we can never show a key again.",
 ];
 
+// Day 29 Part 2: setup status. Text label always shown (never colour alone). Done is shown only when the saved data proves it.
+const SETUP_TONES: Record<SetupState, string> = {
+  done: "bg-aqua/15 text-aqua",
+  next: "bg-violet/25 text-[#B9AAFF]",
+  waiting: "bg-amber-400/15 text-amber-300",
+  blocked: "bg-red-500/15 text-red-300",
+  locked: "bg-mist/10 text-mist/70",
+  unknown: "bg-amber-400/15 text-amber-300",
+};
+
 type Props = { searchParams: Promise<{ setup?: string }> };
 
 export default async function PublisherPage({ searchParams }: Props) {
@@ -32,6 +44,8 @@ export default async function PublisherPage({ searchParams }: Props) {
   if (failed) throw new Error("Publisher could not be loaded");
   // Suspended publisher ki purani keys bhi dikhti hain (sirf revoke ke liye): leaked key hamesha band ho sake.
   const keys = pub && (pub.status === "active" || pub.status === "suspended") ? await listPublisherKeys(pub.id) : null;
+
+  const setupSteps = buildSetupSteps(pub, keys, new Date());
 
   return (
     <>
@@ -44,6 +58,42 @@ export default async function PublisherPage({ searchParams }: Props) {
       {sp.setup === "1" && pub && <Notice tone="success">Your details are saved.</Notice>}
 
       <div className="mt-6 space-y-6">
+        <Panel title="Setup status" note="Where your account is now, taken from your saved details and keys. A step shows Done only when that data proves it.">
+          <ol className="space-y-4">
+            {setupSteps.map((step, i) => (
+              <li key={step.id} className="flex gap-3">
+                <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet/25 text-sm font-semibold text-[#B9AAFF]">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold sm:text-base">
+                    <span className="sr-only">Step {i + 1}: </span>
+                    {step.title}
+                    <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${SETUP_TONES[step.state]}`}>
+                      {step.state === "done" ? "Done: " : ""}
+                      {step.label}
+                    </span>
+                  </h3>
+                  <p className="mt-0.5 text-sm text-mist/70">{step.detail}</p>
+                  {step.action && (
+                    <p className="mt-0.5 text-sm text-mist/80">
+                      <span className="font-medium">Next step:</span> {step.action}
+                      {step.href && (
+                        <>
+                          {" "}
+                          <Link href={step.href} className="rounded text-aqua underline-offset-2 hover:underline">
+                            Open the integration guide
+                          </Link>
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+
         {!pub && (
           <Panel title="Set up your platform" note="One quick step before you can get an API key.">
             <PublisherSetupForm />

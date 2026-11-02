@@ -25,7 +25,7 @@ import { remainingBudget } from "@/lib/campaigns/budget";
 import { deliveryState } from "@/lib/campaigns/delivery";
 import { CREATIVE_STATUS_LABELS, availableCreativeActions } from "@/lib/campaigns/creative-validation";
 import { SUBMIT_BLOCK_MESSAGES, checkSubmitCampaign, reviewActionFor } from "@/lib/campaigns/review";
-import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid } from "@/lib/campaigns/constants";
+import { EDIT_LOCKED_STATUSES, STATUS_HELP, categoryLabel, isUuid, type CampaignDbStatus } from "@/lib/campaigns/constants";
 import { DELIVERY_NOTE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import { utcToday } from "@/lib/campaigns/validation";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -52,6 +52,42 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <dd className="min-w-0 break-words text-sm text-mist">{children}</dd>
     </div>
   );
+}
+
+// Day 29 Part 3: "what to do next" for the status the campaign already has. Text only: it points at buttons and
+// sections that already exist (Review, Actions) and never changes a status or adds a transition.
+type NextStepInput = {
+  status: CampaignDbStatus;
+  canChange: boolean;
+  showReview: boolean;
+  reviewBlocked: string | null;
+  showResume: boolean;
+  resumeBlocked: string | null;
+  serving: boolean | null;
+};
+
+function nextStep(c: NextStepInput): string | null {
+  if (!c.canChange) return "Nothing to do here until your advertiser account is active.";
+  switch (c.status) {
+    case "draft":
+      if (c.reviewBlocked) return c.reviewBlocked;
+      return c.showReview ? "Send this campaign for review in the Review section below." : null;
+    case "pending_review":
+      return "Wait for our team's review. You can take it back to draft from the Review section below if you need to edit it.";
+    case "active":
+      return c.serving
+        ? "Nothing is required. Keep an eye on spend and performance below. You can pause it at any time."
+        : "Ads are not eligible to show right now. The note above says why.";
+    case "paused":
+      return c.showResume ? "Resume it when you want it to be eligible to show ads again." : c.resumeBlocked;
+    case "rejected":
+      return "Move it back to draft from the Review section, edit it, then send it for review again.";
+    case "completed":
+    case "archived":
+      return "No further action is needed. It cannot be edited.";
+    default:
+      return null;
+  }
 }
 
 export default async function CampaignDetailPage({ params, searchParams }: Props) {
@@ -116,6 +152,15 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
   const reviewBlocked = reviewAction === "submit" && !submitCheck.ok ? SUBMIT_BLOCK_MESSAGES[submitCheck.reason] : null;
   const canAddCreative = canChange && campaign.status !== "archived" && campaign.status !== "completed";
   const usd = (n: number) => `$${n.toFixed(4)}`;
+  const next = nextStep({
+    status: campaign.status,
+    canChange,
+    showReview,
+    reviewBlocked,
+    showResume,
+    resumeBlocked,
+    serving: delivery ? delivery.serving : null,
+  });
 
   return (
     <>
@@ -130,6 +175,11 @@ export default async function CampaignDetailPage({ params, searchParams }: Props
           <CampaignStatusBadge status={campaign.status} />
         </div>
         <p className="mt-2 max-w-2xl text-sm text-mist/70 sm:text-base">{STATUS_HELP[campaign.status]}</p>
+        {next && (
+          <p className="mt-2 max-w-2xl text-sm text-mist/80" data-next-step>
+            <span className="font-medium text-mist">Next step:</span> {next}
+          </p>
+        )}
         {delivery && <DeliveryNote state={delivery} />}
       </div>
 

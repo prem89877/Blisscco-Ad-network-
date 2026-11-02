@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import Button from "@/components/ui/Button";
 import { CAMPAIGN_CATEGORIES, type CampaignCategory } from "@/lib/types";
+import { MIN_TOTAL_BUDGET } from "@/lib/campaigns/constants";
 
 export type NewCampaignInput = { name: string; category: CampaignCategory; budget: number };
 
@@ -92,6 +93,10 @@ export default function CreateCampaignForm({ onCreate, onCancel }: Props) {
       <p className="mt-1 text-sm text-mist/65">
         This only adds a sample row to this page. It is not saved and no ads are delivered. All fields are required.
       </p>
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-mist/60">
+        <li>Ad content and the destination URL are not part of this form. A real campaign gets them on its ads (headline, text, secure https link) after it is created.</li>
+        <li>Status: a real campaign starts as a draft and can show ads only after review and approval. This sample row is never reviewed or live.</li>
+      </ul>
 
       {errorCount > 0 && (
         <p role="alert" className="mt-4 rounded-lg border border-rose-400/60 bg-rose-400/10 px-3 py-2 text-sm text-rose-300">
@@ -128,7 +133,7 @@ export default function CreateCampaignForm({ onCreate, onCancel }: Props) {
             onChange={(e) => setCategory(e.target.value)}
             aria-required="true"
             aria-invalid={errors.category ? true : undefined}
-            aria-describedby={errors.category ? "cc-category-error" : undefined}
+            aria-describedby={errors.category ? "cc-category-error cc-category-hint" : "cc-category-hint"}
             className={`${inputCls} ${border("category")}`}
           >
             <option value="">Choose a category</option>
@@ -136,6 +141,7 @@ export default function CreateCampaignForm({ onCreate, onCancel }: Props) {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          <p id="cc-category-hint" className="mt-1.5 text-xs text-mist/55">Pick what the ad promotes. It decides which requests the campaign can match.</p>
           {errors.category && <p id="cc-category-error" className="mt-1.5 text-sm text-rose-300">{errors.category}</p>}
         </div>
 
@@ -155,7 +161,7 @@ export default function CreateCampaignForm({ onCreate, onCancel }: Props) {
             aria-describedby={errors.budget ? "cc-budget-error cc-budget-hint" : "cc-budget-hint"}
             className={`${inputCls} ${border("budget")}`}
           />
-          <p id="cc-budget-hint" className="mt-1.5 text-xs text-mist/55">Demo amount, from 0.01 to 1,000,000.</p>
+          <p id="cc-budget-hint" className="mt-1.5 text-xs text-mist/55">{`Demo amount, from 0.01 to 1,000,000. A real campaign needs at least $${MIN_TOTAL_BUDGET.toFixed(2)} in total.`}</p>
           {errors.budget && <p id="cc-budget-error" className="mt-1 text-sm text-rose-300">{errors.budget}</p>}
         </div>
       </div>

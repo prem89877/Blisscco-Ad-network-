@@ -27,6 +27,7 @@ function RotateButton({ keyId, formAction, pending }: { keyId: string; formActio
       <input type="hidden" name="rotateKeyId" value={keyId} />
       <p className="max-w-xs text-xs text-mist/70">
         Creates a new key with the same name. The old key keeps working until you revoke it, so you can switch your server first.
+        The new key is shown once, right after you create it. Then put it in your server settings, check that its Last used date appears, and revoke the old key.
       </p>
       <select name="expiry" defaultValue="90" aria-label="New key expires" className="min-h-11 rounded-lg border border-line bg-ink px-3 py-2 text-sm text-mist">
         {EXPIRY_CHOICES.map((c) => (
@@ -110,6 +111,9 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
       {state.status === "success" && state.newKey && state.newKey !== hiddenKey && (
         <div role="status" className="rounded-xl border border-aqua/50 bg-aqua/5 p-4">
           <p className="text-sm font-medium text-aqua">{state.message}</p>
+          <p className="mt-1 text-xs text-mist/70">
+            This is the only time the full key is shown. Blisscco stores only a one-way hash, so it cannot show the key again. Copy it now into your server&apos;s secret manager or environment variable (BLISSCCO_PUBLISHER_API_KEY).
+          </p>
           <code translate="no" className="mt-3 block break-all rounded-lg bg-ink px-3 py-3 text-sm text-mist">{state.newKey}</code>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button type="button" onClick={() => copy(state.newKey ?? "")} className={`${btn} border-aqua/60 text-aqua hover:bg-aqua/10`}>
@@ -132,6 +136,17 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
           {state.message}
         </p>
       )}
+
+      <div className="rounded-xl border border-line p-4">
+        <h3 className="font-display text-base font-semibold">How keys work</h3>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-mist/75">
+          <li>Creating a key shows the full key once. Copy it straight into your server&apos;s environment variable or secret manager, never into a website, app, chat or git.</li>
+          <li>After you hide the key, or leave or refresh this page, it cannot be shown again. If you lost it, create a new key and revoke the old one.</li>
+          <li>The list below shows only the start and last 4 characters of each key. They identify a key but cannot call the API.</li>
+          <li>To rotate a key, choose Rotate on it, deploy the new key to your server, check that its Last used date appears, then revoke the old key. The old key works until you revoke it.</li>
+          <li>If a key may have leaked, revoke it first and create a replacement afterwards.</li>
+        </ul>
+      </div>
 
       {canCreate ? (
       <form action={formAction} autoComplete="off" className="grid max-w-xl gap-4 sm:grid-cols-2">
@@ -175,7 +190,7 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
           Only the start and the last 4 characters of each key are shown. They identify a key but cannot be used to call the API, and the full key can never be shown again.
         </p>
         {keys.length === 0 ? (
-          <p className="mt-2 text-sm text-mist/70">No keys yet.</p>
+          <p className="mt-2 text-sm text-mist/70">No keys yet. Create your first key above to start.</p>
         ) : (
           <ul className="mt-3 space-y-3">
             {keys.map((k) => (

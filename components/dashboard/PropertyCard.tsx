@@ -1,19 +1,16 @@
+import Link from "next/link";
 import Card from "@/components/ui/Card";
 import PropertyStatusBadge from "@/components/dashboard/PropertyStatusBadge";
 import { formatNumber, formatPercent } from "@/lib/format";
-import type { IntegrationStatus, PublisherProperty } from "@/lib/types";
-
-const STATUS_NOTE: Record<IntegrationStatus, string> = {
-  Demo: "Sample metrics for illustration only. Not a live integration.",
-  "Pending Integration": "Waiting for the publisher to integrate. No ad requests yet.",
-  "Not Connected": "Not connected. No data to show.",
-};
+import { GUIDE_HREF, propertyGuidance } from "@/lib/publisher/setup-guidance";
+import type { PublisherProperty } from "@/lib/types";
 
 const NONE = "\u2014";
 
 /** One publisher property: name, status label and demo metrics. */
 export default function PropertyCard({ property }: { property: PublisherProperty }) {
   const hasData = property.status === "Demo";
+  const guidance = propertyGuidance(property.status);
   const fill = property.adRequests > 0 ? (property.impressions / property.adRequests) * 100 : 0;
   const metrics: { label: string; value: string }[] = [
     { label: "Ad requests", value: hasData ? formatNumber(property.adRequests) : NONE },
@@ -40,7 +37,15 @@ export default function PropertyCard({ property }: { property: PublisherProperty
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-xs text-mist/55">{STATUS_NOTE[property.status]}</p>
+      <p className="mt-4 text-xs text-mist/55">{guidance.meaning}</p>
+      {guidance.nextAction && (
+        <p className="mt-2 text-sm text-mist/80">
+          <span className="font-medium">Next step:</span> {guidance.nextAction}{" "}
+          <Link href={GUIDE_HREF} className="rounded text-aqua underline-offset-2 hover:underline">
+            Open the integration guide
+          </Link>
+        </p>
+      )}
     </Card>
   );
 }

@@ -5,10 +5,10 @@ import Logo from "@/components/Logo";
 
 export const metadata: Metadata = {
   title: "Terms of Service | Blisscco",
-  description: "The terms for using the Blisscco website and account features.",
+  description: "The terms for using Blisscco: accounts, sponsored content, API keys and campaign eligibility.",
 };
 
-const LAST_UPDATED = "23 October 2026";
+const LAST_UPDATED = "2 November 2026";
 
 // Contact email Vercel env NEXT_PUBLIC_CONTACT_EMAIL se (privacy page jaisa). Set nahi hai toh sach batata hai.
 const rawContact = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "";
@@ -30,11 +30,10 @@ const SECTIONS: Section[] = [
     title: "Service status",
     body: (
       <p>
-        Blisscco is an online ad network for AI chatbot platforms that is in early access. Ads can be requested
-        only by publishers our team has approved, no payments are taken, and impressions, clicks and results are not
-        tracked yet. The dashboard shows your own account data. Features may change, pause or be
-        removed as we build. Nothing on this site is a promise that a particular service will launch or be
-        available at a given time.
+        Blisscco is an online ad network for AI chatbot platforms that is in early access. Accounts are approved by
+        hand, ads can be requested only by publishers our team has approved, and the Ad API is limited and not ready for
+        production use. Features may change, pause or be removed as we build. Nothing on this site is a promise that a
+        particular service will launch or be available at a given time, or a promise of earnings, ad volume or results.
       </p>
     ),
   },
@@ -67,12 +66,75 @@ const SECTIONS: Section[] = [
     ),
   },
   {
-    title: "Advertising content",
+    title: "Sponsored content",
     body: (
-      <p>
-        When ad features are launched, ads will need to meet our content rules and may be reviewed, rejected,
-        paused or removed. We will publish those rules before ad features go live.
-      </p>
+      <>
+        <p>
+          Every ad served through Blisscco is sponsored content and must be shown with a visible &ldquo;Sponsored&rdquo;
+          label. A sponsored ad is paid placement. It is not a recommendation from Blisscco or from the publisher&rsquo;s
+          chatbot, and Blisscco does not endorse an advertiser&rsquo;s products or claims.
+        </p>
+        <p>
+          Ads are matched by category only. We may review, reject, pause or remove any ad or campaign. More detailed
+          content rules may be published as the service develops.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: "For advertisers",
+    body: (
+      <ul className="list-disc space-y-2 pl-5">
+        <li>
+          Choose the category that matches what your ad promotes, and give accurate information in your campaign and ads.
+        </li>
+        <li>
+          Each ad needs a headline, ad text and a destination URL that is a secure https link. The destination must lead
+          to what the ad describes, must be lawful, and must not mislead or harm people.
+        </li>
+        <li>
+          A new campaign starts as a draft. It is sent for review, and each ad is checked by our team. Campaigns and ads
+          that are not approved are not shown.
+        </li>
+        <li>
+          Eligibility: a campaign can show ads only while it is active, has at least one approved ad, is inside its start
+          and end dates, and has budget left. Approval does not guarantee that ads are shown, clicked or lead to
+          results.
+        </li>
+        <li>
+          Budgets are limits that the service enforces. Spend is counted when an ad is handed to a publisher, not when a
+          person sees or clicks it. We may pause or stop a campaign that is not eligible.
+        </li>
+      </ul>
+    ),
+  },
+  {
+    title: "For publishers",
+    body: (
+      <ul className="list-disc space-y-2 pl-5">
+        <li>
+          Your API key is secret. Keep it on your server only, never in browser code, a mobile app, git or chat. You are
+          responsible for requests made with your keys. Revoke a key at once if it may have leaked.
+        </li>
+        <li>
+          Show the visible word &ldquo;Sponsored&rdquo; on every ad, in its own box, apart from the assistant&rsquo;s own
+          answer, and do not change the ad text or present it as the chatbot&rsquo;s own words. Show nothing when no ad is
+          returned.
+        </li>
+        <li>
+          You are responsible for your own chatbot interface and for the disclosures you make to your users. Send only the
+          topic category your own code chose. Do not send conversation text or anything that identifies a person.
+        </li>
+        <li>
+          Report an impression only after the ad was really shown to a person. Do not create or report fake or repeated
+          requests, impressions or clicks.
+        </li>
+        <li>
+          A request may return no ad. We do not guarantee that an ad is available, how many ads you receive, or how
+          much you earn. Earnings records and payouts are handled as described in your dashboard, and payouts are reviewed
+          and sent manually by our team.
+        </li>
+      </ul>
     ),
   },
   {
@@ -102,7 +164,8 @@ const SECTIONS: Section[] = [
     body: (
       <p>
         Because the service is in development, it is provided &ldquo;as is&rdquo;, without promises that it will be
-        uninterrupted or error-free. To the extent the law allows, Blisscco is not liable for losses that come from
+        uninterrupted or error-free. We do not guarantee ad availability, impressions, clicks, earnings or campaign
+        results. To the extent the law allows, Blisscco is not liable for losses that come from
         using, or being unable to use, the site.
       </p>
     ),
@@ -111,8 +174,8 @@ const SECTIONS: Section[] = [
     title: "Suspending or closing accounts",
     body: (
       <p>
-        We may suspend or close an account that breaks these terms or puts the site or other people at risk. You
-        can ask us to close your account at any time.
+        We may suspend or close an account, revoke API keys, or pause campaigns and ads, when these terms are broken or
+        the site or other people are put at risk. You can ask us to close your account at any time.
       </p>
     ),
   },
