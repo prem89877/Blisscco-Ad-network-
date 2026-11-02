@@ -1,0 +1,46 @@
+name: Grok (manual, write access)
+
+# Alag workflow: ci.yml aur integration.yml read-only hi rehte hain. Write permission SIRF yahan hai.
+# Trigger sirf manual (Actions tab > Run workflow), jo repo me write access wala vyakti hi chala sakta hai.
+# Koi push / pull_request / issue_comment trigger nahi: kisi anjaan PR ya comment se write token nahi chalna chahiye.
+# Is workflow me koi secret, database, Production ya deploy nahi hai.
+on:
+  workflow_dispatch:
+    inputs:
+      number:
+        description: "Pull request ya issue number (sirf digits) jis par write-access check comment jaayega"
+        required: true
+        type: string
+
+# Sirf teen jo maange gaye. Jo kaam ke nahi, unki line hata do (least privilege).
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: grok-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  grok:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Yeh step sirf saabit karta hai ki GITHUB_TOKEN ko write access mil raha hai (403 nahi aa raha).
+      # Input env se jaata hai (run ke andar seedha ${{ }} nahi), aur digits ke alawa kuch reject hota hai.
+      - name: Write-access check (one comment on the given PR or issue)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ inputs.number }}
+        run: |
+          case "$NUMBER" in
+            ''|*[!0-9]*) echo "number must contain digits only"; exit 1 ;;
+          esac
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${NUMBER}/comments" -f body="Grok workflow: write-access check passed." > /dev/null
+          echo "comment posted on #${NUMBER}"
+
+      # Grok ka asli step yahan aayega. Kaun sa action / command chalega aur API key kis secret me hai, wo abhi tay nahi hai,
+      # isliye yahan kuch nahi likha. Jo bhi jode: sirf is workflow me, pinned version ke saath.
