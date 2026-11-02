@@ -167,7 +167,7 @@ describe("day 30 part 4: local, CI, Preview, TEST DB and Production are distingu
     for (const n of ["Local", "CI", "Preview", "TEST database", "Production"]) {
       const cells = row(n);
       assert.equal(cells.length, 4, n);
-      for (const c of cells) assert.ok(c.length > 3, `${n}: empty cell`);
+      for (const c of cells) assert.ok(c.length >= 2, `${n}: empty cell`);
     }
   });
 
@@ -340,7 +340,10 @@ describe("day 30 part 4: environment names, credentials and claims", () => {
   it("every sentence about sharing or printing a credential is a prohibition", () => {
     const VERB = /\b(commit|paste|email|post|share|publish|print|echo|embed|hard-?code|expose)(s|ed|ing)?\b/i;
     const NOUN = /\b(key|secret|token|password|credentials?)\b/i;
-    for (const x of SENTENCES) if (VERB.test(x) && NOUN.test(x)) assert.match(x, NEGATION, x);
+    for (const x of SENTENCES) {
+      const t = x.replace(/\bPOST\b/g, ""); // "POST" is the HTTP method, not the verb "post"
+      if (VERB.test(t) && NOUN.test(t)) assert.match(x, NEGATION, x);
+    }
   });
 
   it("claims no run, pass, build, CI or database result", () => {

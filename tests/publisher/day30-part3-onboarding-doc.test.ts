@@ -125,7 +125,10 @@ describe("day 30 part 3: only existing environment variable names", () => {
   it("no sentence about sharing or exposing a credential is anything but a prohibition", () => {
     const VERB = /\b(commit|paste|email|post|share|publish|print|echo|embed|hard-?code|expose)(s|ed|ing)?\b/i;
     const NOUN = /\b(key|secret|token|password|credentials?)\b/i;
-    for (const s of SENTENCES) if (VERB.test(s) && NOUN.test(s)) assert.match(s, NEGATION, s);
+    for (const s of SENTENCES) {
+      const t = s.replace(/\bPOST\b/g, ""); // "POST" is the HTTP method, not the verb "post"
+      if (VERB.test(t) && NOUN.test(t)) assert.match(s, NEGATION, s);
+    }
   });
 });
 
@@ -195,7 +198,7 @@ describe("day 30 part 3: no unsupported integration claims", () => {
       /\bexit (code )?0\b/i,
       /\b(verified|confirmed) (against|on|with) (a |the )?(real|live|production|preview) /i,
     ]) assert.doesNotMatch(doc, re, String(re));
-    for (const s of SENTENCES) if (/\b(verified|confirmed|passed|passing)\b/i.test(s)) assert.match(s, NEGATION, s);
+    for (const s of SENTENCES) if (/\b(verified|confirmed|passed|passing)\b/i.test(s)) assert.match(s, new RegExp(NEGATION.source + "|\\buntil\\b", "i"), s); // "until ... has passed" is about time (a Retry-After pause), not a result
   });
 
   it("keeps the Revive fallback off and out of the publisher flow", () => {
