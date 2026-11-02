@@ -1,9 +1,10 @@
 name: CI
 
-# Har push / pull request par: type check, tests, ESLint, production build.
-# Koi bhi check fail ho toh job laal (fail) hoga. Koi step skip hone par "passed" nahi dikhaya jata.
-# Node version .nvmrc se aati hai (package.json engines se mel khati hai); install sirf package-lock.json se (`npm ci`).
-# Secrets ya asli Supabase credentials yahan use nahi hote (build ke liye sirf dummy values).
+# Har push / pull request par: scripts/day28-verify.sh chalta hai.
+# Script ke andar ye 5 commands order me chalti hain, pehli failure par ruk jaati hain:
+#   npm ci -> npm run lint (tsc --noEmit) -> npm test -> npm run lint:eslint -> npm run build
+# Node version .nvmrc se aati hai (setup-node yahan `nvm use` ka kaam karta hai).
+# Secrets ya asli Supabase credentials yahan use nahi hote (build ke liye script sirf dummy values deta hai).
 on:
   push:
   pull_request:
@@ -26,31 +27,5 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Reproducible install: sirf `npm ci` (package-lock.json se exact versions). Lockfile missing ya package.json se
-      # mismatch ho toh yeh step fail hoga; `npm install` fallback nahi hai, taaki CI kabhi chupke se alag versions na le.
-      - name: Install (npm ci, lockfile only)
-        run: npm ci
-
-      - name: Installed versions (next, react)
-        run: npm ls next react react-dom
-
-      # Neeche ke checks `!cancelled()` se chalte hain: ek fail hone par bhi baaki chalte hain,
-      # taaki saari asli failures ek hi run me dikhein. Job phir bhi fail rehta hai.
-      - name: Type check (npm run lint = tsc --noEmit)
-        run: npm run lint
-
-      - name: Tests (npm test)
-        if: ${{ !cancelled() }}
-        run: npm test
-
-      - name: ESLint (npm run lint:eslint)
-        if: ${{ !cancelled() }}
-        run: npm run lint:eslint
-
-      - name: Production build (npm run build)
-        if: ${{ !cancelled() }}
-        run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_dummy
-          SUPABASE_SECRET_KEY: sb_secret_dummy
+      - name: Verify (scripts/day28-verify.sh)
+        run: bash scripts/day28-verify.sh
