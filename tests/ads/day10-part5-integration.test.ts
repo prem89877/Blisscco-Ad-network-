@@ -5,6 +5,7 @@ import * as v1Route from "@/app/api/v1/ads/match/route";
 import { handleMatchPost } from "@/lib/ads/match-handler";
 import { createIpGuard } from "@/lib/ads/ip-guard";
 import { PUBLIC_AD_FIELDS } from "@/lib/ads/contract";
+import { SENSITIVE_CATEGORY_TERMS } from "@/lib/ads/taxonomy";
 import { FakeAdDb, makeKey, sha256 } from "./fake-ad-db";
 
 // Day 10 Part 5: publisher ad API ke integration tests (route -> handler -> key check -> validation -> category -> selection -> record).
@@ -481,6 +482,38 @@ for (const route of ROUTES) {
         }
         assert.equal(db.rpcCount("load_ad_candidates"), 0);
         assert.equal(db.rpcCount("record_ad_serve"), 0);
+      });
+
+      // Phase 2 Step 3: the existing rule for EVERY term in SENSITIVE_CATEGORY_TERMS, through the real route (not only the matcher).
+      it("every sensitive term: as topic it is no-fill and the fallback is not tried; as a fallback entry it is skipped and never served", async () => {
+        assert.ok(SENSITIVE_CATEGORY_TERMS.length >= 22, "the sensitive list must not shrink");
+        const pub = db.addPublisher("active");
+        db.addKey(pub.id, KEY_A);
+        const adv = db.addAdvertiser("active");
+        db.addAd(adv.id, { category: "technology" });
+        db.addAd(adv.id, { category: "gaming" });
+
+        for (const term of SENSITIVE_CATEGORY_TERMS) {
+          const asTopic = await send(route, { topic: term, fallback_topics: ["technology"] });
+          assert.equal(asTopic.res.status, 200, `topic ${term}`);
+          assert.deepEqual(asTopic.body, { fill: false }, `topic ${term}`);
+        }
+        assert.equal(db.rpcCount("load_ad_candidates"), 0, "a sensitive topic never loads candidates, not even for its fallback");
+        assert.equal(db.rpcCount("record_ad_serve"), 0);
+        assert.equal(db.serveLog.length, 0);
+
+        for (const term of SENSITIVE_CATEGORY_TERMS) {
+          const asFallback = await send(route, { topic: "travel", fallback_topics: [term] });
+          assert.equal(asFallback.res.status, 200, `fallback ${term}`);
+          assert.deepEqual(asFallback.body, { fill: false }, `fallback ${term}`);
+        }
+        assert.equal(db.rpcCount("record_ad_serve"), 0, "a sensitive fallback entry is never served");
+        assert.equal(db.serveLog.length, 0);
+
+        // a sensitive fallback entry does not block the topic's own eligible ad
+        const ok = await send(route, { topic: "gaming", fallback_topics: ["health"] });
+        assert.equal(ok.body.fill, true);
+        assert.equal(db.serveLog.length, 1);
       });
 
       it("no-fill and fill look the same in size/shape class: no reason, no debug field", async () => {

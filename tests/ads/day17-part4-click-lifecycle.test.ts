@@ -469,6 +469,43 @@ describe("day 17 part 4 | existing safe behaviour is retained", () => {
     assert.ok(logged.every((l) => !l.includes(ref) && !l.includes(SECRET) && !l.includes(serve.serveRef)), "logs carry no ref, secret or serve ref");
   });
 
+  // Phase 2 Step 3: the rest of the disallowed-destination matrix of safeDestination, through the real GET handler (no Location, no click).
+  it("every other disallowed destination is 404 with no Location, no click and no write; a valid IDN destination redirects ASCII-normalized without touching spend", async () => {
+    const { ref, serve, ad } = await serveWithClickRef();
+    store.addImpression(serve.serveRef);
+    const before = financialSnapshot();
+    for (const bad of [
+      "ftp://advertiser.example.com/",
+      "/relative/path",
+      "https://trusted.com@evil.example/",
+      "https://192.168.1.10/",
+      "https://[::1]/",
+      "https://intranet/",
+      "https://example.com/\r\nSet-Cookie: x=1",
+      "HTTPS ://example.com",
+      "",
+      "https://.example.com/",
+      "https://example./",
+    ]) {
+      setDbDestination(ad.creativeId, bad);
+      const res = await click(ref);
+      assert.equal(res.status, 404, JSON.stringify(bad));
+      assert.equal(res.location, null, JSON.stringify(bad));
+      assert.equal(res.headers.get("set-cookie"), null, JSON.stringify(bad));
+    }
+    assert.equal(store.count("record_ad_click"), 0);
+    assert.equal(store.clicks.size, 0);
+
+    const idn = "https://münchen.example/ü?q=ä";
+    setDbDestination(ad.creativeId, idn);
+    const ok = await click(ref);
+    assert.equal(ok.status, 302);
+    assert.equal(ok.location, new URL(idn).href);
+    assert.match(ok.location ?? "", /^[\x21-\x7e]+$/);
+    assert.equal(store.clicks.size, 1);
+    assert.equal(financialSnapshot(), before, "a click never changes spend, serve log or ledger events");
+  });
+
   it("unsafe or unusable destinations: 404, no redirect, no click, no write attempt", async () => {
     const { ref, serve, ad } = await serveWithClickRef();
     store.addImpression(serve.serveRef);

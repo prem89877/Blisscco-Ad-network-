@@ -177,6 +177,22 @@ Run by the user with a TEST publisher key in the dedicated Preview. Claude did n
 
 The boxes in section 7 above are left as written. Only the person who ran each step ticks a box, so the user can tick them with the date.
 
+### Phase 2 Step 3 status (automated, mocked, 2026-11-03)
+
+These rows record only automated regression tests that use in-memory fakes. They are not Preview results and not real PostgreSQL results. Counts and commands are in `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md`. A Preview recheck is Pending until you run it or tell Claude you did.
+
+| Check | Section | Status |
+|---|---|---|
+| Valid key and eligible campaign return the ad | 7b | Existing automated tests (mocked). Preview recheck **Pending** |
+| Invalid or revoked key is refused | 7a | Existing automated tests (mocked). Preview recheck **Pending** |
+| No eligible campaign returns the no-fill answer | 7b | Existing automated tests (mocked). Preview recheck **Pending** |
+| Every term of the sensitive list gives no-fill, as topic and as fallback | 7b | New automated test (mocked). Preview recheck **Pending** |
+| Impression is recorded, a repeat is a duplicate, a changed token is refused | 7c | Existing automated tests (mocked). Preview recheck **Pending** |
+| Click redirects to the stored destination, a changed reference is refused | 7c | Existing automated tests (mocked). Preview recheck **Pending** |
+| Disallowed destinations are never redirected to | 7c | New automated test (mocked). Preview recheck **Pending** |
+| Real PostgreSQL recheck for Step 3 | 6 | **Pending** |
+| GitHub CI for the Step 3 test files | 5 | **Pending** |
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.
@@ -185,3 +201,4 @@ The boxes in section 7 above are left as written. Only the person who ran each s
 - No workflow, SQL file, migration, environment value or application code was changed.
 - No `.sh` script was added, so `.github/workflows/ci.yml` is unchanged.
 - Production data and Production credentials are outside this runbook.
+- Phase 2 Step 3 changed only test files and documents. No application code, SQL file, migration, workflow, environment value or script was changed.
