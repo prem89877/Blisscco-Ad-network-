@@ -193,6 +193,37 @@ These rows record only automated regression tests that use in-memory fakes. They
 | Real PostgreSQL recheck for Step 3 | 6 | **Pending** |
 | GitHub CI for the Step 3 test files | 5 | **Pending** |
 
+### Phase 2 Step 4 status (evidence kinds and Day C core checks, 2026-11-03)
+
+This table adds the Day C core checks that the Step 1 table above does not hold. They were run by the user with a TEST publisher key in the dedicated Preview. Claude saw no raw output. Detail: `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, section 3.
+
+Evidence kinds used in this runbook:
+
+- Automated means a test file ran against in-memory fakes. It does not show Preview or real database behaviour.
+- Preview means a person ran the request against the dedicated Preview. A user-confirmed row is the user's word only, with no log or run link attached.
+- Done (user's word only) is used for CI and database checks, which stay outside the user-confirmed rows.
+- Pending means no result exists yet. A check stays Pending until a person runs it and reports the result.
+
+| Check | Section | Status |
+|---|---|---|
+| Valid TEST key and approved campaign return the ad, version header and no-store | 7b | **User-confirmed — completed successfully** |
+| Wrong key and missing key return 401 | 7a | **User-confirmed — completed successfully** |
+| Topic without a campaign and the sensitive topic `health` return no-fill without a reason | 7b | **User-confirmed — completed successfully** |
+| Opt-in header returns a tracking token and a click reference | 7c | **User-confirmed — completed successfully** |
+| Impression is recorded, the same token is a duplicate, a changed token returns 401 | 7c | **User-confirmed — completed successfully** |
+| Click returns 302 to the stored destination twice, a changed reference returns 404 | 7c | **User-confirmed — completed successfully** |
+
+Checks that remain open after Step 4:
+
+| Check | Section | Status |
+|---|---|---|
+| Advertiser campaign page error screen seen once | none | **Pending**, root cause not found |
+| Controlled Revive test | 7d | **Pending**, not approved |
+| Recheck on the deployed Preview of the Step 3 automated tests | 7a to 7c | **Pending** |
+| GitHub CI and real PostgreSQL recheck for the files changed in Steps 3 and 4 | 5 and 6 | **Pending** |
+| Termux rerun of the documentation-contract files after the Step 4 edits | 3 | **Pending** |
+| Production behaviour | none | Not checked, outside this runbook |
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.
@@ -201,4 +232,5 @@ These rows record only automated regression tests that use in-memory fakes. They
 - No workflow, SQL file, migration, environment value or application code was changed.
 - No `.sh` script was added, so `.github/workflows/ci.yml` is unchanged.
 - Production data and Production credentials are outside this runbook.
+- Phase 2 Step 4 changed only documents, one public text page (`app/privacy/page.tsx`) and a documentation-contract test. No ad-serving, authentication, ledger, payout or spend code was changed.
 - Phase 2 Step 3 changed only test files and documents. No application code, SQL file, migration, workflow, environment value or script was changed.

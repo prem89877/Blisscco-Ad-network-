@@ -4,6 +4,8 @@ This document describes what the current repository contains, based only on the 
 
 **Nothing was run to write it.** No test, type check, lint, build, `npm install`, database check or live endpoint check was started. "Implemented" below means "the code is present in the repository". It does not mean "tested" or "working in a deployed environment".
 
+**Status update (Phase 2 Step 4).** The paragraph above describes the original authoring of this file. Later steps recorded results from other people and other runs. They are kept apart in the section "Evidence status by source (Phase 2 Step 4)" below, each with its source. "Implemented" still means only that the code is present. A feature counts as checked only where that section says so.
+
 ## Implemented features
 
 Code is present for each item. None has been confirmed by a run (see "Known verification limitations").
@@ -77,10 +79,12 @@ These exist in the repository but are not a connected, working feature.
 - **Tracking, reporting or billing for Revive ads.** Provider ads are not counted, charged or paid out by Blisscco.
 - **Revive HTML or JavaScript ad tags.** Rejected by design.
 - **A payment provider.** There is no automatic payout and no code that collects payment from advertisers. Payout "paid" is a manual record.
-- **A deployed Preview or Production environment that has been checked.** Nothing here confirms either one, or which SQL files have been applied to any database.
+- **A Production environment that has been checked.** Production was never accessed for any check recorded here, and nothing here shows which SQL files have been applied to the Production database. A dedicated Preview with a TEST data source was checked by hand by the user for the routes listed in the evidence section, and for nothing else.
 - **Matching on conversation text, user profiles or an external AI service.** Not implemented, by design.
 
 ## Known verification limitations
+
+This list is the state at the time this file was first written. It is not rewritten item by item. Results reported later for the same items are in the Step 4 evidence section below, with their sources.
 
 All of the following are pending. No result is claimed for any of them.
 
@@ -94,6 +98,66 @@ All of the following are pending. No result is claimed for any of them.
 - Real Revive endpoint verification: not done. Nothing has been checked against a real Revive server, and no Preview deployment has been contacted.
 
 Feature descriptions above are therefore implemented, not verified. They may contain mistakes that only a run will show.
+
+## Evidence status by source (Phase 2 Step 4)
+
+This section keeps five kinds of evidence apart. Mixing them would make a mocked test look like a Preview result, or a user's report look like a log.
+
+- **Implemented**: the code is present (the sections above). It is not evidence of anything else.
+- **Automated**: a test file ran against in-memory fakes. It shows the code matches what the test expects. It is not a Preview result and not a real database result.
+- **Preview**: a person ran the exact request against the dedicated Preview with a TEST publisher key. Claude had no access to the Preview host and saw no raw output.
+- **User-confirmed**: a label that is not used for anything the user did not personally run. It is the user's word, with no log, run link or count attached.
+- **Pending or unverified**: no result exists, or a result exists but does not cover the claim.
+
+Full detail and sources: `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, `DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md`, `PHASE2-STEP2-CAMPAIGN-PAGE-FIX-REPORT.md`, `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md`, `PHASE2-STEP4-DOCUMENTATION-ALIGNMENT-REPORT.md` and `MVP-VERIFICATION-RUNBOOK.md`.
+
+### Phase 2 Step 4 status (Preview, TEST publisher key, user-run)
+
+| Feature | Source | Status |
+|---|---|---|
+| Valid key accepted, wrong key and missing key refused with 401 | Day C report, section 3 | **User-confirmed — completed successfully** |
+| Key in the query string or the body refused, revoked key refused | Day C report, section 4 | **User-confirmed — completed successfully** |
+| Match with an approved TEST campaign returns the ad, version header and no-store | Day C report, section 3 | **User-confirmed — completed successfully** |
+| No-fill for a topic without a campaign and for a sensitive topic | Day C report, section 3 | **User-confirmed — completed successfully** |
+| Tracking token and click reference only with the opt-in header | Day C report, sections 3 and 4 | **User-confirmed — completed successfully** |
+| Impression recorded, repeat is a duplicate, changed token refused | Day C report, section 3 | **User-confirmed — completed successfully** |
+| Click redirects to the stored destination, changed reference refused | Day C report, section 3 | **User-confirmed — completed successfully** |
+| Wrong Content-Type gives 415, unknown body field gives 400 | Day C report, section 4 | **User-confirmed — completed successfully** |
+| Impression and click leave advertiser spend unchanged | Day C report, section 4 | **User-confirmed — completed successfully** |
+| Revive fallback and Revive preview flags unset in Preview | Day C report, section 4 | **User-confirmed — completed successfully** |
+
+### Reported by the user, no log seen
+
+| Area | Source | Status |
+|---|---|---|
+| Local npm checks (Day A) | Day B report, section 1 | Done (user's word only) |
+| GitHub CI on the latest commit | Day B report, section 2 | Done (user's word only), no run link or counts seen |
+| Real PostgreSQL integration run against the TEST project | Day B report, section 1 | Done (user's word only), no test count given |
+| Google sign-in on the Preview site | Day C report, section 2 | Done (user's word only), observed while setting up Preview |
+
+### Automated checks and what they do not cover
+
+| Area | Source | Status |
+|---|---|---|
+| Ad serving regression tests with in-memory fakes, run in Claude's sandbox | Step 3 report | Automated, mocked. Preview recheck **Pending**. GitHub CI for the new Step 3 files **Pending** |
+| Documentation-contract file for the publisher onboarding document, run by the user in Termux before the Step 4 edits (output seen by Claude) | Step 4 report | Automated, no failure in the output seen. Counts are in the Step 4 report |
+| Documentation-contract files for the documents edited in Step 4, run in Claude's sandbox | Step 4 report | Automated, no network. Termux and CI reruns after the edits **Pending** |
+| Revive fallback wiring in the match path | Existing tests with a fake provider | Automated, mocked. Never run against a real Revive server, so **Unverified** |
+| Publisher example code in `examples/publisher-node/` and `examples/publisher-nextjs/` | Existing tests with a mocked Blisscco API | Automated, mocked. Never run against a real API, so **Unverified** |
+
+### Failed, pending and unverified
+
+| Item | Source | Status |
+|---|---|---|
+| Two earlier CI runs failed because of document-test matching rules, not application code | Day B report, section 2 | Failed earlier. The user later reported a good run, with no link seen |
+| Advertiser campaign page error screen seen once after saving a creative | Step 2 report | **Pending**, root cause not found, no code changed |
+| Controlled Revive test | Day C report, section 4 | **Pending**, not approved, not run |
+| Revive JSON preview route, static fixture and manual check scripts | Prototype section above | **Unverified**, flags unset in Preview, scripts never run |
+| Real Revive endpoint, and billing or tracking for Revive ads | Not integrated section above | Not integrated, **Unverified** |
+| Whether the scheduled cleanup of old serve, event and retry records is switched on in any database | Privacy page wording | **Unverified** |
+| Publisher earnings, ledger and payout pages on Preview | No Preview check recorded | **Unverified** in Preview |
+| Admin review pages and manual creative approval on Preview | Day C report notes only | **Unverified** as a feature check |
+| Production deployment and Production data | Never accessed | **Unverified** |
 
 ## What stays manual
 

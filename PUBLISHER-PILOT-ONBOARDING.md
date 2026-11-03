@@ -7,6 +7,7 @@ This is documentation only. It restates the existing publisher guide (`app/dashb
 - Access is limited and accounts are approved by hand.
 - The guide marks the API as not ready for production use. Do not roll it out to real users yet.
 - Blisscco has no integration with ChatGPT or any other third-party chatbot (see section 7).
+- This document restates the routes, fields and headers found in the code and the guide. It records no run result. Where a result exists, it lives in the files named in section 9, with its own label.
 
 ## 2. Setup flow
 
@@ -17,7 +18,7 @@ This is documentation only. It restates the existing publisher guide (`app/dashb
 5. Set the API base URL on your server (section 3).
 6. Request an ad, render it with the Sponsored label, then report the impression and link the click (section 5).
 
-A Suspended account makes all its keys fail with 401. Rotate keys by creating the new key first, deploying it, then revoking the old one. Revoking cannot be undone.
+An account that is not approved (Waiting for approval or Suspended) makes all its keys fail with 401. Rotate keys by creating the new key first, deploying it, then revoking the old one. Revoking cannot be undone.
 
 ## 3. API base URL configuration
 
@@ -49,15 +50,36 @@ Only these three routes exist for publishers.
 | Route | Credential | Required | Result |
 |---|---|---|---|
 | POST /api/v1/ads/match | `Authorization: Bearer` with your key | `Content-Type: application/json`, body field `topic` | 200 with an ad or `{"fill":false}`. Errors: 400, 401, 413, 415, 429, 503 |
-| POST /api/v1/ads/impression | None, the token is the permission | `Content-Type: application/json`, body fields `token` and `event` (the value `impression`) | `recorded` or `duplicate` |
-| GET /api/v1/ads/click | None, the reference is the permission | Query parameter `ref`, exactly once | 302 redirect to the destination stored by Blisscco |
+| POST /api/v1/ads/impression | None, the token is the permission | `Content-Type: application/json`, body fields `token` and `event` (the value `impression`) | 200 `recorded` or `duplicate`. Errors: 400, 401, 413, 415, 429, 503 |
+| GET /api/v1/ads/click | None, the reference is the permission | Query parameter `ref`, exactly once | 302 redirect to the destination stored by Blisscco. Errors: 400, 404, 405, 429, 503 |
 
-- Optional on match: the `Idempotency-Key` header, the `X-Blisscco-Tracking: 1` header, and the body fields `fallback_topics` and `exclude_ad_ids`.
+### Match request
+
+- Body fields: `topic` (required) and, optionally, `fallback_topics` and `exclude_ad_ids`. Any other field is refused with 400. The body limit is 2048 bytes.
+- A topic is a slug of 1 to 50 characters from a-z, 0-9 and underscore. `fallback_topics` holds at most 2 such slugs. `exclude_ad_ids` holds at most 20 ad ids.
+- Optional headers: `Idempotency-Key` (8 to 64 letters, digits, underscore or hyphen) and `X-Blisscco-Tracking: 1`. A value in the wrong shape is refused with 400, not ignored.
 - Send a new random `Idempotency-Key` per ad placement and reuse the same value only when you retry that placement.
 - The only signal accepted is a topic slug chosen by your own code. Never send conversation text, user ids, emails or session ids.
+
+### Match response
+
+- Ad found: 200 with `fill: true`, `sponsored: true` and `ad` holding the five public fields. The response carries `X-Blisscco-Api-Version: 1` and `Cache-Control: no-store`.
+- No ad: 200 with `{"fill":false}`. This is normal and never carries a reason. Sensitive and unsupported topics also end this way.
+- Temporary failure: 503 with `fill: false` and `error: unavailable`. This is different from a no-fill, which is a 200.
+- A `tracking` object (`token`, `expires_at`, `events`, and `click_ref` when one could be signed) appears only if you sent `X-Blisscco-Tracking: 1` and tracking is switched on at Blisscco. A missing `tracking` object is normal: show the ad and report nothing.
+- A retry with the same `Idempotency-Key` returns the original ad. After `expires_at` it returns that ad without `tracking`.
+
+### Impression and click
+
 - The impression token and click reference come only from a match response that opted in to tracking. Report an impression only after the ad was really displayed. Send it from your server, because the endpoint has no CORS.
 - Build the click link from the returned click reference, never from `destination_url`.
-- Retry only 429 and 5xx, with a pause of at least one second and the same `Idempotency-Key`.
+- A rejected token (impression, 401) or reference (click, 404) never says why. Drop it and do not retry.
+
+### Retries
+
+- Do not retry 400, 401, 404, 405, 413 or 415. They fail the same way again.
+- After a 429, stop sending until the `Retry-After` time has passed (60 seconds), then send once. Do not loop.
+- After a 5xx or a network error, retry at most once or twice, after at least one second, with the same `Idempotency-Key`.
 
 ## 6. Publisher checklist
 
@@ -117,3 +139,12 @@ These come from the existing guide.
 ## 8. Not changed
 
 No route, handler, SQL, environment variable or workflow was changed. No `.sh` script was added, so `.github/workflows/ci.yml` is unchanged.
+
+## 9. Evidence status of these claims
+
+This section names where results are recorded. It does not repeat them and it claims none.
+
+- Written contract: `app/dashboard/publisher/guide/page.tsx` and the three route handlers listed in section 5. The guide is checked against the real code by `tests/ads/publisher-guide.test.ts`. That check is a mocked automated test, not a Preview run.
+- Wording of this file: `tests/publisher/day30-part3-onboarding-doc.test.ts` checks that it names only existing routes, headers and environment variable names. It does not check that the routes behave as written.
+- Preview behaviour of match, no-fill, impression and click: recorded only in `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md` and `MVP-VERIFICATION-RUNBOOK.md`, with the user's word as the source. Anything not listed there stays unverified.
+- Any publisher integration outside this repository, any real Revive endpoint and any production use: unverified.

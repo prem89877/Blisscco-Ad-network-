@@ -41,6 +41,10 @@ const SENTENCES = doc
   .map((s) => s.trim())
   .filter(Boolean);
 const NEGATION = /\b(not|no|nor|never|none|nothing|without|neither|pending)\b/i;
+// Phase 2 Step 4: the only allowed positive wording is a status-table row for a check the user personally ran and reported,
+// in exactly this shape, under a "### Phase 2 Step N status" heading. Every other sentence keeps the strict rule.
+const USER_CONFIRMED_ROW = /^\| [^|\n]+ \| [^|\n]+ \| \*\*User-confirmed — completed successfully\*\*( \(scope as reported\))? \|$/;
+const CLAIM_SENTENCES = SENTENCES.filter((x) => !USER_CONFIRMED_ROW.test(x));
 
 describe("day 30 part 1: document structure", () => {
   it("has the title and every required section", () => {
@@ -154,7 +158,7 @@ describe("day 30 part 1: verification limitations are pending, never claimed", (
   });
 
   it("every sentence that says verified, confirmed, tested or passed also carries a negation", () => {
-    for (const s of SENTENCES) {
+    for (const s of CLAIM_SENTENCES) {
       if (/\b(verified|confirmed|tested|passed|passing)\b/i.test(s)) assert.match(s, NEGATION, s);
     }
   });
@@ -243,6 +247,99 @@ describe("day 30 part 1: the document matches the existing code", () => {
   it("CI does not call the manual verify script, and the workflow was not edited for this document", () => {
     assert.doesNotMatch(read(".github/workflows/ci.yml"), /day28-verify|MVP-FEATURE-STATUS/);
     assert.match(section("Not changed"), /No `\.sh` script was added, so `\.github\/workflows\/ci\.yml` is unchanged/);
+  });
+});
+
+describe("phase 2 step 4: evidence status stays honest", () => {
+  const ev = section("Evidence status by source (Phase 2 Step 4)");
+
+  it("keeps the five kinds of evidence apart and names the report", () => {
+    for (const w of [/\*\*Implemented\*\*/, /\*\*Automated\*\*/, /\*\*Preview\*\*/, /\*\*User-confirmed\*\*/, /\*\*Pending or unverified\*\*/]) assert.match(ev, w, String(w));
+    assert.match(ev, /`PHASE2-STEP4-DOCUMENTATION-ALIGNMENT-REPORT\.md`/);
+    assert.ok(existsSync(path.join(ROOT, "PHASE2-STEP4-DOCUMENTATION-ALIGNMENT-REPORT.md")));
+  });
+
+  it("the original authoring statements are kept and scoped, not deleted", () => {
+    assert.match(doc, /Nothing was run to write it/);
+    assert.match(doc, /Status update \(Phase 2 Step 4\)/);
+    assert.match(section("Known verification limitations"), /state at the time this file was first written/);
+    assert.match(section("Known verification limitations"), /All of the following are pending\. No result is claimed for any of them/);
+  });
+
+  it("user-confirmed rows are only in a Phase 2 status table, in the exact shape, and never cover CI, build, lint or a database", () => {
+    let heading = "";
+    let count = 0;
+    for (const l of doc.split("\n")) {
+      if (/^#{2,3} /.test(l)) heading = l;
+      if (/User-confirmed/.test(l) && /^\|/.test(l)) {
+        count++;
+        assert.match(l, USER_CONFIRMED_ROW, l);
+        assert.match(heading, /^### Phase 2 Step \d+ status/, l);
+        assert.doesNotMatch(l, /\b(npm|lint|eslint|build|CI|PostgreSQL|database|integration)\b/i, l);
+      }
+    }
+    assert.ok(count >= 8, `only ${count} user-confirmed rows`);
+  });
+
+  it("Revive, Production and the campaign page error stay Pending or Unverified", () => {
+    const rows = ev.split("\n").filter((l) => /^\|/.test(l));
+    const row = (re: RegExp) => rows.find((l) => re.test(l)) ?? assert.fail(String(re));
+    assert.match(row(/Controlled Revive test/), /\*\*Pending\*\*/);
+    assert.match(row(/Advertiser campaign page error/), /\*\*Pending\*\*/);
+    assert.match(row(/Production deployment and Production data/), /\*\*Unverified\*\*/);
+    assert.match(row(/Real Revive endpoint/), /\*\*Unverified\*\*/);
+    assert.match(row(/Revive fallback wiring/), /\*\*Unverified\*\*/);
+    assert.match(row(/Publisher example code/), /\*\*Unverified\*\*/);
+    assert.match(row(/scheduled cleanup/), /\*\*Unverified\*\*/);
+  });
+
+  it("no Production, Revive or CI row is marked as a success", () => {
+    for (const l of ev.split("\n").filter((x) => /^\|/.test(x))) {
+      if (/Production|Revive|CI\b/.test(l) && !/Revive fallback and Revive preview flags unset in Preview/.test(l)) {
+        assert.doesNotMatch(l, /User-confirmed — completed successfully/, l);
+      }
+    }
+  });
+
+  it("the stale line that said no deployed environment was checked is gone", () => {
+    assert.doesNotMatch(section("Not yet integrated"), /Nothing here confirms either one/);
+    assert.match(section("Not yet integrated"), /Production was never accessed/);
+  });
+});
+
+describe("phase 2 step 4: privacy and terms pages stay inside the evidence", () => {
+  const privacy = read("app/privacy/page.tsx").replace(/\s+/g, " ");
+  const terms = read("app/terms/page.tsx").replace(/\s+/g, " ");
+
+  it("keeps the existing prompt-handling sentence and adds what the API really does with a request", () => {
+    assert.match(privacy, /does not receive, store or log chatbot prompts, conversations or user identifiers/);
+    assert.match(privacy, /reads a request only to check it/);
+    assert.match(privacy, /does not write the request body to our database and does not log it/);
+    assert.match(privacy, /standard server logs of the request itself/);
+    assert.match(read("lib/ads/match-handler.ts"), /logging nahi hoti|logging nahi hai/);
+    assert.doesNotMatch(read("lib/ads/match-handler.ts"), /console\./);
+  });
+
+  it("retention periods are described as targets, with the cleanup condition", () => {
+    assert.match(privacy, /set up to be removed by a cleanup routine once they are about 90 days old/);
+    assert.match(privacy, /they are targets and not a guarantee/);
+    assert.match(read("supabase/sql/day-7-1-budget-keys-retention.sql"), /pg_cron/);
+  });
+
+  it("claims no legal compliance, certification or guaranteed outcome", () => {
+    for (const t of [privacy, terms]) {
+      assert.doesNotMatch(t, /\b(GDPR|CCPA|HIPAA|SOC ?2|ISO ?27001)\b/);
+      assert.doesNotMatch(t, /\b(fully |is |are )compliant\b|\bcertified\b/i);
+      assert.doesNotMatch(t, /guaranteed (earnings|fill|income|revenue|results)|you will (earn|receive|get paid)/i);
+    }
+    assert.match(privacy, /not a statement that Blisscco meets the requirements of any particular privacy law or certification/);
+    assert.match(terms, /We do not guarantee that an ad is available, how many ads you receive, or how much you earn/);
+    assert.match(terms, /not a promise of earnings, ad volume or results|promise of earnings, ad volume or results/);
+  });
+
+  it("does not name or claim a live Revive integration", () => {
+    assert.doesNotMatch(privacy, /revive/i);
+    assert.doesNotMatch(terms, /revive/i);
   });
 });
 

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "How Blisscco handles account data, publisher API requests, ad events and contextual matching.",
 };
 
-const LAST_UPDATED = "2 November 2026";
+const LAST_UPDATED = "3 November 2026";
 
 // Apna public contact email Vercel env me NEXT_PUBLIC_CONTACT_EMAIL se set karo (code me hardcode nahi).
 // Set nahi hai toh page sach batata hai ki contact abhi listed nahi hai (koi jhootha detail nahi).
@@ -82,6 +82,11 @@ const SECTIONS: Section[] = [
           The API accepts no other field. A request that includes a prompt, a message or a user identifier is rejected
           with an error. Blisscco does not receive, store or log chatbot prompts, conversations or user identifiers
           through the Ad API.
+        </p>
+        <p>
+          The API reads a request only to check it against the fields above. The Ad API code does not write the request
+          body to our database and does not log it. Our hosting provider may still keep standard server logs of the
+          request itself (see Technical data above).
         </p>
         <p>What Blisscco keeps from a request that returns an ad:</p>
         <ul className="list-disc space-y-2 pl-5">
@@ -196,6 +201,11 @@ const SECTIONS: Section[] = [
         <p>
           Serve and event records are set up to be removed by a cleanup routine once they are about 90 days old.
           Spend and earnings totals are kept separately from these logs.
+        </p>
+        <p>
+          These periods, and the 48-hour period for retry records above, are what the cleanup is set up to do. The
+          cleanup relies on a scheduled database job that is switched on separately, so they are targets and not a
+          guarantee.
         </p>
       </>
     ),
