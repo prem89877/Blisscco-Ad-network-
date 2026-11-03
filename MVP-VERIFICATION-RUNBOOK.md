@@ -158,6 +158,25 @@ The table above stays blank until a person fills it. This separate table records
 | Real PostgreSQL integration run | Done (user's word only) | Reported by the user after fixes to the address secret, the password, two test setup problems and the pooler type. No test count was given. |
 | Day A local npm checks | Done (user's word only) | The five commands are the same ones the CI workflow runs. |
 
+### Phase 2 Step 1 status (Preview, 2026-11-03)
+
+Run by the user with a TEST publisher key in the dedicated Preview. Claude did not see raw output. Full detail is in `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, section 4. No key, token or URL is recorded.
+
+| Check | Section | Status |
+|---|---|---|
+| Key in query string rejected (401) | 7a | **User-confirmed — completed successfully** |
+| Key in request body rejected (401) | 7a | **User-confirmed — completed successfully** |
+| Key absent from page source, network content and logs | 7a | **User-confirmed — completed successfully** (scope as reported) |
+| After revoke, next request returns 401 | 7a | **User-confirmed — completed successfully** |
+| No `tracking` object without the opt-in header | 7c | **User-confirmed — completed successfully** |
+| Wrong `Content-Type` returns 415 | 7b | **User-confirmed — completed successfully** |
+| Unknown body field returns 400 | 7b | **User-confirmed — completed successfully** |
+| Impression and click leave spend unchanged | 7c | **User-confirmed — completed successfully** |
+| Revive fallback and preview flags unset in Preview | 7d | **User-confirmed — completed successfully** |
+| Controlled Revive test | 7d | **Pending**, not approved |
+
+The boxes in section 7 above are left as written. Only the person who ran each step ticks a box, so the user can tick them with the date.
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.

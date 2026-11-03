@@ -13,9 +13,10 @@ Each check is labelled **Passed**, **Failed**, **Pending** or **User-confirmed �
 | No-fill behavior (topic without a campaign, sensitive topic) | **User-confirmed — completed successfully** |
 | Impression tracking, duplicate and changed token | **User-confirmed — completed successfully** |
 | Click redirect, repeat click and changed reference | **User-confirmed — completed successfully** |
-| Remaining Day C items (section 4) | **Pending** |
+| Phase 2 Step 1: the 9 remaining Preview checks (section 4) | **User-confirmed — completed successfully** (run by the user on 2026-11-03) |
+| Controlled Revive test | **Pending**, not approved, not run |
 
-Day C is **not complete**: the core API flow was run, but the items listed as Pending in section 4 were not run. Day A and Day B stay as recorded in `DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md`.
+Day C is **not fully complete**: the 9 Phase 2 Step 1 checks were run by the user and reported as matching (section 4), but the controlled Revive test (not approved) and the follow-up in section 5 item 1 stay Pending. Day A and Day B stay as recorded in `DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md`.
 
 ## 2. Environment
 
@@ -37,18 +38,28 @@ Day C is **not complete**: the core API flow was run, but the items listed as Pe
 
 The user reported that every output matched the expected result exactly. Charges: the only charged event is the match request, against a tiny TEST budget in the TEST project. No real advertiser, publisher earning or payout was involved.
 
-## 4. Still Pending
+## 4. Phase 2 Step 1: the 9 Preview checks
+
+All nine were run by the user in the dedicated Preview with a TEST publisher key. Claude could not reach the Preview host and did not see raw output. Each result below is what the user reported. No key, token, click reference or URL is recorded here.
+
+| # | Check | Expected | Actual (as reported) | Status |
+|---|---|---|---|---|
+| 1 | Key in the query string (no Authorization header) | 401 | 401 | **User-confirmed — completed successfully** |
+| 2 | Key in the request body (no Authorization header) | 401 | 401 | **User-confirmed — completed successfully** |
+| 3 | After revoking the TEST key, the next match request | 401 | 401. A first attempt returned 200 because the key was still Active on the Publisher page (the revoke had not been done). After the revoke, the key showed Revoked and the next request returned 401. | **User-confirmed — completed successfully** |
+| 4 | Key absent from page source, browser-visible content and logs | No match | Public pages (`/`, `/login`, `/privacy`, `/terms`): 0 matches from `curl`. The user then reported the page-source, in-page search and log checks as OK. The network tab was not separately reported. | **User-confirmed — completed successfully** (scope as reported by the user) |
+| 5 | Match without the tracking header has no `tracking` object | `false` | `false` | **User-confirmed — completed successfully** |
+| 6 | Wrong `Content-Type` | 415 | 415 | **User-confirmed — completed successfully** |
+| 7 | Unknown request-body field | 400 | 400 | **User-confirmed — completed successfully** |
+| 8 | Impression and click leave advertiser spend unchanged | Spend after = spend before | With a fresh token: impression `recorded`, same token `duplicate`, click 302. Campaign page spend after the events equalled spend after the match (S2 = S1). The match itself charges a small TEST amount, as designed. Exact amounts are not recorded here. | **User-confirmed — completed successfully** |
+| 9 | Revive fallback disabled or unset in Preview | Unset | `REVIVE_FALLBACK_ENABLED` and `REVIVE_JSON_PREVIEW_ENABLED` are not set in Preview. `REVIVE_DELIVERY_URL` exists for Production only, not Preview. Nothing was changed or enabled. | **User-confirmed — completed successfully** |
+
+Still Pending after this step:
 
 | Check | Result |
 |---|---|
-| Key sent in the query string or the body is not accepted | **Pending** |
-| Key absent from page source, network tab and logs | **Pending** |
-| Revoking the key makes the next request answer 401 | **Pending** (revoke the test key when testing ends) |
-| Match without the tracking header returns no `tracking` object | **Pending** |
-| Wrong `Content-Type` answers 415, unknown body field answers 400 | **Pending** |
-| Impressions and clicks leave spend unchanged | **Pending** |
-| Revive fallback and Revive preview settings are unset in Preview | **Pending** (the Revive delivery address was seen set for the Production environment only, not for Preview; the flags in Preview were not looked at) |
 | Controlled Revive test | **Pending**, not approved, not run |
+| Advertiser campaign page error after adding a creative (section 5 item 1) | **Pending** follow-up. The campaign page did load for the spend check, but the earlier error and its cause were not investigated. |
 
 ## 5. Observed problems and follow-up issues
 
@@ -56,11 +67,11 @@ The user reported that every output matched the expected result exactly. Charges
 2. **Approving a creative by hand.** Setting a creative to `approved` in the database needs a review time (`reviewed_at`) set in the same save. The database rule is correct; this is a note for whoever approves rows by hand.
 3. **Google sign-in role.** A new Google user is created as an advertiser. A publisher must sign up with the AI Publisher account type. This matches the code and is a usability note, not a defect in the checks.
 4. **Preview setup needed fixes before sign-in worked:** the Preview used the wrong Supabase project at first, the TEST project did not allow the Preview address as a redirect, and the site address variable pointed at the Production site. All three were corrected by the user on Preview only.
-5. **Key shared in chat.** The test key was pasted into a chat. Revoke it on the Publisher page now that the checks are finished, and create a new one if more testing is needed.
+5. **Key shared in chat.** The test key was pasted into a chat. The key was pasted in chat again during Phase 2 Step 1. It was revoked on the Publisher page in check 3 and returned 401 afterwards. Create a new TEST key only through the Publisher page if more testing is needed, and do not paste it in chat.
 
 ## 6. What the user confirms next
 
-Tell Claude, one at a time, which Pending items in section 4 you ran and that the output matched. Each will then be changed to "User-confirmed — completed successfully". Share only status codes and non-secret parts of responses. Never share a key, a token, a click reference or a database address.
+Section 4 now holds the nine Phase 2 Step 1 results. For the remaining Pending items (controlled Revive test, campaign page error), tell Claude which you ran and that the output matched. Each will then be changed to "User-confirmed — completed successfully". Share only status codes and non-secret parts of responses. Never share a key, a token, a click reference or a database address.
 
 ## 7. Safety statement
 
