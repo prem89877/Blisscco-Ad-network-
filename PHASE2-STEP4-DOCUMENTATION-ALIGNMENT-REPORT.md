@@ -57,6 +57,14 @@ Termux (user-run, Node 24, Android), before the Step 4 edits, output seen by Cla
 
 `npm ci` there printed an engine warning (Node 24, project wants 22) and one install-script notice. Neither affected the run.
 
+Termux (user-run, Node 24), after the Step 4 edits were unzipped over the repository, output seen by Claude:
+
+| Run | Tests | Pass | Fail |
+|---|---|---|---|
+| `tests/ads/day30-part1-feature-status` (the focused file) | 35 | 35 | 0 |
+
+The other changed documentation-contract files were not run in Termux. The user also wrote "Ci workflow check ok" without a run link, commit or date, so it is not recorded as a CI result for the Step 4 files.
+
 Claude's sandbox (Node 22, no network, no `node_modules`; `tsc` reports `TS2688` for missing Node types and still emits): the results of the runs after the edits are filled in below.
 
 | Run (after the edits, sandbox) | Tests | Pass | Fail |
@@ -74,15 +82,19 @@ The first run after the edits had two failing files (feature status: one sentenc
 
 ## 6. Still Pending or unverified
 
-- Termux rerun of the changed documentation-contract files after the edits: **Pending** (user to run).
+- Termux rerun of the other changed documentation-contract files after the edits: **Pending**. The focused file ran in Termux (section 5).
 - GitHub CI for the files changed here: **Pending**. Real PostgreSQL recheck: **Pending**, no database file changed.
 - Preview recheck of the match, impression and click routes after Step 3 and Step 4: **Pending**. The last Preview results are the user-confirmed ones from Day C.
 - Advertiser campaign page error: **Pending**, root cause not found.
 - Controlled Revive test: **Pending**, not approved. Revive fallback and preview route: **Unverified**.
-- Whether the scheduled cleanup of old records is on in any database: **Unverified**.
+- Scheduled cleanup of old records: in the TEST project (`Denim Hub Bsl`) a read-only look on 2026-11-03 found the cleanup function present and the `pg_cron` extension not installed, so no nightly schedule exists there. This matches the privacy wording (targets, not a guarantee). The Production project was not looked at: **Unverified**.
 - Publisher example code against a real API, and Production: **Unverified**.
 
-## 7. Limitations of this step
+## 7. Read-only Supabase look (TEST project only)
+
+Two projects are connected: `Blisscco-Ad-network-` and `Denim Hub Bsl`. The TEST project is `Denim Hub Bsl` (the Day C report says the TEST project also holds the user's store tables). Only that project was queried, and only through the extension list and one catalog query for a function name. No table row was read, nothing was written, no migration was applied and no secret was read. `Blisscco-Ad-network-` was not queried.
+
+## 8. Limitations of this step
 
 - The old "Known verification limitations" list in the feature status is kept because the old test requires its wording. It is scoped by a lead-in sentence, not rewritten item by item.
 - User-confirmed means the user's word only. No log, run link or counts were seen for CI, the database run or the Preview checks.

@@ -154,7 +154,7 @@ Full detail and sources: `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, `DAY-B-C
 | Controlled Revive test | Day C report, section 4 | **Pending**, not approved, not run |
 | Revive JSON preview route, static fixture and manual check scripts | Prototype section above | **Unverified**, flags unset in Preview, scripts never run |
 | Real Revive endpoint, and billing or tracking for Revive ads | Not integrated section above | Not integrated, **Unverified** |
-| Whether the scheduled cleanup of old serve, event and retry records is switched on in any database | Privacy page wording | **Unverified** |
+| Whether the scheduled cleanup of old serve, event and retry records is switched on | Read-only look at the TEST project on 2026-11-03: the cleanup function exists, the `pg_cron` extension is not installed, so no nightly schedule exists there. Production was not looked at | TEST: not scheduled. Production: **Unverified** |
 | Publisher earnings, ledger and payout pages on Preview | No Preview check recorded | **Unverified** in Preview |
 | Admin review pages and manual creative approval on Preview | Day C report notes only | **Unverified** as a feature check |
 | Production deployment and Production data | Never accessed | **Unverified** |
