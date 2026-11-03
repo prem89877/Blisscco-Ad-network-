@@ -61,6 +61,8 @@ Notes:
 
 Record the run link and date in section 8. Do not copy log text that contains a value.
 
+Day B status (see `DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md`): **Done, on the user's word only.** Two earlier runs were red at the Tests step because of test files, and the causes were corrected. The user later reported that the CI check finished with a good result. Claude did not read the run, and no run link or commit identifier was given, so the result log below stays blank until a person fills it.
+
 ## 6. TEST PostgreSQL checks (step 7)
 
 These checks run only against the separate TEST project. They are never part of the local helper and never use Production credentials.
@@ -72,6 +74,8 @@ These checks run only against the separate TEST project. They are never part of 
 - [ ] The guard in `tests/integration/test-db-guard.ts` is unchanged and refuses a Production environment.
 - [ ] The run reports at least one passing test and no skipped test. A skipped database test is not a success.
 - [ ] No database URL appears in any log, ticket or chat.
+
+Day B status (see `DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md`): **Done, on the user's word only.** The manual workflow was run several times. Earlier runs were red for fixable reasons: a malformed address secret, a wrong password, two test setup problems and a connection limit of the Session pooler (the secret now uses the Transaction pooler). The user reported that the latest run finished with a good result. Claude did not read that run, and no database test count was given. The guard was not bypassed and no Production database was involved.
 
 Running `npm run test:integration` on your own machine is allowed only in a shell that holds the TEST settings for the TEST project and no Production setting. If you are unsure, use the manual workflow instead.
 
@@ -141,9 +145,23 @@ Filled in by a person, with a date, after each step. A blank row means not run.
 | 7. TEST PostgreSQL checks | TEST database | | | |
 | Preview checks 7a to 7d | Preview | | | |
 
+### Day B status
+
+The table above stays blank until a person fills it. This separate table records what Day B found, one check at a time. A row is marked "Done (user's word only)" when the user says they finished that specific check with a good result; Claude did not read those runs itself. The full wording for each check is in `DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md`.
+
+| Check | Status | Note |
+|---|---|---|
+| GitHub CI for the current commit | Done (user's word only) | Reported by the user. No run link or commit identifier was given. |
+| TEST secrets belong to the TEST project | Done (user's word only) | The user set both secrets with the TEST project reference; the database run used them. |
+| TEST database guard, code review | Reviewed | Refuses Production, a mismatched project reference and a missing setting. |
+| TEST database guard unit tests (24) | Ran in a sandbox, none failed | No database used; not the official `npm test`. |
+| Real PostgreSQL integration run | Done (user's word only) | Reported by the user after fixes to the address secret, the password, two test setup problems and the pooler type. No test count was given. |
+| Day A local npm checks | Done (user's word only) | The five commands are the same ones the CI workflow runs. |
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.
+- The Day B status notes were added later. They record what the Day B session could and could not see, and they do not change a step or a rule above.
 - It does not approve a pilot and does not replace `MVP-PILOT-SAFETY-CHECKLIST.md`.
 - No workflow, SQL file, migration, environment value or application code was changed.
 - No `.sh` script was added, so `.github/workflows/ci.yml` is unchanged.
