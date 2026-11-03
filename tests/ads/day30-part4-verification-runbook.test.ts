@@ -26,6 +26,11 @@ const SENTENCES = prose
   .split(/\n|(?<=[.!?])\s+/)
   .map((s) => s.trim())
   .filter(Boolean);
+// Phase 2: the only allowed positive wording. A status-table row for a check the user personally completed and
+// confirmed, in exactly this shape. Everything else (scripts, CI, build, database, any other row) stays strict.
+const USER_CONFIRMED_ROW = /^\| [^|\n]+ \| [^|\n]+ \| \*\*User-confirmed — completed successfully\*\*( \(scope as reported\))? \|$/;
+const claimDoc = doc.split("\n").filter((l) => !USER_CONFIRMED_ROW.test(l)).join("\n");
+const claimSentences = SENTENCES.filter((x) => !USER_CONFIRMED_ROW.test(x));
 const NEGATION = /\b(not|no|nor|never|none|nothing|without|neither|cannot|unset|off)\b/i;
 const COMMANDS = ["npm ci", "npm run lint", "npm test", "npm run lint:eslint", "npm run build"];
 
@@ -140,7 +145,7 @@ describe("day 30 part 4: the existing script and guide are referenced, not repla
     assert.match(s, /adds no second verification script/);
     assert.match(s, /nothing here claims it has succeeded/);
     assert.match(s, /does not replace step 6/);
-    assert.doesNotMatch(doc, /(ran successfully|completed successfully|has succeeded\b(?!\.)|all \d+ commands passed|exited with 0)/i);
+    assert.doesNotMatch(claimDoc, /(ran successfully|completed successfully|has succeeded\b(?!\.)|all \d+ commands passed|exited with 0)/i);
     const nonNeg = SENTENCES.filter((x) => /day28-verify/.test(x) && /\b(succeeded|passed|passing|green)\b/i.test(x));
     for (const x of nonNeg) assert.match(x, NEGATION, x);
   });
@@ -353,9 +358,26 @@ describe("day 30 part 4: environment names, credentials and claims", () => {
       /\b(lint|eslint|build|ci)\b[^.\n]{0,20}\b(passed|succeeded|is green|was green)\b/i,
       /\bno (defects?|bugs?|failures?) (found|remain)/i,
       /\b(verified|confirmed) (against|on|with) (a |the )?(real|live|production|preview) /i,
-    ]) assert.doesNotMatch(doc, re, String(re));
+    ]) assert.doesNotMatch(claimDoc, re, String(re));
     const OK = new RegExp(NEGATION.source + "|\\b(until|if|when|before|only|must|unless|blank)\\b", "i");
-    for (const x of SENTENCES) if (/\b(verified|confirmed|passed|passing|succeeded)\b/i.test(x)) assert.match(x, OK, x);
+    for (const x of claimSentences) if (/\b(verified|confirmed|passed|passing|succeeded)\b/i.test(x)) assert.match(x, OK, x);
+  });
+
+  it("user-confirmed rows appear only in a Phase 2 status table, name a section, and never cover CI, build, lint or database", () => {
+    const lines = doc.split("\n");
+    let heading = "";
+    let count = 0;
+    for (const l of lines) {
+      if (/^#{2,3} /.test(l)) heading = l;
+      if (/User-confirmed/.test(l) && /^\|/.test(l)) {
+        count++;
+        assert.match(l, USER_CONFIRMED_ROW, l);
+        assert.match(heading, /^### Phase 2 Step \d+ status/, `user-confirmed row outside a Phase 2 status table: ${l}`);
+        assert.doesNotMatch(l, /\b(npm|lint|eslint|build|CI|PostgreSQL|database|integration)\b/i, l);
+      }
+    }
+    assert.ok(count >= 1);
+    assert.doesNotMatch(section("8. Result log").split("### ")[0], /User-confirmed/, "the blank result log table must stay blank");
   });
 
   it("the result log has every row blank", () => {
