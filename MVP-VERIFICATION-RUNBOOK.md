@@ -265,6 +265,19 @@ Automated rows are a sandbox run with in-memory fakes (Node 22, no network). The
 
 The Admin Review Flow row rests on the user's word only; no output was seen (see `PHASE2-STEP1-ADMIN-REVIEW-VERIFICATION-REPORT.md`). Campaign page status, exactly: User-confirmed — currently not reproducible in Preview. The old error's root cause remains unknown, so no root-cause box is ticked.
 
+### Phase 2 Step 3 status (tracking and spend safety, 2026-11-04)
+
+Separate from the older Step 3 table above. Automated rows are a sandbox run with in-memory fakes (Node 22, no network); they are not Preview, real PostgreSQL or CI results. Detail: `PHASE2-STEP3-TRACKING-SPEND-SAFETY-REPORT.md`.
+
+| Check | Section | Status |
+|---|---|---|
+| Impression and click lifecycle, tokens, duplicates (5 files, 186 tests) | 7c | **PASS** (automated, mocked) |
+| Spend and ledger protection (14 files, 438 tests) | 7c | **PASS** (automated, mocked) |
+| Real PostgreSQL tracking tests for this step | 6 | **PENDING** |
+| Recheck on Preview of tracking and spend for this step | 7c | **PENDING** |
+
+Earlier user-reported results stay as recorded above. Campaign page status, exactly: User-confirmed — currently not reproducible in Preview; the old error's root cause remains unknown.
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.
