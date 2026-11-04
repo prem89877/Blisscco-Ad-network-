@@ -1,5 +1,4 @@
 import type { AnalyticsRpcClient } from "@/lib/ads/analytics";
-import { formatMoney as formatUnits, parseMoney } from "@/lib/ledger/decimal";
 import type { NavRole } from "@/lib/dashboard-nav";
 
 // Phase 3 Step 4: pilot monitoring (PURA module: koi database / env / server-only / clock nahi; sab kuch inject hota hai, isliye bina database ke test hota hai).
@@ -10,7 +9,7 @@ import type { NavRole } from "@/lib/dashboard-nav";
 //   3. Admin ke liye ek monitoring view (get_pilot_monitoring_summary, day SQL: phase3-step4-1). Admin-only database function; yahan bhi role gate hai.
 //
 // Jo YAHAN nahi hota: koi threshold ya auto-pause. Threshold ke number owner ke faisle hain (MVP-PILOT-SAFETY-CHECKLIST.md, section 15).
-// Billing, ledger, spend, impression/click events ko yeh module padhta bhi sirf database function ke through hai; kuch likhta nahi.
+// Billing, spend, impression/click events ko yeh module padhta bhi sirf database function ke through hai; kuch likhta nahi. Ledger ko ye padhta bhi nahi.
 
 // ---------------------------------------------------------------------------
 // 1. Outcomes
@@ -19,7 +18,7 @@ import type { NavRole } from "@/lib/dashboard-nav";
 /** Match endpoint ke jawab ke sirf yahi 7 matlab record hote hain (SQL CHECK wahi list). */
 export const MATCH_OUTCOMES = [
   "fill", // Blisscco ka ad diya (serve record hui)
-  "provider_fill", // sirf Revive fallback ON ho tab; Blisscco serve/charge nahi
+  "provider_fill", // sirf alag provider-fallback flag ON ho tab; Blisscco serve/charge nahi
   "no_fill", // 200 {fill:false}
   "unauthorized", // 401
   "rate_limited", // 429
@@ -116,9 +115,6 @@ export type MonitoringSummary = {
   clicks: number;
   /** Exact amounts, 4 decimals tak, text me (float nahi). */
   campaignSpend: string;
-  ledgerCharges: string;
-  publisherEarnings: string;
-  manualEntries: number;
 };
 
 const REQUEST_COLUMNS: Record<MatchOutcome, string> = {
@@ -137,10 +133,11 @@ function toCount(v: unknown): number | null {
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
 }
 
+const MONEY_TEXT = /^\d{1,16}(\.\d{1,4})?$/;
+
+/** Database ka exact amount text (numeric(20,4)). Float nahi banta; galat shape => null. */
 function toMoneyText(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const parsed = parseMoney(v);
-  return parsed.ok ? v : null;
+  return typeof v === "string" && MONEY_TEXT.test(v) ? v : null;
 }
 
 /** Database ki ek row -> typed summary. Koi bhi field galat shape ka => null (adha jawab ya nakli zero kabhi nahi). */
@@ -158,10 +155,7 @@ export function parseMonitoringSummaryRow(row: unknown): MonitoringSummary | nul
   const serves = toCount(row.serves);
   const impressions = toCount(row.impressions);
   const clicks = toCount(row.clicks);
-  const manualEntries = toCount(row.manual_entries);
   const campaignSpend = toMoneyText(row.campaign_spend);
-  const ledgerCharges = toMoneyText(row.ledger_charges);
-  const publisherEarnings = toMoneyText(row.publisher_earnings);
   if (
     latencySamples === null ||
     latencyTotalMs === null ||
@@ -169,10 +163,7 @@ export function parseMonitoringSummaryRow(row: unknown): MonitoringSummary | nul
     serves === null ||
     impressions === null ||
     clicks === null ||
-    manualEntries === null ||
-    campaignSpend === null ||
-    ledgerCharges === null ||
-    publisherEarnings === null
+    campaignSpend === null
   ) {
     return null;
   }
@@ -185,17 +176,12 @@ export function parseMonitoringSummaryRow(row: unknown): MonitoringSummary | nul
     impressions,
     clicks,
     campaignSpend,
-    ledgerCharges,
-    publisherEarnings,
-    manualEntries,
   };
 }
 
 export type ConsistencyFlag =
   | "impressions_exceed_serves" // ek serve = max 1 impression (database niyam): isse zyada ho toh kuch galat hai
-  | "clicks_exceed_impressions" // click tabhi ginta hai jab impression pehle ho (day-12-10): isse zyada ho toh kuch galat hai
-  | "spend_differs_from_ledger" // spend aur ledger charge alag: ledger beech me chalu hua ho toh normal bhi ho sakta hai, isliye "compare karo"
-  | "manual_ledger_entries"; // adjustment / reversal hui hain: padhne layak
+  | "clicks_exceed_impressions"; // click tabhi ginta hai jab impression pehle ho (day-12-10): isse zyada ho toh kuch galat hai
 
 export type MonitoringView = {
   totalRequests: number;
@@ -214,18 +200,9 @@ export type MonitoringView = {
   impressions: number;
   clicks: number;
   campaignSpend: string;
-  ledgerCharges: string;
-  publisherEarnings: string;
-  manualEntries: number;
   flags: ConsistencyFlag[];
   requests: Record<MatchOutcome, number>;
 };
-
-function sameMoney(a: string, b: string): boolean {
-  const pa = parseMoney(a);
-  const pb = parseMoney(b);
-  return pa.ok && pb.ok && pa.units === pb.units;
-}
 
 /** Summary -> dikhane layak numbers + consistency flags. Koi rate "0%" nahi banta jab denominator 0 ho (null). */
 export function buildMonitoringView(s: MonitoringSummary): MonitoringView {
@@ -235,8 +212,6 @@ export function buildMonitoringView(s: MonitoringSummary): MonitoringView {
   const flags: ConsistencyFlag[] = [];
   if (s.impressions > s.serves) flags.push("impressions_exceed_serves");
   if (s.clicks > s.impressions) flags.push("clicks_exceed_impressions");
-  if (!sameMoney(s.campaignSpend, s.ledgerCharges)) flags.push("spend_differs_from_ledger");
-  if (s.manualEntries > 0) flags.push("manual_ledger_entries");
   return {
     totalRequests,
     fills: r.fill,
@@ -251,9 +226,6 @@ export function buildMonitoringView(s: MonitoringSummary): MonitoringView {
     impressions: s.impressions,
     clicks: s.clicks,
     campaignSpend: s.campaignSpend,
-    ledgerCharges: s.ledgerCharges,
-    publisherEarnings: s.publisherEarnings,
-    manualEntries: s.manualEntries,
     flags,
     requests: r,
   };
@@ -262,9 +234,6 @@ export function buildMonitoringView(s: MonitoringSummary): MonitoringView {
 export const CONSISTENCY_FLAG_MESSAGES: Record<ConsistencyFlag, string> = {
   impressions_exceed_serves: "Impressions are higher than serves. One serve can have at most one impression. Pause the affected campaign and check before continuing.",
   clicks_exceed_impressions: "Clicks are higher than impressions. A click counts only after an impression. Pause the affected campaign and check before continuing.",
-  spend_differs_from_ledger:
-    "Campaign spend and ledger charges differ for this period. This can be normal if the ledger was switched on during the period. Compare them before continuing.",
-  manual_ledger_entries: "Manual ledger entries (adjustments or reversals) exist in this period. Read them on the ledger before continuing.",
 };
 
 export type MonitoringResult =
@@ -277,10 +246,7 @@ export function canViewPilotMonitoring(role: NavRole | null): boolean {
   return role === "admin";
 }
 
-export const formatMonitoringMoney = (text: string): string => {
-  const parsed = parseMoney(text);
-  return parsed.ok ? `$${formatUnits(parsed.units)}` : "—";
-};
+export const formatMonitoringMoney = (text: string): string => (MONEY_TEXT.test(text) ? `$${text}` : "—");
 
 /**
  * Admin-only load. Ownership/authorization DATABASE me bhi hai (private.is_admin()): admin na ho toh function 0 rows deti hai,

@@ -103,6 +103,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
       "lib/ads/click-db.ts", // Day 12 prompt 5 part 3: click redirect ka DB pul (2 rpc, server-only)
       "lib/ads/impression-db.ts",
       "lib/ads/match.ts",
+      "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only
       "lib/ads/serve-db.ts",
       "lib/ledger/ledger-db.ts", // Day 13 part 2: ledger ka server-only service (admin reversal / adjustment rpc)
       "lib/publisher/keys-db.ts",

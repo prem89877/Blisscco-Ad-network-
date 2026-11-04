@@ -9,7 +9,7 @@ Status: code and documents written. Nothing was run against a database, a Previe
 - `lib/ads/match-handler.ts`: one metric per request, handed to `after` (or fire-and-forget) after the answer is built.
 - `lib/ads/service.ts`: production sink. Recording is off unless `PILOT_METRICS_ENABLED` is exactly `"1"`.
 - `components/dashboard/PilotMonitoringPanel.tsx` and `app/dashboard/admin/page.tsx`: admin-only panel, loaded in the same round as the existing review lists.
-- `supabase/sql/phase3-step4-1-pilot-request-metrics.sql`: counters table, writer (service role only), admin-only summary. Not run anywhere. Apply to TEST first.
+- `supabase/sql/phase3-step4-1-pilot-request-metrics.sql`: counters table, writer (service role only), admin-only summary (requests, latency, serves, impressions, clicks, campaign spend). It does not read the ledger. Not run anywhere in this report. Apply to TEST first.
 - `MVP-PILOT-SAFETY-CHECKLIST.md` section 15: actions and stop conditions. Every rate, count, time and latency limit is a blank owner decision.
 
 ## 2. Performance
@@ -21,5 +21,8 @@ No bottleneck was confirmed by evidence, because no latency data exists. No ad-s
 Billing, ledger, payout, budget and eligibility code, `lib/ads/serve.ts`, the advertiser and publisher analytics pages.
 
 ## 4. Pending
+
+Publisher earnings and ledger charges are not in the panel: the ledger tests allow only the ledger SQL files to read the ledger. A ledger summary for admins is a pending owner decision.
+
 
 Apply the SQL to TEST, turn recording on in Preview, make a TEST request, read the panel as admin, and check that advertiser and publisher accounts cannot see it.

@@ -38,7 +38,7 @@ export default function PilotMonitoringPanel({ result, recordingEnabled }: Props
         <Notice tone="info">
           {recordingEnabled
             ? "No ad requests have been recorded in this period."
-            : "Request recording is off on this server, so request counts, fill rate and latency are not recorded. Serves, impressions, clicks, spend and earnings below come from existing records."}
+            : "Request recording is off on this server, so request counts, fill rate and latency are not recorded. Serves, impressions, clicks and spend below come from existing records."}
         </Notice>
       )}
 
@@ -67,10 +67,9 @@ export default function PilotMonitoringPanel({ result, recordingEnabled }: Props
           <StatCard label="Clicks" value={formatNumber(v.clicks)} hint="Recorded click events." />
         </section>
 
-        <section aria-label="Money" className="grid gap-4 sm:grid-cols-3">
+        <section aria-label="Money" className="grid gap-4 sm:grid-cols-2">
           <StatCard label="Campaign spend" value={formatMonitoringMoney(v.campaignSpend)} hint="From the daily spend record." />
-          <StatCard label="Ledger charges" value={formatMonitoringMoney(v.ledgerCharges)} hint="Advertiser charges in the ledger." />
-          <StatCard label="Publisher earnings" value={formatMonitoringMoney(v.publisherEarnings)} hint="Earnings entries in the ledger." />
+          <StatCard label="Publisher earnings" value="—" hint="Not part of this panel. Publishers see their own earnings on their earnings page." />
         </section>
 
         {v.flags.length > 0 ? (

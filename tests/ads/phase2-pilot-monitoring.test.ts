@@ -246,7 +246,7 @@ describe("phase 3 step 4: duplicate events do not inflate counts", () => {
     const row = {
       req_fill: 5, req_provider_fill: 0, req_no_fill: 1, req_unauthorized: 0, req_rate_limited: 0, req_invalid: 0, req_unavailable: 0,
       latency_samples: 6, latency_total_ms: 600, latency_max_ms: 300,
-      serves: 5, impressions: 4, clicks: 2, campaign_spend: "0.0100", ledger_charges: "0.0100", publisher_earnings: "0.0070", manual_entries: 0,
+      serves: 5, impressions: 4, clicks: 2, campaign_spend: "0.0100",
     };
     const summary = parseMonitoringSummaryRow(row);
     assert.ok(summary);
@@ -268,7 +268,7 @@ describe("phase 3 step 4: duplicate events do not inflate counts", () => {
     const base = {
       req_fill: 1, req_provider_fill: 0, req_no_fill: 0, req_unauthorized: 0, req_rate_limited: 0, req_invalid: 0, req_unavailable: 0,
       latency_samples: 1, latency_total_ms: 10, latency_max_ms: 10,
-      serves: 1, impressions: 1, clicks: 0, campaign_spend: "0.0020", ledger_charges: "0.0020", publisher_earnings: "0.0014", manual_entries: 0,
+      serves: 1, impressions: 1, clicks: 0, campaign_spend: "0.0020",
     };
     const more = buildMonitoringView(parseMonitoringSummaryRow({ ...base, impressions: 2 })!);
     assert.ok(more.flags.includes("impressions_exceed_serves"));
@@ -407,7 +407,7 @@ describe("phase 3 step 4: restricted metrics need the admin role", () => {
   const goodRow = {
     req_fill: 3, req_provider_fill: 0, req_no_fill: 1, req_unauthorized: 1, req_rate_limited: 0, req_invalid: 1, req_unavailable: 2,
     latency_samples: 7, latency_total_ms: 700, latency_max_ms: 250,
-    serves: 3, impressions: 2, clicks: 1, campaign_spend: "0.0060", ledger_charges: "0.0060", publisher_earnings: "0.0042", manual_entries: 0,
+    serves: 3, impressions: 2, clicks: 1, campaign_spend: "0.0060",
   };
 
   function client(rows: unknown, error: { code?: string } | null = null): { client: AnalyticsRpcClient; calls: string[] } {
@@ -457,7 +457,6 @@ describe("phase 3 step 4: restricted metrics need the admin role", () => {
     assert.equal(res.view.avgLatencyMs, 100);
     assert.equal(res.view.maxLatencyMs, 250);
     assert.equal(res.view.campaignSpend, "0.0060");
-    assert.equal(res.view.publisherEarnings, "0.0042");
   });
 
   it("a non-admin session gets zero rows from the database function: shown as an error, never as zeros", async () => {
@@ -486,7 +485,7 @@ describe("phase 3 step 4: restricted metrics need the admin role", () => {
     assert.match(sql, /revoke all on table public\.ad_request_metrics_hourly from public, anon, authenticated, service_role/);
     // sirf apni table likhta hai: billing / ledger / events par koi insert, update, delete nahi
     const body = sql.replace(/--.*$/gm, "");
-    assert.doesNotMatch(body, /\b(insert into|update|delete from)\s+public\.(financial_ledger|campaign_spend_daily|ad_events|ad_serve_log|creative_serve_daily|ledger_settings|campaigns)\b/i);
+    assert.doesNotMatch(body, /\b(insert into|update|delete from)\s+public\.(campaign_spend_daily|ad_events|ad_serve_log|creative_serve_daily|ledger_settings|campaigns)\b/i);
     assert.doesNotMatch(body, /\b(alter|drop)\s+(table|function)\s+public\.(financial_ledger|campaign_spend_daily|ad_events|ad_serve_log|record_ad_serve|record_ad_impression|record_ad_click)\b/i);
   });
 
@@ -511,7 +510,7 @@ describe("phase 3 step 4: empty data and missing metrics show correct states", (
   const emptyRow = {
     req_fill: 0, req_provider_fill: 0, req_no_fill: 0, req_unauthorized: 0, req_rate_limited: 0, req_invalid: 0, req_unavailable: 0,
     latency_samples: 0, latency_total_ms: 0, latency_max_ms: 0,
-    serves: 0, impressions: 0, clicks: 0, campaign_spend: "0.0000", ledger_charges: "0.0000", publisher_earnings: "0.0000", manual_entries: 0,
+    serves: 0, impressions: 0, clicks: 0, campaign_spend: "0.0000",
   };
 
   it("with no requests there is no fill rate, no average and no slowest request (null, never 0%)", () => {
@@ -536,11 +535,10 @@ describe("phase 3 step 4: empty data and missing metrics show correct states", (
     assert.equal(view.totalRequests, 5);
   });
 
-  it("spend and ledger charges that match raise no note; ones that differ, and manual ledger entries, do", () => {
-    const same = buildMonitoringView(parseMonitoringSummaryRow({ ...emptyRow, campaign_spend: "1.5000", ledger_charges: "1.5000" })!);
-    assert.deepEqual(same.flags, []);
-    const diff = buildMonitoringView(parseMonitoringSummaryRow({ ...emptyRow, campaign_spend: "1.5000", ledger_charges: "1.4000", manual_entries: 2 })!);
-    assert.deepEqual(diff.flags, ["spend_differs_from_ledger", "manual_ledger_entries"]);
+  it("spend is kept as exact text and a malformed amount is rejected, never turned into a number", () => {
+    const ok = buildMonitoringView(parseMonitoringSummaryRow({ ...emptyRow, campaign_spend: "1.5000" })!);
+    assert.equal(ok.campaignSpend, "1.5000");
+    for (const bad of ["abc", "-1.0000", "1.23456", "", null, 1.5]) assert.equal(parseMonitoringSummaryRow({ ...emptyRow, campaign_spend: bad }), null, String(bad));
   });
 
   it("the panel has a separate state for recording off, error and no admin, and never prints a number for a missing metric", () => {
@@ -555,10 +553,12 @@ describe("phase 3 step 4: empty data and missing metrics show correct states", (
 });
 
 describe("phase 3 step 4: existing spend, earnings and ledger code is not changed", () => {
-  it("monitoring never calls a billing or ledger function and never imports ledger-db", () => {
+  it("monitoring never calls a billing or ledger function, never imports ledger code and the SQL never reads the ledger", () => {
+    const sqlText = read("supabase/sql/phase3-step4-1-pilot-request-metrics.sql").replace(/--.*$/gm, "");
+    assert.doesNotMatch(sqlText, /financial_ledger|ledger_/i);
     for (const f of ["lib/ads/pilot-monitoring.ts", "lib/ads/pilot-metrics-db.ts", "components/dashboard/PilotMonitoringPanel.tsx"]) {
       const src = read(f);
-      assert.doesNotMatch(src, /record_ad_serve|record_ad_impression|record_ad_click|ledger-db|payout|revenue-share|financial_ledger/i, f);
+      assert.doesNotMatch(src, /record_ad_serve|record_ad_impression|record_ad_click|lib\/ledger|ledger-db|payout|revenue-share|financial_ledger/i, f);
     }
     const handler = read("lib/ads/match-handler.ts");
     assert.doesNotMatch(handler, /console\./);
@@ -571,7 +571,7 @@ describe("phase 3 step 4: existing spend, earnings and ledger code is not change
 
   it("the money shown is exact text from the database and is never turned into a float", () => {
     const src = read("lib/ads/pilot-monitoring.ts");
-    assert.doesNotMatch(src, /parseFloat|Number\(row\.(campaign_spend|ledger_charges|publisher_earnings)|toFixed/);
+    assert.doesNotMatch(src, /parseFloat|Number\(row\.campaign_spend|toFixed/);
     assert.match(read("supabase/sql/phase3-step4-1-pilot-request-metrics.sql"), /::numeric\(20, 4\)::text/);
   });
 

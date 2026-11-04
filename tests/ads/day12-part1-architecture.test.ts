@@ -73,6 +73,8 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
       "supabase/sql/day-12-8-impression-verify.sql",
       // Day 13 part 2: ledger migration serve_ref ko sirf aage pass karti hai (record_ad_serve ke andar). ad_events ko kabhi nahi chhuti. (*-tests.sql is list se bahar hain.)
       "supabase/sql/day-13-4-ledger-service.sql",
+      // Phase 3 Step 4: admin-only monitoring summary ad_events ko sirf PADHTA hai (counts), kuch likhta nahi; day-12-12 jaisa read-only tareeka.
+      "supabase/sql/phase3-step4-1-pilot-request-metrics.sql",
     ]);
     assert.equal(/record_ad_event/i.test(sqlText), false, "a record_ad_event writer slipped into supabase/sql");
   });

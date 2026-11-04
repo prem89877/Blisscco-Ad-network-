@@ -1,6 +1,6 @@
 -- =====================================================================
 -- BLISSCCO | Phase 3 Step 4 | Migration (file phase3-step4-1) : pilot monitoring ke liye request metrics (aggregate counters) + admin summary
--- Pehle day-3-5 (private.is_admin), day-5-3 (ad_serve_log, campaign_spend_daily), day-12-2 (ad_events), day-13-1 (financial_ledger) chali hon.
+-- Pehle day-3-5 (private.is_admin), day-5-3 (ad_serve_log, campaign_spend_daily), day-12-2 (ad_events) chali hon.
 -- Dobara chalane par safe hai (create if not exists / create or replace).
 -- PEHLE TEST project par chalao. Production par is step me NAHI (MVP-PILOT-SAFETY-CHECKLIST.md). (Ye file kisi database par chalayi NAHI gayi hai.)
 --
@@ -12,17 +12,18 @@
 --     KOI prompt, topic, publisher key, IP, user id, campaign id, ad text yahan nahi hai (columns hi nahi hain).
 --  B. public.record_ad_request_metric(p_outcome, p_latency_ms) : sirf service_role. Ek counter badhata hai. Galat outcome / latency => error (kuch likha nahi jaata).
 --  C. public.get_pilot_monitoring_summary(p_days) : SIRF admin (private.is_admin()). Admin na ho toh 0 rows. Sirf padhta hai:
---       request counts, latency, serves, impressions, clicks, campaign spend, ledger charges, publisher earnings, manual ledger entries.
+--       request counts, latency, serves, impressions, clicks, campaign spend.
 --
--- Jo NAHI badalta: record_ad_serve, record_ad_impression, record_ad_click, ad_events, ad_serve_log, campaign_spend_daily, financial_ledger,
---   ledger / payout functions, RLS, koi existing grant. Billing aur ledger ko ye migration chhuta bhi nahi (sirf padhta hai).
+-- Jo NAHI badalta: record_ad_serve, record_ad_impression, record_ad_click, ad_events, ad_serve_log, campaign_spend_daily,
+--   ledger / payout functions, RLS, koi existing grant. Billing aur ledger ko ye migration chhuta bhi nahi; ledger ko padhta bhi nahi
+--   (ledger ka alag-se-bandha niyam: sirf day-13 files ledger ko chhuti hain). Isliye publisher earnings / ledger charges is summary me NAHI hain.
 --
 -- Limits (jaan-boojh kar, jhooth nahi):
 --   - Publisher ke apne timeouts yahan nahi dikhte (wo publisher ke server par hote hain). Yahan sirf Blisscco server ki taraf ki latency hai.
 --   - Retention: is table ke purge ka koi job NAHI hai (ghante x 7 outcome = bahut chhoti rows). Purge ka faisla alag (owner).
 --   - Ek hi ghante-outcome row par bahut saari requests ek saath aayein toh row-lock par line lagti hai. App ye call response ke BAAD karti hai,
 --     isliye ad ka jawab nahi rukta; par DB par asar real traffic par naapna baaki hai (abhi koi naap nahi hai).
---   - Window: aaj (UTC) milakar p_days din (1..31). Spend din ke hisaab se (UTC date), ledger / events / serves created/received time se: dono UTC din ki shuruaat se.
+--   - Window: aaj (UTC) milakar p_days din (1..31). Spend din ke hisaab se (UTC date), events / serves received/served time se: dono UTC din ki shuruaat se.
 -- =====================================================================
 
 begin;
@@ -87,6 +88,9 @@ comment on function public.record_ad_request_metric(text, integer) is
   'Ek match request ka outcome + latency (ms) ek aggregate counter me jodta hai. Sirf service_role. Kuch aur nahi likhta.';
 
 -- ---------- C. admin summary (sirf padhta hai) ----------
+-- Pehle wali (13 columns waali, ledger padhne waali) version TEST par chali ho toh uska return type badal nahi sakta: pehle hata do. Sirf yehi function (naya, sirf padhne wala).
+drop function if exists public.get_pilot_monitoring_summary(integer);
+
 create or replace function public.get_pilot_monitoring_summary(p_days integer default 7)
 returns table (
   req_fill          bigint,
@@ -102,10 +106,7 @@ returns table (
   serves            bigint,
   impressions       bigint,
   clicks            bigint,
-  campaign_spend    text,
-  ledger_charges    text,
-  publisher_earnings text,
-  manual_entries    bigint
+  campaign_spend    text
 )
 language sql
 stable
@@ -144,19 +145,12 @@ as $$
     select coalesce(sum(d.spent), 0)::numeric(20, 4)::text as campaign_spend
     from public.campaign_spend_daily d, w
     where d.day >= (w.start_ts at time zone 'utc')::date
-  ),
-  lg as (
-    select coalesce(sum(l.amount) filter (where l.entry_type = 'advertiser_charge'), 0)::numeric(20, 4)::text  as ledger_charges,
-           coalesce(sum(l.amount) filter (where l.entry_type = 'publisher_earning'), 0)::numeric(20, 4)::text  as publisher_earnings,
-           count(*) filter (where l.entry_type in ('adjustment', 'reversal'))::bigint                          as manual_entries
-    from public.financial_ledger l, w
-    where l.created_at >= w.start_ts and l.currency_code = 'USD'
   )
   select r.req_fill, r.req_provider_fill, r.req_no_fill, r.req_unauthorized, r.req_rate_limited, r.req_invalid, r.req_unavailable,
          r.latency_samples, r.latency_total_ms, r.latency_max_ms,
          sv.serves, ev.impressions, ev.clicks,
-         sp.campaign_spend, lg.ledger_charges, lg.publisher_earnings, lg.manual_entries
-  from r, sv, ev, sp, lg
+         sp.campaign_spend
+  from r, sv, ev, sp
   where (select private.is_admin())
 $$;
 
@@ -164,7 +158,7 @@ revoke all on function public.get_pilot_monitoring_summary(integer) from public,
 grant execute on function public.get_pilot_monitoring_summary(integer) to authenticated;
 
 comment on function public.get_pilot_monitoring_summary(integer) is
-  'Admin-only pilot monitoring totals (requests by outcome, latency, serves, impressions, clicks, spend, ledger charges, publisher earnings, manual ledger entries). Admin na ho toh 0 rows. Sirf padhta hai.';
+  'Admin-only pilot monitoring totals (requests by outcome, latency, serves, impressions, clicks, campaign spend). Admin na ho toh 0 rows. Sirf padhta hai.';
 
 commit;
 
