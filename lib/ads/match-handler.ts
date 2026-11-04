@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { buildAdResponse, type MatchResponseBody } from "@/lib/ads/contract";
 import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
-import { serveMatchForPublisher } from "@/lib/ads/service";
+import { outcomeFromResponse, reportMatchMetric, type Defer, type MatchOutcome, type MetricSink } from "@/lib/ads/pilot-monitoring";
+import { pilotMetricSink, serveMatchForPublisher } from "@/lib/ads/service";
 import { MAX_BODY_BYTES, parseIdempotencyKey, parseMatchRequest, parseTrackingOptIn } from "@/lib/ads/validation";
 
 // Ad-match ka SHARED handler. Do routes isi ko chalate hain:
@@ -20,6 +21,26 @@ export type MatchHandlerOptions = {
   extraHeaders?: Record<string, string>;
   /** Tests ke liye: galat-key guard bahar se. Default: is server instance ka apna guard. */
   ipGuard?: IpGuard;
+  /** Pilot monitoring (Phase 3 Step 4). Default: production sink (flag band ho toh kuch nahi). null = band. Tests apna sink de sakte hain. */
+  metricSink?: MetricSink | null;
+  /** Tests ke liye: metric kab/kaise chale. Default: response ke BAAD (Next `after`), warna fire-and-forget. */
+  defer?: Defer;
+};
+
+/** Ek request ka outcome (har raaste par set hota hai); handleMatchPost ise ek hi baar record karta hai. */
+type MatchTrace = { outcome: MatchOutcome | null; /** true = jawab provider fallback ka hai (Blisscco serve nahi): fill rate me nahi ginti. */ provider?: boolean };
+
+/** Metric response ko block nahi karta: `after` ke saath response ke baad; request scope na ho (tests) toh fire-and-forget. */
+const deferAfterResponse: Defer = (task) => {
+  try {
+    if (typeof after === "function") {
+      after(task);
+      return;
+    }
+  } catch {
+    // request scope nahi: neeche fire-and-forget
+  }
+  void task();
 };
 
 // Ek IP se bahut zyada galat key aaye toh database tak jaane se pehle 429 (best-effort; Vercel Firewall alag se lagao).
@@ -77,27 +98,42 @@ export async function readBodyLimited(request: Request, maxBytes: number): Promi
  * aur wo bhi no-store ke saath. Is file me logging nahi hoti (test se bandhi hai); asli errors serve-db.ts / serve.ts me log hote hain.
  */
 export async function handleMatchPost(request: Request, options: MatchHandlerOptions = {}): Promise<Response> {
+  const startedAt = performance.now();
+  const trace: MatchTrace = { outcome: null };
+  let response: Response;
   try {
-    return await processMatch(request, options);
+    response = await processMatch(request, options, trace);
   } catch {
-    return NextResponse.json(
+    trace.outcome = "unavailable";
+    response = NextResponse.json(
       { fill: false, error: "unavailable" },
       { status: 503, headers: { "Cache-Control": "no-store", Vary: "Authorization", ...(options.extraHeaders ?? {}) } },
     );
   }
+  // Pilot monitoring: har request ka EK metric, response banne ke BAAD, defer ke saath. Fail/reject => ad par koi asar nahi (reportMatchMetric kabhi throw nahi karta).
+  reportMatchMetric(
+    options.metricSink === undefined ? pilotMetricSink : options.metricSink,
+    trace.outcome,
+    performance.now() - startedAt,
+    options.defer ?? deferAfterResponse,
+  );
+  return response;
 }
 
-async function processMatch(request: Request, options: MatchHandlerOptions): Promise<Response> {
+async function processMatch(request: Request, options: MatchHandlerOptions, trace: MatchTrace): Promise<Response> {
   const extra = options.extraHeaders ?? {};
   const guard = options.ipGuard ?? defaultIpGuard;
   const ip = clientIpFromHeaders(request.headers);
-  const json = (body: MatchResponseBody, status: number, headers?: Record<string, string>) =>
-    NextResponse.json(body, {
+  const json = (body: MatchResponseBody, status: number, headers?: Record<string, string>) => {
+    const classified = outcomeFromResponse(status, body);
+    trace.outcome = trace.provider === true && classified === "fill" ? "provider_fill" : classified;
+    return NextResponse.json(body, {
       status,
       // no-store: jawab kabhi cache nahi hota. Vary: Authorization: agar koi beech ka proxy galti se cache kare bhi,
       // toh ek publisher ka jawab doosre ki key par kabhi nahi jayega (defence in depth).
       headers: { "Cache-Control": "no-store", Vary: "Authorization", ...extra, ...headers },
     });
+  };
 
   // 0. Is IP se bahut galat keys aa chuki hain? Database tak mat jao.
   if (guard.isBlocked(ip, Date.now())) return json({ error: "rate_limited" }, 429, { "Retry-After": "60" });
@@ -144,6 +180,7 @@ async function processMatch(request: Request, options: MatchHandlerOptions): Pro
 
   // 3. Service: authorize + rate limit + category match + selection + serve record (+ optional, default-off provider fallback)
   const result = await serveMatchForPublisher(hashApiKey(key), matchRequest);
+  trace.provider = result.kind === "provider_ad";
 
   switch (result.kind) {
     case "unauthorized":

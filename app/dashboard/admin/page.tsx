@@ -3,6 +3,8 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import AdminDecisionButton from "@/components/admin/AdminDecisionButton";
 import PayoutRequestsPanel from "@/components/admin/PayoutRequestsPanel";
+import PilotMonitoringPanel from "@/components/dashboard/PilotMonitoringPanel";
+import { isPilotMetricsEnabled, loadPilotMonitoring } from "@/lib/ads/pilot-monitoring";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/campaigns/constants";
@@ -128,8 +130,9 @@ function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: A
 }
 
 export default async function AdminPage() {
-  await requireRole(["admin"]);
-  const data = await loadAdminData();
+  const account = await requireRole(["admin"]);
+  // Phase 3 Step 4: monitoring load review-list ke saath ek hi round me (naya sequential database call nahi). Admin-only: role admin na ho toh client banta hi nahi.
+  const [data, monitoring] = await Promise.all([loadAdminData(), loadPilotMonitoring(account.role, () => createClient())]);
   const today = utcToday();
   const pendingAccounts =
     data.advertisers.filter((a) => a.status === "pending").length + data.publishers.filter((a) => a.status === "pending").length;
@@ -151,6 +154,8 @@ export default async function AdminPage() {
       </p>
 
       <div className="space-y-6">
+        <PilotMonitoringPanel result={monitoring} recordingEnabled={isPilotMetricsEnabled(process.env)} />
+
         <Panel title="Ads waiting for review" note="Web addresses are shown as plain text on purpose. Do not open links you do not trust.">
           {data.creatives.length === 0 ? (
             <p className="text-sm text-mist/70">Nothing waiting.</p>

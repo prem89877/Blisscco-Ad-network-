@@ -8,6 +8,8 @@ import { providerFallbackFromEnv, publicAdFromFallbackFill } from "./fallback-pr
 import type { MatchSuccessResponse } from "./contract";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
+import { isPilotMetricsEnabled, type MetricSink } from "./pilot-monitoring";
+import { recordRequestMetric } from "./pilot-metrics-db";
 import { selectAd } from "./selection";
 import { serveAd, type ServeDeps, type ServeResult } from "./serve";
 import { authorizePublisher, findIdempotentServe, recordServe } from "./serve-db";
@@ -111,3 +113,11 @@ export function acceptClickForRef(ref: unknown): Promise<ClickResult> {
     record: recordClickEvent,
   });
 }
+
+// Phase 3 Step 4: pilot monitoring ka production sink (match-handler isi ko bulata hai). Flag har request par env se padhta hai;
+// default BAND (PILOT_METRICS_ENABLED ka exact value "1" chahiye). Band ho toh kuch nahi hota, database ko bulaya bhi nahi jaata.
+// Sirf outcome + latency jaata hai; serve / billing / ledger ka koi lena-dena nahi. Fail ho toh reportMatchMetric nigal leta hai.
+export const pilotMetricSink: MetricSink = (outcome, latencyMs) => {
+  if (!isPilotMetricsEnabled(process.env)) return;
+  return recordRequestMetric(outcome, latencyMs);
+};

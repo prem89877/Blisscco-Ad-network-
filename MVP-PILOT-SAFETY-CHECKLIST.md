@@ -328,3 +328,102 @@ Copy one block per observation into a private file, not into this repository. Le
 - Gate A: on 2026-11-04 the user reported by hand the 401, 400, 415 and 413 error cases and a 200 no-fill on the Preview. That is the user's word only, and no output was seen by Claude. The boxes in section 7 stay empty and the gate stays NOT CONFIRMED. Pending for Gate A: the response headers, a real ad with only the public fields, and the 429 and 503 handling. The record is in `PHASE3-STEP1-PILOT-PREPARATION-REPORT.md`, section 10.
 - A TEST key appeared in a chat during those checks. It must be revoked first, and a request made after the revoke must return 401. Neither result is reported yet.
 - Existing financial safeguards, the ledger, the payout rules and the Revive flags were not changed. See `PHASE3-STEP1-PILOT-PREPARATION-REPORT.md`.
+
+## 13. Phase 3 Step 2: first controlled serve evidence
+
+Added in Phase 3 Step 2. This section records evidence for the first controlled ad serve. The source is raw terminal output that the user pasted into the chat, and Claude did not reproduce it. A field with no result is Pending. Nobody fills a field with an estimate, and no key, token, host or destination is written here. The full record is in `PHASE3-STEP2-FIRST-SERVE-VERIFICATION-REPORT.md`.
+
+| Field | Entry |
+| --- | --- |
+| Environment name | Vercel Preview with TEST project values and a dedicated test publisher. The host is not written here. |
+| Publisher integration type | Direct `curl` from the tester's Android device (Termux). No chatbot integration and no example app was run against the Preview. |
+| Date and time (UTC) | 2026-11-04, 05:37 to 05:39, from the response `date` header. |
+| Match response | Topic `gaming`: HTTP 200, fill. Topic `health`: HTTP 200, body not visible in the pasted output. No error response was seen. |
+| Ad rendering result | Pending. The ad JSON had `sponsored: true` and the five public fields. Nothing was rendered in a browser against the Preview. |
+| Sponsored disclosure visible or not | Pending. Not looked at on a screen. Only the existing mocked component tests cover the label. |
+| Impression response | Pending. Not run. |
+| Click redirect behavior | Pending. Not run. |
+| API latency | Pending. Not measured. No number is recorded. |
+| Failure behavior | Pending. The 401, 400, 415 and 413 cases were not run in this pass. 429 and 503 cannot be caused on the Preview and are covered by mocked tests only. |
+| Verification status | PARTIAL. Several items are Pending. Gates A to D stay NOT CONFIRMED. |
+
+- [ ] Latency is measured from a stated tool and environment, and the numbers are recorded as measured.
+- [ ] Impression, duplicate impression, changed token, click redirect and changed click reference are run on the Preview, and each result is recorded.
+- [ ] The Sponsored label is looked at on a screen, and no empty sponsored container appears on a no-fill.
+- [ ] The TEST key used in this pass is revoked, and a request with it returns 401.
+- [ ] The three failing tests named in the Step 2 report have a diagnosed cause.
+
+Limits: this section does not approve a pilot, does not start one and does not declare the publisher API ready for production use. Real publisher traffic does not start until every gate in section 7 has a dated result from a person. Sections 1 to 12 are unchanged.
+
+## 14. Phase 3 Step 3: advertiser campaign verification record
+
+Added in Phase 3 Step 3. This section records evidence for two TEST campaigns on the Preview. The sources are terminal output and a screenshot that the user attached to the chat, and the user's own report where the report says so. Claude did not reproduce any of it. A field with no result is Pending. Nobody fills a field with an estimate, and no key, host or full identifier is written here. The full record is in `PHASE3-STEP3-ADVERTISER-PILOT-VERIFICATION-REPORT.md`.
+
+| Field | Campaign A | Campaign B |
+| --- | --- | --- |
+| Environment | Preview with TEST project values and a TEST advertiser. The host is not written here. | Same as campaign A. |
+| Advertiser campaign identifier | `3657dd65` (first 8 characters) | Pending. Not recorded. |
+| Campaign eligibility result | Status Active, and a match returned its ad. | Status Active with one approved ad, and a match returned its ad. |
+| Campaign category | `gaming` | `travel` |
+| Budget cap configuration | Total 198.00, daily 19.80 (USD), as reported by the user. | Total 1.00, daily 0.50 (USD), as shown on the campaign page. |
+| Match result | Fill. | Fill. |
+| Served creative identifier | `dd7c6b2a` (first 8 characters) | `d6b2e246` (first 8 characters) |
+| Advertiser spend result | 0.0020 more spend for one serve, as reported by the user from the dashboard. | Spend 0.5000, equal to the daily cap, with 250 ads served on the dashboard. |
+| Budget-exhaustion behavior | Pending. Not run. | The dashboard showed the daily budget used up. A later no-fill request is the user's report only. |
+| Verification date | 2026-11-04 | 2026-11-04 |
+| Verification status | PARTIAL | PARTIAL |
+
+- [ ] The identifier of campaign B is recorded.
+- [ ] A second TEST advertiser opens the first advertiser's campaign page and sees no campaign data.
+- [ ] Draft, pending review, rejected and expired campaigns each return no-fill on the Preview.
+- [ ] Concurrent requests against the real TEST database do not spend more than the cap and do not create duplicate spend records.
+- [ ] The TEST key used in these checks is revoked, and a request with it returns 401.
+
+Limits: this section does not approve a pilot, does not start one and does not declare the publisher API ready for production use. No real advertiser spending and no public launch. Gates A to D in section 7 stay NOT CONFIRMED. Sections 1 to 13 are unchanged.
+
+## 15. Phase 3 Step 4: pilot monitoring thresholds and stop conditions
+
+Added in Phase 3 Step 4. This section defines what to watch, what to do and who decides. No pilot traffic has been measured, so no rate, count or time limit is written here as a fact. Where no reliable number exists, the field is blank and the owner decides before the pilot. The full record is in `PHASE3-STEP4-PILOT-MONITORING-REPORT.md`.
+
+### 15a. What the monitoring shows
+
+- The admin page shows a Pilot monitoring panel (`app/dashboard/admin/page.tsx`, `components/dashboard/PilotMonitoringPanel.tsx`). Only an admin can open it, and the database function behind it returns nothing to any other account.
+- It shows ad requests, fills, no-fills, API errors (503), caller errors (401, 429, 400), fill rate, average and slowest latency, serves, impressions, clicks, campaign spend, ledger charges and publisher earnings, for the last 7 UTC days including today.
+- Request counts and latency exist only while request recording is on. Recording is off by default and starts only when the server variable `PILOT_METRICS_ENABLED` has the exact value `"1"`. The monitoring SQL must also have been applied by a person to the TEST project first. When recording is off, the panel says so and shows no request figure.
+- Only the outcome and the duration of a request are recorded. No conversation text, topic, user id, publisher key, address or campaign is recorded (`lib/ads/pilot-metrics-db.ts`).
+- Recording runs after the answer is sent and never waits for the database. If recording fails, the ad answer is not changed (`lib/ads/match-handler.ts`).
+- The panel applies no threshold and pauses nothing by itself. A person reads it on the dates the owner wrote (section 11b) and acts on the table in 15b.
+- The latency shown is the Blisscco server side only. A publisher timeout happens on the publisher's server and is not visible to Blisscco, so the publisher reports it.
+
+### 15b. Thresholds and actions
+
+| Signal | Where it is read | Action | Threshold |
+| --- | --- | --- | --- |
+| API errors (503) increase | API errors card, and the publisher's report | Investigate before the next check. Read the Blisscco error codes in the server logs. | Increase that starts the investigation: ____ (owner decision, blank until set). No baseline has been measured. |
+| Repeated publisher API timeouts | Publisher's own report | Pause the pilot. Pausing uses the same steps as a stop in section 10f. | Number of timeouts and the period: ____ (owner decision, blank until set). The timeout value belongs to the publisher. |
+| Incorrect ad matching | A person compares the topic slug the publisher sent with the ad category (section 11b) | Pause the campaign that served the wrong ad. The eligibility rules need an exact category match, so a wrong match is a rule failure. | Proposed for the owner to accept or change: one wrong match found. Owner decision: ____ |
+| Budget overspend | Campaign spend card and the campaign page, compared with the written cap (section 10b) | Stop the pilot at once (section 10f). | Any spend above the written cap. The cap amounts are owner decisions and are blank until set. |
+| Duplicate financial events | Ledger, and the consistency notes | Stop the pilot at once (section 10f). The database allows one ledger entry per serve and entry type, so a duplicate means a rule was bypassed. | Any single duplicate. |
+| Tracking inconsistency | Consistency notes on the panel | Pause the affected campaign. One serve has at most one impression, and a click counts only after an impression, so the first two notes mean a rule was bypassed. | Any occurrence of the notes "Impressions are higher than serves" or "Clicks are higher than impressions". Tolerance for a difference from the publisher's own counts: ____ (owner decision, blank until set). |
+| Spend and ledger charges differ | Consistency notes on the panel | Compare both figures. If the difference cannot be explained, for example by the date the ledger was switched on, stop the pilot (a charge that cannot be explained, section 10f). | Any unexplained difference. |
+| Publisher integration failure | Publisher's report | The publisher shows no ad and the chat keeps working (Gate C in section 7). Blisscco never guesses an ad: an outage answers 503 with `unavailable` and a request with no eligible ad answers a no-fill. | A single failure is not a stop. Repeated failures follow the timeout row. |
+| Latency | Average and slowest latency cards | Record the figures with the date. Write the limit after the first measured sample. | Latency limit: ____ (owner decision, blank until set). No latency limit is claimed here. |
+
+- [ ] The owner has written every blank field in 15b before the pilot starts, and the date is recorded.
+- [ ] A person has read the Pilot monitoring panel on each date the owner wrote, and each reading is recorded in the format in section 11c.
+- [ ] The panel was opened by an advertiser account and by a publisher account on the Preview, and neither could see it. Not done yet.
+- [ ] Request recording was turned on for the TEST or Preview environment by the owner, after the monitoring SQL was applied to the TEST project. Not done yet.
+- [ ] A TEST request was made and the panel counted it once. Not done yet.
+
+| Pilot item | Evidence kept | Date | Checked by | Result |
+| --- | --- | --- | --- | --- |
+| Monitoring thresholds written (15b) | | | | NOT CONFIRMED |
+| Monitoring panel read on the Preview (15a) | | | | NOT CONFIRMED |
+
+### 15c. Limits
+
+- No Preview or Production service was contacted for this section. The monitoring SQL was not run on any database, and no pilot metric has been measured.
+- Request counts, fill rate and latency are zero or missing until recording is on. A figure in the panel is a recorded count and is not a performance claim.
+- The existing limit of 20 wrong keys per minute for one address in `lib/ads/ip-guard.ts` protects the endpoint. It is not a pilot health threshold.
+- This section does not approve a pilot, does not start one and does not declare the publisher API ready for production use. Gates A to D in section 7 stay NOT CONFIRMED.
+- The ledger, the payout rules, the budget rules and the Revive flags were not changed.
