@@ -37,3 +37,5 @@ Maine koi SQL kisi database par **nahi chalayi**. Ek migration file banayi hai, 
 
 - Google se signup hamesha advertiser banata hai (UI me likha hua hai). Publisher banna sirf email signup se. Isse badalne ke liye database trigger / role flow badalna padega.
 - Publisher ke liye details edit form nahi hai (database allow karta hai). Approval ke baad naam badalne par dobara review chahiye ya nahi, ye tumhara faisla hai.
+
+
