@@ -11,8 +11,9 @@ The user ran these in Termux and pasted the output into the chat; Claude read th
 | A1 | `tests/workflows/day19-part2-campaign-review-flow.test.ts` | **PASS**: 42 tests, 42 pass, 0 fail, 0 skipped |
 | A2 | `tests/workflows/day19-part3-publisher-key-serving.test.ts` and `tests/ads/serve.test.ts` | **PASS**: 69 tests, 69 pass, 0 fail, 0 skipped |
 | A3 | `tests/ads/day9-part4-serving.test.ts`, `tests/ads/candidate-loader.test.ts`, `tests/campaigns/day9-part4-admin.test.ts` | **PASS**: 108 tests, 108 pass, 0 fail, 0 skipped. The `[ads/load] rpc failed XX000` lines are logs of deliberate failure cases, whose tests passed |
-| A4 | `npm run lint` (type check) | **PENDING**: result not reported |
-| A5 | Whole suite `npm test` (includes `tests/integration/`, which needs a TEST database) | **PENDING**: not run |
+| A4 | `npm run lint` (type check, `tsc --noEmit`), GitHub CI, Node 22 | **PASS (user-reported screenshot)**: step green in CI run "update #61", Attempt #1, 9s. Claude did not see the log lines |
+| A5 | Whole suite `npm test`, GitHub CI, Node 22 | **PASS (user-reported screenshot)**: step green, 23s. Claude saw no test counts, so the number of skipped database tests is unknown (CI has no TEST database). Not run in Termux |
+| A6 | ESLint (`npm run lint:eslint`) and production build (`npm run build`), GitHub CI | **PASS (user-reported screenshot)**: both steps green; whole job succeeded in 1m 24s. An earlier view of a CI run showed the build step stuck for about 6 minutes after printing its route table; the screenshot of Attempt #1 shows the build at 33s. The cause of the stuck run is unknown and was not investigated |
 
 ### What the existing tests cover (Task 1 and 2)
 
@@ -56,7 +57,7 @@ User-confirmed: on 2026-11-04 the user checked the campaign page on the Preview 
 ## 5. Remaining pending / blockers
 
 - M1 to M9 need an admin-role account on the Preview and a TEST publisher key.
-- A4 (`npm run lint`) and A5 are not reported.
-- Documentation-contract tests read these markdown files; rerun `npm test` in Termux after this change (at least `tests/ads/day29-part5-report-contract.test.ts` and the `day30-*` files) and report the result.
+- CI green (A4 to A6, Attempt 1 and Attempt 2 both green, user-reported) covers the commit with the three updated files `PHASE2-STABILIZATION-EXIT-REPORT.md`, `MVP-FEATURE-STATUS.md` and `MVP-VERIFICATION-RUNBOOK.md`. It does not cover this report file, which was added after that commit (user-reported; commit not seen by Claude). The documentation-contract tests read these markdown files, so a CI run on a commit that also contains this report is still advisable.
+- The one stuck build seen in CI is unexplained (see A6); both attempts finished green.
 - Campaign page root cause: unknown.
 - Production: not accessed, by design.
