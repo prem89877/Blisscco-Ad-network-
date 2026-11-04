@@ -34,7 +34,12 @@ export function useGuardedAction<S extends GuardState>(
       errorState: options.errorState,
     }),
   );
-  const [state, formAction, pending] = useActionState(guard.run, initialState);
+  // React ke type `Awaited<S>` maangte hain; S ek generic hai, isliye yahan ek jagah cast (runtime me S aur Awaited<S> same hain).
+  const [rawState, formAction, pending] = useActionState<S, FormData>(
+    guard.run as unknown as (state: Awaited<S>, payload: FormData) => Promise<S>,
+    initialState as unknown as Awaited<S>,
+  );
+  const state = rawState as unknown as S;
   const onSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       if (!guard.tryBegin()) event.preventDefault();
