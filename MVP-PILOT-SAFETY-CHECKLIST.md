@@ -325,4 +325,6 @@ Copy one block per observation into a private file, not into this repository. Le
 - They do not approve a pilot, do not start one and do not declare the publisher API ready for production use. The publisher guide still says it is not ready for production use.
 - The cap amounts, payout maximum, stop thresholds and observation dates are not set. They are owner decisions.
 - Gates A to D in section 7 are still NOT CONFIRMED.
+- Gate A: on 2026-11-04 the user reported by hand the 401, 400, 415 and 413 error cases and a 200 no-fill on the Preview. That is the user's word only, and no output was seen by Claude. The boxes in section 7 stay empty and the gate stays NOT CONFIRMED. Pending for Gate A: the response headers, a real ad with only the public fields, and the 429 and 503 handling. The record is in `PHASE3-STEP1-PILOT-PREPARATION-REPORT.md`, section 10.
+- A TEST key appeared in a chat during those checks. It must be revoked first, and a request made after the revoke must return 401. Neither result is reported yet.
 - Existing financial safeguards, the ledger, the payout rules and the Revive flags were not changed. See `PHASE3-STEP1-PILOT-PREPARATION-REPORT.md`.

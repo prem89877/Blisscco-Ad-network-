@@ -121,3 +121,37 @@ describe("phase 3 step 1: the report names real files", () => {
     assert.doesNotMatch(read(".github/workflows/ci.yml"), /PHASE3-STEP1|PILOT-PREPARATION/);
   });
 });
+
+describe("phase 3 step 1: Gate A report from the user", () => {
+  const s = section(report, "10. Gate A checks reported by the user (2026-11-04)");
+
+  it("labels every result as user-reported and keeps Gate A open", () => {
+    assert.match(s, /\*\*User-reported\*\*, on the user's word only/);
+    assert.match(s, /Gate A stays NOT CONFIRMED/);
+    for (const w of ["unauthorized", "unknown_field", "unsupported_media_type", "payload_too_large", "no-fill answer"]) assert.ok(s.includes(w), w);
+    assert.match(s, /Still pending: the response headers/);
+  });
+
+  it("does not claim the key was revoked and writes no key value", () => {
+    assert.match(s, /A revoke has not been reported, so it is pending/);
+    assert.doesNotMatch(report, /blc_live_[0-9a-f]{8,}/i);
+    assert.doesNotMatch(safety, /blc_live_[0-9a-f]{8,}/i);
+    assert.doesNotMatch(report, /vercel\.app/i);
+  });
+
+  it("the safety checklist keeps every gate NOT CONFIRMED and points to the record", () => {
+    assert.match(safety, /Gate A: on 2026-11-04 the user reported/);
+    assert.match(safety, /the gate stays NOT CONFIRMED/);
+    const rows = safety.split("\n").filter((l) => /^\| (Section \d|Gate [A-D])/.test(l));
+    assert.equal(rows.length, 9);
+    for (const r of rows) assert.match(r, /\| NOT CONFIRMED \|$/, r);
+  });
+
+  it("the cross-document table names real files", () => {
+    const x = section(report, "11. Cross-document status after the Gate A report");
+    for (const f of ["PHASE2-STABILIZATION-EXIT-REPORT.md", "DAY30-MVP-HANDOFF-REPORT.md", "DAY-B-CI-TEST-DB-VERIFICATION-REPORT.md", "MVP-FEATURE-STATUS.md", "MVP-VERIFICATION-RUNBOOK.md"]) {
+      assert.ok(x.includes("`" + f + "`"), f);
+      assert.ok(existsSync(path.join(ROOT, f)), f);
+    }
+  });
+});
