@@ -152,7 +152,7 @@ Full detail and sources: `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, `DAY-B-C
 | Item | Source | Status |
 |---|---|---|
 | Two earlier CI runs failed because of document-test matching rules, not application code | Day B report, section 2 | Failed earlier. The user later reported a good run, with no link seen |
-| Advertiser campaign page error screen seen once after saving a creative | Step 2 report | **Pending**, root cause not found, no code changed. Old issue not reproduced in latest user-confirmed Preview check (new advertiser account, 2026-11-04); root cause remains unknown. A user rerun on 2026-11-04 is in Phase 2 Step 5 status and does not name a cause |
+| Advertiser campaign page error screen seen once after saving a creative | Step 2 report | Closed on the user's word, no longer Pending. The user reports the cause was a slow button response across the whole website (any button click took long, an error showed while waiting, and a manual reload showed the action had succeeded) and that it is fixed. See Phase 2 Step 5 status. Claude saw no log or output; the shared action guard added in Phase 2 Step 4 addresses exactly this behavior in the repository, but the server-side reason for the slow response was not diagnosed |
 | Controlled Revive test | Day C report, section 4 | **Pending**, not approved, not run |
 | Revive JSON preview route, static fixture and manual check scripts | Prototype section above | **Unverified**, flags unset in Preview, scripts never run |
 | Real Revive endpoint, and billing or tracking for Revive ads | Not integrated section above | Not integrated, **Unverified** |
@@ -163,7 +163,7 @@ Full detail and sources: `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, `DAY-B-C
 
 ### Phase 2 Step 5 status (user-run manual checks, 2026-11-04)
 
-The user reported that these checks were run by hand. Claude saw no commands, output or counts. Each row covers only what it names. Payment checkout and Revive are not integrated, so their rows above stay Pending or Unverified, and so do the campaign page root cause and Production. GitHub CI and the real PostgreSQL recheck are in the table "Reported by the user, no log seen", as the user's word only.
+The user reported that these checks were run by hand. Claude saw no commands, output or counts. Each row covers only what it names. Payment checkout and Revive are not integrated, so their rows above stay Pending or Unverified, and so does Production. GitHub CI and the real PostgreSQL recheck are in the table "Reported by the user, no log seen", as the user's word only.
 
 | Feature | Source | Status |
 |---|---|---|
@@ -171,6 +171,7 @@ The user reported that these checks were run by hand. Claude saw no commands, ou
 | Termux rerun of the documentation-contract files after the Step 4 edits | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
 | Publisher example code in `examples/publisher-node/` and `examples/publisher-nextjs/` run by hand | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
 | Rerun on Preview: add an ad, then send it for review, on the advertiser page | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
+| Campaign page error: cause (slow button response across the website, error while waiting, success after a manual reload) and its fix, rechecked on Preview | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
 
 ## What stays manual
 

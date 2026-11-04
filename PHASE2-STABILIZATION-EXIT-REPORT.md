@@ -2,15 +2,13 @@
 
 Date: 2026-11-04. Documentation and one report-contract test only. No product feature, application code, SQL file, migration, workflow, script or deployment setting was added or changed.
 
-**Decision: NOT READY — BLOCKERS REMAIN**
+**Decision: READY FOR CONTROLLED PILOT**
 
 ## 1. Decision
 
-Phase 2 stabilization exit criteria are not met. Four of the five critical criteria are met on the evidence recorded below. One is not: the advertiser campaign page error has no confirmed cause (blocker B1, section 8). The user reran the check and reported it done, which is recorded, but a rerun that shows no error does not explain the one earlier error.
+Phase 2 stabilization exit criteria are met on the evidence recorded below, with the limits stated in sections 7 and 8. The decision is READY FOR CONTROLLED PILOT. It rests partly on the user's word: the cause and fix of the campaign page error (blocker B1, now closed), the Preview rechecks, GitHub CI and the TEST database run were reported by the user and Claude saw no log, run link or count for them. It does not mean Production is deployed or verified, and it does not cover the items that stay Pending in section 3.
 
-The decisions READY FOR CONTROLLED PILOT and REVIEW INCOMPLETE were not chosen. Pilot readiness cannot be declared while criterion C1 is not met. The review is not incomplete, because every criterion has recorded evidence; the open item is a known and named issue.
-
-What would change the decision is listed in section 9. Accepting B1 as a known risk is the user's decision, not a finding of this review.
+An earlier version of this report said NOT READY because B1 had no confirmed cause. On 2026-11-04 the user reported the cause (section 8) and that it is fixed. The repository supports that account: the Phase 2 Step 4 guard handles a slow or failed button request. Section 12 records the review that supports it.
 
 ## 2. Scope and safety
 
@@ -32,8 +30,8 @@ Rows marked (critical) are the ones the decision depends on. The status document
 | 5 | Day C: valid, wrong and missing key, match, no-fill, impression and click on Preview (critical) | User-confirmed. Rests on the user's word; no raw output seen. | `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md` section 3 |
 | 6 | Phase 2 Step 1: the nine remaining Preview checks (critical) | User-confirmed. Rests on the user's word; no raw output seen. | `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md` section 4 |
 | 7 | Controlled Revive test | Pending. Reason: Revive is not integrated and the test was never approved. | `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md` section 1 |
-| 8 | Campaign page root cause (critical) | Pending. Reason: the one error left no log line or reference code, a retry did not fail, and no cause has been found. Old issue not reproduced in latest user-confirmed Preview check; root cause remains unknown. | `PHASE2-STEP2-CAMPAIGN-PAGE-FIX-REPORT.md` section 4 |
-| 9 | Campaign page rerun: add an ad, then send it for review (critical) | User-confirmed — currently not reproducible in Preview. Rests on the user's word; on 2026-11-04 the user checked the campaign page with a new advertiser account and the error did not reproduce. No error screen or reference code is recorded. It does not name a cause. | `MVP-VERIFICATION-RUNBOOK.md`, `MVP-FEATURE-STATUS.md` |
+| 8 | Campaign page root cause (critical) | User-confirmed. Rests on the user's word; on 2026-11-04 the user reported that the error was a slow button response across the whole website (any button click took long, an error showed while waiting, and a manual reload showed success) and that it is fixed. Claude saw no log or output. The server-side reason for the slow response was not diagnosed. | `PHASE2-STEP2-CAMPAIGN-PAGE-FIX-REPORT.md` section 4 |
+| 9 | Campaign page rerun: add an ad, then send it for review (critical) | User-confirmed — currently not reproducible in Preview. Rests on the user's word; on 2026-11-04 the user checked the campaign page with a new advertiser account and the error did not reproduce. No error screen or reference code is recorded. The cause is in row 8. | `MVP-VERIFICATION-RUNBOOK.md`, `MVP-FEATURE-STATUS.md` |
 | 10 | Step 3: match and authentication regression, mocked, sandbox (critical) | Passed, 506 of 506 tests. | `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md` section 5, `tests/ads/day10-part5-integration.test.ts`, `tests/ads/publisher-auth.test.ts`, `tests/ads/v1-route.test.ts` |
 | 11 | Step 3: impression and click regression, mocked, sandbox (critical) | Passed, 357 of 357 tests. | `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md` section 5, `tests/ads/day12-part4-impression.test.ts`, `tests/ads/day17-part4-click-lifecycle.test.ts` |
 | 12 | Step 3: whole suite in the sandbox | Failed, 4553 of 4563 tests passed in Step 3; 10 failures in 7 groups. Rerun in Step 5: 4586 of 4596 tests passed, the same 10 failures. The failing tests stop with a message that the Node type definitions are missing and ask for an install; the sandbox has no `node_modules`. | `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md` section 5, `tests/ads/day28-part1-publisher-types.test.ts`, `tests/ads/publisher-examples.test.ts` |
@@ -59,7 +57,7 @@ Rows marked (critical) are the ones the decision depends on. The status document
 
 | Criterion | Verdict | Basis |
 |---|---|---|
-| C1 Advertiser campaign-page error has a confirmed cause and safe resolution | Not met | The cause is not confirmed (row 8). No code was changed, so there is no resolution to call safe. The rerun is user-confirmed (row 9) but does not name a cause. This is blocker B1. |
+| C1 Advertiser campaign-page error has a confirmed cause and safe resolution | Met | The cause and fix are user-confirmed (rows 8 and 9), on the user's word. The repository carries the Step 4 button guard that matches the reported behavior, and 275 of 275 focused tests pass (section 12). The server-side reason for the slow response is not diagnosed, see section 8. |
 | C2 Remaining Preview checks are completed or explicitly pending with reasons | Met | Rows 5, 6 and 13 are user-confirmed. Rows 7 and 22 to 28 are Pending, each with its reason. |
 | C3 Core ad matching, authentication, no-fill, impression and click regression checks are accurately recorded | Met | Automated rows 10 and 11 give counts. The failed whole-suite sandbox run (row 12) is recorded, not hidden. CI and database results are labeled as the user's word only. |
 | C4 Documentation matches confirmed implementation behavior | Met | Row 19. The status documents were updated in Step 5 only where the user's report supports it, and the contract tests agree with them. Termux and CI runs of the Step 5 files are not done yet (section 9). |
@@ -99,29 +97,31 @@ These rest on the user's word only. No log, run link, commit or count was seen f
 
 - Day A local npm checks, Day B GitHub CI and Day B TEST PostgreSQL run (rows 1 to 3).
 - Preview checks of Day C and Phase 2 Step 1 (rows 5 and 6).
-- On 2026-11-04: the campaign page rerun, the Preview recheck, the Termux rerun of the documentation-contract files, the publisher example code run, GitHub CI and the real PostgreSQL recheck (rows 9, 13, 14, 15, 18 and 20).
+- On 2026-11-04: the campaign page rerun and the reported cause and fix of the campaign page error, the Preview recheck, the Termux rerun of the documentation-contract files, the publisher example code run, GitHub CI and the real PostgreSQL recheck (rows 9, 13, 14, 15, 18 and 20).
 - 16 runbook boxes ticked, each with its date (row 21).
 - CI and the database recheck carry no commit, so they may predate the Step 5 files.
 
 ## 8. Blockers
 
-**B1. Advertiser campaign page error, cause not confirmed (critical, criterion C1).** The page showed a generic error screen once after a creative was added, on a request that took 8.1 seconds. The ad status change had worked. No runtime log line, reference code or request trace exists for it, a retry did not fail, and the user's rerun on 2026-11-04 reported no details. The code reading in the Step 2 report found no failing path. No cause is confirmed, so no fix was made and none can be called safe.
+None. No open critical blocker.
 
-No other blocker is recorded. The failed sandbox whole-suite run (row 12) is a sandbox condition, not a blocker, because the user reports a good CI run (row 14); a failure in a real install would have to be recorded here.
+**Closed: B1. Advertiser campaign page error.** The page showed a generic error screen once after a creative was added, on a request that took 8.1 seconds. On 2026-11-04 the user reported that the cause was a slow button response across the whole website: any button click took long, an error appeared while waiting, and a manual reload showed that the action had worked. The user reports it is fixed. This rests on the user's word. The Step 4 guard (`lib/actions/guard.ts`) limits the wait, always clears the loading state, refreshes the page state after a timeout or network error and shows no false success. Not known: why the server was slow. Slow responses may still occur during the pilot; the buttons now handle them, and they are to be watched (section 9).
 
 ## 9. Remaining work
 
-To clear B1, one of these:
+Before inviting a real publisher (controlled pilot):
 
-1. If the error appears again, send the time straight away (Vercel Hobby keeps logs for one hour) and say whether the screen shows a reference code. Claude then reads the runtime log read-only.
-2. Or the user records in writing that the issue is closed as "not reproduced, cause unknown, risk accepted". The decision can then be reviewed again. This is an accepted risk, not a confirmed cause.
+1. Copy the updated files into the repository, push, and note the GitHub CI run (link or date, commit, counts).
+2. Work through `MVP-PILOT-SAFETY-CHECKLIST.md` and `DAY30-MVP-HANDOFF-REPORT.md`. Their unticked boxes are pilot gates, not assessed here (row 28).
+3. Decide whether the scheduled cleanup of old records is switched on for the pilot project (row 26). The TEST project has no schedule and Production was not looked at.
+4. Keep the Revive flags unset. The controlled Revive test is not part of this pilot.
 
-Not blocking, but needed to record Step 5 correctly:
+During the pilot:
 
-3. Copy the Step 5 files into the repository, push, and note the GitHub CI run (link or date, commit, counts).
-4. Run the new report-contract test and the runbook test in Termux and share the pass and fail counts.
+5. Watch for slow button responses and for any error screen. If one appears, send the time at once and whether a reference code is shown (Vercel Hobby keeps logs for one hour).
+6. Payouts stay a manual record with no payment provider. Keep pilot amounts small and check each approved payout by hand.
 
-Pending by choice, each with its reason in section 3: controlled Revive test, Revive rows, payment checkout, publisher earnings, ledger and payout pages, admin pages, scheduled cleanup, Production, pilot gates.
+Pending by choice, each with its reason in section 3: controlled Revive test, Revive rows, payment checkout, admin pages on Preview, scheduled cleanup, Production, pilot gates.
 
 ## 10. What changed in Step 5
 
@@ -140,3 +140,37 @@ Left unticked on purpose: all of 7d, the setup items of 7a, the client-behavior 
 ## 11. Safety statement
 
 Production data and the Production deployment were not accessed or changed. No migration or destructive SQL was run. No publisher key, Supabase credential, database address or other secret is written in this report; the pattern scan printed only file names and counts. The Revive fallback was not enabled and no Revive endpoint was contacted. Nothing was deployed. Ledger, payout, revenue-share and advertiser-spend behavior was not changed. No test was weakened to hide a failure; the three narrowed assertions are named in section 10.
+
+## 12. Review addendum (2026-11-04, second Step 5 review)
+
+Decision at the start of this review: NOT READY, because B1 had no confirmed cause. Later the same day the user reported the cause and fix of B1 (section 8), so the decision is now READY FOR CONTROLLED PILOT.
+
+**What was read and run.** Source of truth: the latest uploaded archive. Claude read the code and ran tests in its sandbox (Node 22, no network, no `node_modules`). No application file, SQL file, migration or workflow was changed. The status text in `MVP-FEATURE-STATUS.md` and `MVP-VERIFICATION-RUNBOOK.md` and two assertions about the campaign page row were updated, as described in section 13.
+
+| Check | Result | Files |
+|---|---|---|
+| Step 4 button fix, shared guard, campaign, payout and guard tests plus payout and ledger tests, sandbox | Passed, 275 of 275 tests | `tests/workflows/phase2-action-guard.test.ts`, `tests/dashboard/phase2-button-actions-contract.test.ts`, `tests/campaigns/phase2-campaign-button-flow.test.ts`, `tests/payouts/phase2-payout-button-flow.test.ts`, `tests/payouts/day13-part4-payouts.test.ts`, `tests/ledger/day14-part5-financial-flows.test.ts` |
+| Whole suite, sandbox | Failed, 4637 of 4647 tests passed; the same 10 sandbox-only failures as in section 5 (missing Node type definitions, no `node_modules`) | `tests/ads/day28-part1-publisher-types.test.ts`, `tests/ads/publisher-examples.test.ts` |
+| Code reading: button wiring | Ten action forms use `lib/actions/use-guarded-action.ts` and `lib/actions/guard.ts` (20 second limit, double-tap lock, loading always cleared, refresh after a timeout or network error, no false success). Login, signup and log out use the form status hook. Read only; not a browser test. | `components/campaigns/RunStateButton.tsx`, `components/campaigns/CampaignReviewButton.tsx`, `components/dashboard/PayoutRequestForm.tsx`, `components/admin/PayoutActionButton.tsx` |
+| Code reading: payout and ledger safety | The database function takes a publisher row lock, accepts one open request per publisher, treats a repeated request key as a duplicate, refuses an amount above the available balance, and checks the admin role again inside the database. No transfer code. Read only; the TEST database result stays as in section 7. | `app/dashboard/publisher/payout-actions.ts`, `app/dashboard/admin/payout-actions.ts`, `supabase/sql/day-13-9-payout-requests.sql` |
+
+**Findings (none critical).**
+
+- Non-blocking: after a successful payout request the page replaces the form with the "request in progress" message, so the success notice inside the form is not seen. The new status is shown on the page. Monitor during the pilot.
+- Closed on the user's word: B1 (section 8). The Step 4 guard changes how a slow or failed request ends on screen, which matches the behavior the user describes. The reason the server was slow is not diagnosed; this is a known limitation to watch.
+- Non-blocking, unexplained: one test in `tests/ads/day14-part4-integration.test.ts` (the Day 12 impression route, run against in-memory fakes) failed in 3 of 4 consecutive runs right after a full-suite run in Claude's sandbox, then passed in 19 further isolated runs and 3 further full-suite runs. The failure message was not captured, so the cause is unknown; it is not tied to the edits made in this review. If the same test fails in GitHub CI or Termux, send the failure lines. Treat it as a flaky test to watch, not as a confirmed product defect.
+- Manual verification pending: everything listed as Pending in section 3. Claude could not reach Preview, GitHub, the TEST database or Production.
+
+**Pilot note.** If an error appears again, send the time at once and whether a reference code is shown, as in section 9, item 5.
+
+## 13. Changes made after the user's B1 report
+
+| File | Change |
+|---|---|
+| `PHASE2-STABILIZATION-EXIT-REPORT.md` | Decision, rows 8 and 9, criterion C1, sections 1, 7, 8, 9 and 12 updated |
+| `MVP-FEATURE-STATUS.md` | Campaign page row changed from Pending to closed on the user's word; one user-confirmed row added in the Phase 2 Step 5 status table |
+| `MVP-VERIFICATION-RUNBOOK.md` | Same status change in the open-items tables and one user-confirmed row added in the Phase 2 Step 5 status table |
+| `tests/ads/day30-part1-feature-status.test.ts` | One assertion changed, requested by the user's status report: the campaign page row must no longer be Pending, must say it rests on the user's word and that Claude saw no log, and the new user-confirmed row must exist |
+| `tests/ads/phase2-step5-stabilization-exit-report.test.ts` | Two assertions changed for the same reason: the campaign page root cause row must be user-confirmed and say it rests on the user's word, and both status documents must carry the closed status and the new user-confirmed row |
+
+These assertion changes follow a status change the user reported; they were not made to hide a failure. Nothing else in either test file was touched.

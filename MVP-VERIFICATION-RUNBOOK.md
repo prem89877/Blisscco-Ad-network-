@@ -219,7 +219,7 @@ Checks that remain open after Step 4:
 
 | Check | Section | Status |
 |---|---|---|
-| Advertiser campaign page error screen seen once | none | **Pending**, root cause not found. Old issue not reproduced in latest user-confirmed Preview check (new advertiser account, 2026-11-04); root cause remains unknown. A rerun reported on 2026-11-04 is in Phase 2 Step 5 status and does not name a cause |
+| Advertiser campaign page error screen seen once | none | Closed on the user's word, no longer Pending. The user reports the cause was a slow button response across the whole website and that it is fixed; see Phase 2 Step 5 status. Claude saw no log or output |
 | Controlled Revive test | 7d | **Pending**, not approved |
 | Recheck on the deployed Preview of the Step 3 automated tests | 7a to 7c | Reported by the user, see Phase 2 Step 5 status |
 | GitHub CI and real PostgreSQL recheck for the files changed in Steps 3 and 4 | 5 and 6 | Done (user's word only), reported 2026-11-04, see Phase 2 Step 5 status |
@@ -237,8 +237,9 @@ The user reported that these checks were run by hand after the Step 3 and Step 4
 | Recheck on Preview of impression, duplicate, changed token, click and changed reference | 7c | **User-confirmed — completed successfully** |
 | Termux rerun of the documentation-contract files after the Step 4 edits | 3 | **User-confirmed — completed successfully** |
 | Rerun on Preview: add an ad, then send it for review | Open items | **User-confirmed — completed successfully** |
+| Campaign page error: cause (slow button response across the website) and its fix, rechecked on Preview | Open items | **User-confirmed — completed successfully** |
 
-The last row is the rerun of the Step 2 check. The user gave no details, so no error screen and no reference code are recorded. It does not explain the one earlier error, so the root cause row above stays Pending.
+The last row is the rerun of the Step 2 check. The user gave no details, so no error screen and no reference code are recorded. It was followed by the user's report of the cause and fix, in the row below it in the second table of this section.
 
 Reported on 2026-11-04 and recorded as the user's word only:
 
@@ -260,10 +261,10 @@ Automated rows are a sandbox run with in-memory fakes (Node 22, no network). The
 | Key, eligibility, no-fill and non-serving of pending, rejected, paused (5 files, 324 tests) | 7a, 7b | **PASS** (automated, mocked) |
 | Sensitive topics, token, duplicate and spend or ledger checks (7 files, 280 tests) | 7b, 7c | **PASS** (automated, mocked) |
 | Admin Review Flow on Preview (M1 to M9) | Admin review | **User-confirmed — completed successfully** |
-| Advertiser campaign page error | Open items | **Pending**, root cause unknown |
+| Advertiser campaign page error | Open items | Closed on the user's word, see Phase 2 Step 5 status |
 | Controlled Revive test | 7d | **PENDING**, not approved |
 
-The Admin Review Flow row rests on the user's word only; no output was seen (see `PHASE2-STEP1-ADMIN-REVIEW-VERIFICATION-REPORT.md`). Campaign page status, exactly: User-confirmed — currently not reproducible in Preview. The old error's root cause remains unknown, so no root-cause box is ticked.
+The Admin Review Flow row rests on the user's word only; no output was seen (see `PHASE2-STEP1-ADMIN-REVIEW-VERIFICATION-REPORT.md`). Campaign page status: closed on the user's word, see Phase 2 Step 5 status. No runbook box is ticked for it.
 
 ### Phase 2 Step 3 status (tracking and spend safety, 2026-11-04)
 
@@ -276,7 +277,7 @@ Separate from the older Step 3 table above. Automated rows are a sandbox run wit
 | Real PostgreSQL tracking tests for this step | 6 | **PENDING** |
 | Recheck on Preview of tracking and spend for this step | 7c | **PENDING** |
 
-Earlier user-reported results stay as recorded above. Campaign page status, exactly: User-confirmed — currently not reproducible in Preview; the old error's root cause remains unknown.
+Earlier user-reported results stay as recorded above. Campaign page status: closed on the user's word, see Phase 2 Step 5 status.
 
 ### Phase 2 Step 4 status (publisher earnings, ledger and payouts, 2026-11-04)
 
@@ -293,7 +294,7 @@ Separate from the older Step 4 notes. Automated rows are a sandbox run with in-m
 | Valid payout request reaches the expected status on Preview (no real transfer) | Payouts | **User-confirmed — completed successfully** |
 | Real PostgreSQL tests for earnings, ledger and payouts | 6 | **PENDING** |
 
-Earlier user-reported results stay as recorded above. Campaign page status, exactly: User-confirmed — currently not reproducible in Preview; the old error's root cause remains unknown.
+Earlier user-reported results stay as recorded above. Campaign page status: closed on the user's word, see Phase 2 Step 5 status.
 
 ## 9. Limits and what was not changed
 

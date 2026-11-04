@@ -145,7 +145,7 @@ describe("phase 2 step 5 exit report: verification areas", () => {
     for (const r of areas.filter((x) => /^User-confirmed/.test(x[2]))) assert.match(r[2], /user's word/i, r[1]);
   });
 
-  it("Revive, payment, Production, cleanup, pilot gates and the campaign page root cause are Pending, never confirmed", () => {
+  it("Revive, payment, Production, cleanup and pilot gates are Pending, never confirmed; the campaign page root cause is user-confirmed on the user's word only", () => {
     const need: [RegExp, RegExp][] = [
       [/Controlled Revive test/, /^Pending/],
       [/Revive preview route|Revive fallback wiring|real Revive endpoint/i, /^Pending/],
@@ -153,7 +153,7 @@ describe("phase 2 step 5 exit report: verification areas", () => {
       [/Production deployment and data/, /^Pending/],
       [/scheduled cleanup/i, /^Pending/],
       [/Pilot gates/, /^Pending/],
-      [/Campaign page root cause/, /^Pending/],
+      [/Campaign page root cause/, /^User-confirmed[\s\S]*user's word[\s\S]*Claude saw no log/],
     ];
     for (const [area, st] of need) {
       const row = areas.find((r) => area.test(r[1]));
@@ -168,15 +168,17 @@ describe("phase 2 step 5 exit report: verification areas", () => {
 });
 
 describe("phase 2 step 5 exit report: no mismatch with the status documents", () => {
-  it("the campaign page root cause is Pending in the report and in the feature status", () => {
+  it("the campaign page root cause is user-confirmed in the report and closed on the user's word in both status documents", () => {
     const row = areas.find((r) => /Campaign page root cause/.test(r[1]));
-    assert.match(row![2], /^Pending/);
-    const line = status.split("\n").find((l) => /^\| Advertiser campaign page error/.test(l));
-    assert.ok(line);
-    assert.match(line!, /\*\*Pending\*\*/);
-    const rb = runbook.split("\n").find((l) => /^\| Advertiser campaign page error/.test(l));
-    assert.ok(rb);
-    assert.match(rb!, /\*\*Pending\*\*/);
+    assert.match(row![2], /^User-confirmed/);
+    for (const [d, re] of [[status, /^\| Advertiser campaign page error/], [runbook, /^\| Advertiser campaign page error/]] as [string, RegExp][]) {
+      const line = d.split("\n").find((l) => re.test(l));
+      assert.ok(line);
+      assert.doesNotMatch(line!, /\*\*Pending\*\*/);
+      assert.match(line!, /user's word/);
+      assert.match(line!, /Claude saw no log/);
+      assert.ok(d.split("\n").some((l) => /^\| Campaign page error: cause/.test(l) && /\*\*User-confirmed — completed successfully\*\*/.test(l)));
+    }
   });
 
   it("the number of ticked runbook boxes named in the report equals the number in the runbook", () => {

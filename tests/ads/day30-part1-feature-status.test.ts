@@ -281,11 +281,15 @@ describe("phase 2 step 4: evidence status stays honest", () => {
     assert.ok(count >= 8, `only ${count} user-confirmed rows`);
   });
 
-  it("Revive, Production and the campaign page error stay Pending or Unverified", () => {
+  it("Revive and Production stay Pending or Unverified; the campaign page error is closed only on the user's word", () => {
     const rows = ev.split("\n").filter((l) => /^\|/.test(l));
     const row = (re: RegExp) => rows.find((l) => re.test(l)) ?? assert.fail(String(re));
     assert.match(row(/Controlled Revive test/), /\*\*Pending\*\*/);
-    assert.match(row(/Advertiser campaign page error/), /\*\*Pending\*\*/);
+    const cp = row(/Advertiser campaign page error/);
+    assert.doesNotMatch(cp, /\*\*Pending\*\*/);
+    assert.match(cp, /user's word/);
+    assert.match(cp, /Claude saw no log or output/);
+    assert.ok(rows.some((l) => /Campaign page error: cause/.test(l) && /\*\*User-confirmed — completed successfully\*\*/.test(l)));
     assert.match(row(/Production deployment and Production data/), /\*\*Unverified\*\*/);
     assert.match(row(/Real Revive endpoint/), /\*\*Unverified\*\*/);
     assert.match(row(/Revive fallback wiring/), /\*\*Unverified\*\*/);
