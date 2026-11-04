@@ -130,3 +130,4 @@ Koi test "PASS" tab maano jab aap denim par chalakar result dekh lo.
 - **D6 bot/fraud** aur **D8 impression par billing**: alag part, alag approval.
 - **`serves_total` purge masla (D7, Part 1 sec 8.2):** abhi bhi khula hai. `creative_serve_daily` 90 din baad purge hoti hai to purani campaign ka "ads served" ghat jata hai. Ye is part me nahi badla (billing/reporting ke paas hai).
 - 
+
