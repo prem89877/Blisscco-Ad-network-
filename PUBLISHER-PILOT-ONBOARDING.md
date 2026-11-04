@@ -2,10 +2,14 @@
 
 This is documentation only. It restates the existing publisher guide (`app/dashboard/publisher/guide/page.tsx`) and the example integrations (`examples/publisher-node`, `examples/publisher-nextjs`). No code, route or contract was changed, and nothing was run to write it. No deployment, Production database or live endpoint was touched.
 
+Phase 3 Step 1 added sections 10 and 11 for a controlled pilot. They are documentation only, and no code, route or API contract was changed for them. The pilot is not a public launch.
+
 ## 1. Status
 
 - Access is limited and accounts are approved by hand.
 - The guide marks the API as not ready for production use. Do not roll it out to real users yet.
+- The controlled pilot is limited to 1 trusted chatbot publisher and 1 to 2 early advertisers, with small capped budgets, Blisscco contextual ads only, the Revive fallback off and manual payouts only (section 10).
+- There is no public self-service onboarding for the pilot. Only the named pilot account is approved.
 - Blisscco has no integration with ChatGPT or any other third-party chatbot (see section 7).
 - This document restates the routes, fields and headers found in the code and the guide. It records no run result. Where a result exists, it lives in the files named in section 9, with its own label.
 
@@ -148,3 +152,52 @@ This section names where results are recorded. It does not repeat them and it cl
 - Wording of this file: `tests/publisher/day30-part3-onboarding-doc.test.ts` checks that it names only existing routes, headers and environment variable names. It does not check that the routes behave as written.
 - Preview behaviour of match, no-fill, impression and click: recorded only in `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md` and `MVP-VERIFICATION-RUNBOOK.md`, with the user's word as the source. Anything not listed there stays unverified.
 - Any publisher integration outside this repository, any real Revive endpoint and any production use: unverified.
+
+## 10. Controlled pilot rules for the publisher (Phase 3 Step 1)
+
+These rules restate the existing contract for a pilot. They add no route, field, header or environment variable. The pilot is not a public launch, and this document does not approve it.
+
+### Approval and access
+
+- Blisscco approves the pilot publisher account by hand. No other publisher account is approved for the pilot.
+- Approval does not start ad delivery by itself. The key is created by the publisher after approval, and campaigns are approved by an admin.
+- Blisscco does not promise fill, earnings, a review time or a start date.
+- Payouts are a manual record. Blisscco approves each payout request by hand, and Paid only records that money was sent outside the system.
+
+### What the publisher sends and stores
+
+- Only a topic slug chosen by your own code goes to Blisscco. Raw chatbot conversation text, user ids, emails, session ids and other personal data never go to Blisscco.
+- The key lives only in your server's environment or secret manager. It stays out of browser code, git, logs, tickets, screenshots and chat.
+- Your logs hold counts of fills and no-fills, and no conversation text or topic tied to a person.
+
+### What to expect from ads
+
+- Relevance: an ad is matched by an exact category slug or a fixed alias. There is no reading of the conversation and no profile of the person, so a match can still look loosely related to the answer. Sensitive and unsupported topics get no ad.
+- No-fill: `{"fill":false}` is a normal answer and gives no reason. Show nothing and keep the chat unchanged. A 503 is an outage and is not a no-fill.
+- Tracking limits: the tracking token and click reference come only from a match request that opted in, and only while tracking is switched on at Blisscco. They are reporting counts and do not prove an ad was shown or clicked. Spend is counted when an ad is handed to you, not when a person sees it.
+- The API is not ready for production use, the contract can still change and no staging environment is published.
+
+### Revoke-key procedure
+
+1. If the key may have leaked, open the Publisher page and revoke that key first. Do not look for the cause first.
+2. Check that your server now gets 401 for the revoked key. Your chat must keep working without ads.
+3. Create a replacement key on the Publisher page, with a name and an expiry. It is shown once.
+4. Put the new key in your server's environment and deploy.
+5. Remove the old key from every place it was seen, and tell Blisscco the date and what happened. Never include the key value.
+6. Revoking cannot be undone. To rotate without a leak, create the new key first, deploy it, then revoke the old one.
+
+### Pilot publisher checklist
+
+All boxes start empty. Nothing here is confirmed by this document.
+
+- [ ] The account was approved by hand, and the publisher knows the pilot is limited and is not a public launch.
+- [ ] The key is stored only on the server, and the publisher searched the built frontend and the network tab and found no key.
+- [ ] The publisher stated in writing that only a topic slug is sent, and that no conversation text or personal data is sent.
+- [ ] The publisher has read the sections of this file on relevance, no-fill and tracking limits.
+- [ ] The publisher can state the revoke-key steps above without looking, and knows revoking comes first.
+- [ ] The publisher knows that Blisscco may stop the pilot at any time, and what the stop conditions are (`MVP-PILOT-SAFETY-CHECKLIST.md`, section 10f).
+- [ ] The publisher knows which fill and no-fill counts and which errors to report during the pilot, and how (`MVP-PILOT-SAFETY-CHECKLIST.md`, section 11).
+
+## 11. Pilot observation records
+
+The observation list, the places each item can be seen and the record format (date, environment, method, actual result, source) are in `MVP-PILOT-SAFETY-CHECKLIST.md`, section 11. The publisher's part is to report API errors, timeouts, fills, no-fills and integration errors with a date and a status code. A value that was not measured is reported as not measured. This document fills in no number.

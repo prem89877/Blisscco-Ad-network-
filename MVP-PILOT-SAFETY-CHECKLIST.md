@@ -181,3 +181,148 @@ Invite a real publisher only when every row has a dated result from a person.
 ## 9. Not changed
 
 Environment values, the Revive fallback flag, SQL and migration files, Production data, credentials, payment and ledger behavior, and deployment configuration were not changed, and no live service was contacted. No `.sh` script was added, so `.github/workflows/ci.yml` is unchanged.
+
+## 10. Phase 3 Step 1: controlled pilot scope and limits
+
+Added in Phase 3 Step 1. This section is documentation only. It prepares a controlled pilot and does not start one. The pilot is not a public launch and not an unrestricted production rollout. Every box below starts empty, and no item is confirmed by this document.
+
+What the code does and does not enforce, read from the repository and not run:
+
+- The application has no pilot cap. `lib/campaigns/constants.ts` sets a minimum total budget and a very high maximum total budget for every advertiser. These are application limits, not pilot caps.
+- A campaign reaches `active` only through admin approval (`lib/campaigns/review.ts`). So the pilot budget cap is a manual rule that the admin applies at review. No code applies it.
+- An account that is not approved or is suspended cannot serve or call the API (`PUBLISHER-PILOT-ONBOARDING.md`, `MVP-FEATURE-STATUS.md`).
+- Payouts are a manual record. The publisher requests, an admin approves, rejects or marks paid. Paid only records that money was sent outside the system. No payment provider is used (`lib/payouts/rules.ts`).
+- The signup form is public in the code. New accounts wait for approval. So "no public self-service onboarding" is a rule for people: only the named pilot accounts are approved, and the signup page is not promoted.
+
+### 10a. Pilot scope
+
+- [ ] At most 1 trusted chatbot publisher is approved. Every other publisher account stays Waiting for approval or Suspended.
+- [ ] At most 2 early advertisers are approved. Every other advertiser account stays Waiting for approval or Suspended.
+- [ ] Only Blisscco contextual ads from approved campaigns are served. No other ad source is used.
+- [ ] The Revive fallback stays off in every environment the pilot touches (section 5). A no-fill stays a no-fill.
+- [ ] Payouts stay manual: no payment provider is connected and no transfer is made by code.
+- [ ] The signup page is not promoted, and no publisher or advertiser is told they can join on their own.
+- [ ] Nobody describes the pilot as a public launch, a general release or a production rollout.
+- [ ] The pilot runs against TEST or Preview first (section 2). Moving it anywhere else is a separate written decision.
+
+### 10b. Budget caps and campaign eligibility
+
+The cap amounts are decisions for the Blisscco owner. This document sets no number. Write each decision in the sign-off table, not here, and leave a field blank until the owner has decided.
+
+- [ ] The owner has written a maximum total budget per pilot campaign and a maximum for all pilot campaigns together. Both are small.
+- [ ] The admin checks the campaign's total budget and daily budget against that cap before approving it. A campaign above the cap is rejected or sent back to draft.
+- [ ] Every pilot campaign follows the existing rules: one of the nine categories, at least one approved ad, a valid date window, an active advertiser account and budget left. None of these rules is relaxed for the pilot.
+- [ ] No pilot campaign uses a sensitive topic. Sensitive topics serve no ad.
+- [ ] The admin does not change a campaign's budget, status or ledger record by hand in the database. Changes go through the dashboard.
+- [ ] The owner has written who may approve campaigns and payouts during the pilot, and that person is the only approver.
+
+### 10c. Production credentials and database changes
+
+- [ ] No Production credential is used for any pilot step. Pilot checks use TEST or Preview values only.
+- [ ] No SQL file, migration or manual database edit is applied to Production as part of the pilot preparation.
+- [ ] No real payout data is copied into TEST or into any file in the repository.
+- [ ] The scheduled cleanup of old records is a separate decision. Its state is unknown today (see `PHASE2-STABILIZATION-EXIT-REPORT.md`).
+
+### 10d. Manual payout approval
+
+- [ ] Every payout request is approved by the named approver by hand, after the approver has read the publisher's ledger balance on the earnings page.
+- [ ] An amount above the ledger balance is rejected. The database already refuses it, and the approver does not work around it.
+- [ ] The owner has written a small maximum payout amount for the pilot and records it in the sign-off table.
+- [ ] Paid is set only after the money was sent outside the system, and the transfer reference stays with the owner, not in this repository.
+- [ ] The earnings page does not track pending, approved or paid-out balances (`lib/ledger/earnings.ts`). The approver keeps a separate written record of each payout.
+
+### 10e. Publisher key leak: revoke first
+
+1. Revoke the key on the Publisher page. Do this before anything else, and before looking for the cause.
+2. Check that the revoked key now returns 401 on TEST or Preview.
+3. Create a replacement key and give it to the publisher through the dashboard flow only. Nobody sends it by email, chat or ticket.
+4. Search the places where the key was seen (logs, ticket, chat, screenshot, repository) and remove it there.
+5. Write the date, who did it and what was found, with no key value.
+6. If a Supabase key or the tracking secret may also have leaked, follow the rotation plan in section 3.
+
+- [ ] The pilot publisher and the approver have both read these steps before the pilot starts.
+- [ ] A revoke has been practised once on a TEST key before the pilot starts, and the date is written in the sign-off table.
+
+### 10f. Pilot stop conditions
+
+Stop the pilot at once on any condition below. Stopping means: suspend the pilot publisher account, pause or suspend the pilot advertiser campaigns or accounts, and revoke the pilot key if a leak is possible. Thresholds with a number are set by the owner before the pilot and are blank until then.
+
+- [ ] A key, secret, token, database address or Revive address appears in a log, bundle, ticket, chat, screenshot or repository.
+- [ ] Any Revive flag is found set, or an ad that is not from an approved Blisscco campaign is served.
+- [ ] Advertiser spend goes above the written cap, or a charge cannot be explained by a match request.
+- [ ] A payout is approved above the ledger balance, or a payout record and the ledger disagree.
+- [ ] Conversation text, a user id, an email or other personal data is found in a request to Blisscco.
+- [ ] The publisher shows an ad without the visible Sponsored label, or presents it as the chatbot's own words.
+- [ ] 503 answers or timeouts continue for longer than the owner's written limit: ____ (blank until set).
+- [ ] A dashboard button error screen repeats more than the owner's written count: ____ (blank until set).
+- [ ] A sensitive-topic request returns an ad.
+- [ ] Anything touches Production data, Production credentials or real payout data.
+- [ ] The approver, the publisher or the owner asks to stop for any reason.
+
+After a stop, nobody restarts the pilot until the cause is written down and the owner writes a restart decision.
+
+### 10g. Pilot sign-off (Phase 3 Step 1)
+
+| Pilot item | Evidence kept | Date | Checked by | Result |
+| --- | --- | --- | --- | --- |
+| Pilot scope (10a) | | | | NOT CONFIRMED |
+| Budget caps written (10b) | | | | NOT CONFIRMED |
+| Payout maximum and approver written (10d) | | | | NOT CONFIRMED |
+| Revoke practised on a TEST key (10e) | | | | NOT CONFIRMED |
+| Stop thresholds written (10f) | | | | NOT CONFIRMED |
+
+## 11. Phase 3 Step 1: pilot observation checklist
+
+Added in Phase 3 Step 1. This section is documentation only. No number is filled in here. A value that was not measured is written as "not measured". Nobody estimates, rounds up or copies a number from memory. Never write a key, token, database address, conversation text or user id in a record.
+
+### 11a. What to watch and where it can be seen
+
+This is read from the code and not run. Where no source was found, the record says so.
+
+| Observation | Where it can be seen today |
+| --- | --- |
+| Ad match response latency | No latency figure is stored or shown by the application. The ad handlers write no logs. Time a request on the publisher's server or from the tester's own tool, and record the tool and the environment. |
+| API errors and timeout behavior | Status codes (400, 401, 413, 415, 429, 503) are seen by the publisher's server. Blisscco logs hold static labels and error codes only. The publisher sets its own timeout. |
+| Fill and no-fill rate | No dashboard counter for no-fill was found in the code. The publisher counts fills and no-fills on its own server. Record the counts and the period. |
+| Ad relevance | A person compares the topic slug the publisher sent with the category of the ad it received, for a written sample of requests. |
+| Impression and click consistency | Publisher analytics and the campaign performance panel show impressions, clicks and click-through rate. Compare them with the publisher's own counts. They are reporting counts and do not prove an ad was shown or clicked. |
+| Publisher integration errors | The publisher reports them. Blisscco has no view of the publisher's code. |
+| Advertiser campaign spend | The campaign page and the advertiser analytics show spend. Compare it with the written cap. Spend is counted when an ad is handed over. |
+| Publisher earnings and payout records | The earnings page, the ledger entries and the payout requests list. Pending, approved and paid-out balances are not tracked, so the approver keeps a written record. |
+
+### 11b. Observation checklist
+
+- [ ] Latency is recorded from a stated tool and environment, for at least a written sample of requests, with the tool named.
+- [ ] Every API error and timeout the publisher saw is recorded with its status code and date. The chat was not disturbed by any of them.
+- [ ] Fills and no-fills are counted by the publisher for a stated period, and the counts are recorded as the publisher gave them.
+- [ ] Ad relevance is judged by a person for a written sample, and each judgement is recorded with the topic slug and the ad category.
+- [ ] Impression and click counts are compared with the publisher's own counts, and every difference is recorded with its date, not explained away.
+- [ ] Each publisher integration error is recorded with the date, the environment and what the publisher reported.
+- [ ] Advertiser spend per pilot campaign is read from the dashboard and compared with the written cap on each check.
+- [ ] Publisher earnings, ledger balance and each payout record are read on each check and compared with the approver's written record.
+- [ ] The check is done on dates the owner wrote before the pilot starts, and each date is recorded.
+
+### 11c. Record format
+
+Copy one block per observation into a private file, not into this repository. Leave a field blank or write "not measured" when it is unknown.
+
+| Field | Entry |
+| --- | --- |
+| Date (UTC) | |
+| Environment (TEST, Preview or other, named) | |
+| Observation (one row from 11a) | |
+| Method and tool | |
+| Period or sample size | |
+| Actual result (as measured, with the unit) | |
+| Expected or cap (from the owner's written rule) | |
+| Recorded by | |
+| Source of the result (own measurement, publisher report, dashboard) | |
+| Notes (no key, token, address, conversation text or user id) | |
+
+## 12. Phase 3 Step 1: limits
+
+- This section and sections 10 and 11 were written from the existing code and documents. No test, lint, build, database check or live endpoint check was run for them, and no Preview or Production service was contacted.
+- They do not approve a pilot, do not start one and do not declare the publisher API ready for production use. The publisher guide still says it is not ready for production use.
+- The cap amounts, payout maximum, stop thresholds and observation dates are not set. They are owner decisions.
+- Gates A to D in section 7 are still NOT CONFIRMED.
+- Existing financial safeguards, the ledger, the payout rules and the Revive flags were not changed. See `PHASE3-STEP1-PILOT-PREPARATION-REPORT.md`.
