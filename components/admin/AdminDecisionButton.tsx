@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { adminDecision } from "@/app/dashboard/admin/actions";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import type { AdminDecisionKind } from "@/lib/admin/decisions";
 import { REJECT_REASON_MAX } from "@/lib/admin/decisions";
 import { initialRunState } from "@/lib/campaigns/types";
@@ -21,7 +22,7 @@ type Props = {
 
 /** Admin ka ek button (Approve / Reject / Activate / Suspend). Server action role aur database dobara check karte hain. */
 export default function AdminDecisionButton({ kind, id, decision, label, tone = "good", needsReason = false }: Props) {
-  const [state, formAction, pending] = useActionState(adminDecision, initialRunState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(adminDecision, initialRunState);
   const [asking, setAsking] = useState(false);
   const color = tone === "good" ? "border-aqua/60 text-aqua hover:bg-aqua/10" : "border-red-400/60 text-red-300 hover:bg-red-500/10";
 
@@ -34,7 +35,7 @@ export default function AdminDecisionButton({ kind, id, decision, label, tone = 
   }
 
   return (
-    <form action={formAction} className="max-w-sm">
+    <form action={formAction} onSubmit={onSubmit} className="max-w-sm">
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="decision" value={decision} />
@@ -66,6 +67,11 @@ export default function AdminDecisionButton({ kind, id, decision, label, tone = 
       </div>
       {state.status === "error" && state.message && (
         <p role="alert" className="mt-2 text-sm text-red-300">
+          {state.message}
+        </p>
+      )}
+      {state.status === "success" && state.message && (
+        <p role="status" className="mt-2 text-sm text-aqua">
           {state.message}
         </p>
       )}

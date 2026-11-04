@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { adminPayoutAction } from "@/app/dashboard/admin/payout-actions";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { PAYOUT_REASON_MAX, type AdminPayoutAction } from "@/lib/payouts/rules";
 import { initialRunState } from "@/lib/campaigns/types";
 
@@ -20,7 +21,7 @@ type Props = {
  * Ye sirf suvidha hai: server action requireRole(["admin"]) karta hai aur database function dobara admin check karti hai.
  */
 export default function PayoutActionButton({ id, action, label, tone = "good" }: Props) {
-  const [state, formAction, pending] = useActionState(adminPayoutAction, initialRunState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(adminPayoutAction, initialRunState);
   const [asking, setAsking] = useState(false);
   const needsReason = action === "reject";
   const color = tone === "good" ? "border-aqua/60 text-aqua hover:bg-aqua/10" : "border-red-400/60 text-red-300 hover:bg-red-500/10";
@@ -34,7 +35,7 @@ export default function PayoutActionButton({ id, action, label, tone = "good" }:
   }
 
   return (
-    <form action={formAction} className="max-w-sm">
+    <form action={formAction} onSubmit={onSubmit} className="max-w-sm">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="action" value={action} />
       {needsReason && (

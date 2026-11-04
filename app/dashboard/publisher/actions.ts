@@ -11,8 +11,8 @@ import { isUuid } from "@/lib/campaigns/constants";
 // Nayi key ka plain text sirf is jawab me ek baar jaata hai: kahin store ya log nahi hota.
 
 async function requireOwnPublisher(): Promise<{ id: string; status: "pending" | "active" | "suspended" } | { error: string }> {
-  await requireRole(["publisher"]);
-  const { publisher: pub, failed } = await loadMyPublisher();
+  // Role check aur publisher ki row saath chalte hain (ek round trip kam). requireRole redirect (throw) kare toh wahi aage badhta hai.
+  const [, { publisher: pub, failed }] = await Promise.all([requireRole(["publisher"]), loadMyPublisher()]);
   // Database dikkat ko "setup nahi hua" na samjho: alag, sahi message.
   if (failed) return { error: "We could not check your account right now. Please try again." };
   if (!pub) return { error: "Please set up your platform details first." };

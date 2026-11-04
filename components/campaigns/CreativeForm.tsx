@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { createCreative } from "@/app/dashboard/advertiser/campaigns/creative-actions";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
@@ -9,6 +9,7 @@ import {
   CTA_MAX,
   HEADLINE_MAX,
   initialCreativeState,
+  readCreativeValues,
   type CreativeFieldName,
 } from "@/lib/campaigns/creative-validation";
 
@@ -24,13 +25,15 @@ function Err({ id, text }: { id: string; text?: string }) {
 
 /** Naya ad (creative) banane ka form. Ad "draft" se shuru hota hai; phir "Send for review". */
 export default function CreativeForm({ campaignId }: { campaignId: string }) {
-  const [state, formAction] = useActionState(createCreative, initialCreativeState);
+  const { state, formAction, onSubmit } = useGuardedAction(createCreative, initialCreativeState, {
+    errorState: (prev, message, formData) => ({ ...prev, status: "error" as const, message, values: readCreativeValues(formData) }),
+  });
   const v = state.values;
   const e = state.fieldErrors ?? {};
   const border = (f: CreativeFieldName) => (e[f] ? "border-red-400" : "border-line");
 
   return (
-    <form action={formAction} noValidate className="max-w-xl space-y-5">
+    <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-xl space-y-5">
       <input type="hidden" name="campaignId" value={campaignId} />
       <div>
         <label htmlFor="cr-headline" className="mb-1.5 block text-sm font-medium text-mist">

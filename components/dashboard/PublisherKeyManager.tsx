@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { createKey, revokeKey, rotateKey } from "@/app/dashboard/publisher/actions";
 import { EXPIRY_CHOICES, KEY_LABEL_MAX, initialKeyState, keyIsUsable, type KeyActionState, type PublisherKey } from "@/lib/publisher/keys";
 import { formatDate } from "@/lib/format";
@@ -13,7 +14,17 @@ async function issueAction(prev: KeyActionState, formData: FormData): Promise<Ke
   return formData.has("rotateKeyId") ? rotateKey(prev, formData) : createKey(prev, formData);
 }
 
-function RotateButton({ keyId, formAction, pending }: { keyId: string; formAction: (fd: FormData) => void; pending: boolean }) {
+function RotateButton({
+  keyId,
+  formAction,
+  pending,
+  onSubmit,
+}: {
+  keyId: string;
+  formAction: (fd: FormData) => void;
+  pending: boolean;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+}) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -23,7 +34,7 @@ function RotateButton({ keyId, formAction, pending }: { keyId: string; formActio
     );
   }
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form action={formAction} onSubmit={onSubmit} className="flex flex-col gap-2">
       <input type="hidden" name="rotateKeyId" value={keyId} />
       <p className="max-w-xs text-xs text-mist/70">
         Creates a new key with the same name. The old key keeps working until you revoke it, so you can switch your server first.
@@ -49,7 +60,7 @@ function RotateButton({ keyId, formAction, pending }: { keyId: string; formActio
 }
 
 function RevokeButton({ keyId }: { keyId: string }) {
-  const [state, formAction, pending] = useActionState(revokeKey, initialKeyState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(revokeKey, initialKeyState);
   const [confirming, setConfirming] = useState(false);
   if (!confirming) {
     return (
@@ -59,7 +70,7 @@ function RevokeButton({ keyId }: { keyId: string }) {
     );
   }
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form action={formAction} onSubmit={onSubmit} className="flex flex-col gap-2">
       <input type="hidden" name="keyId" value={keyId} />
       <p className="text-xs text-mist/70">Apps using this key will stop working. Revoke it?</p>
       <div className="flex gap-2">
@@ -87,7 +98,7 @@ function KeyStatus({ k, now }: { k: PublisherKey; now: Date }) {
 
 /** Publisher ki keys: nayi banao (ek baar dikhti hai), list dekho, band karo. */
 export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: { keys: PublisherKey[]; nowIso: string; canCreate?: boolean }) {
-  const [state, formAction, pending] = useActionState(issueAction, initialKeyState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(issueAction, initialKeyState);
   // "Hide" dabane par secret screen se hat jata hai (sirf is page ki memory me tha, kahin save nahi).
   const [hiddenKey, setHiddenKey] = useState<string | null>(null);
   // Kaunsi key copy hui (text se), taaki nayi key banne par "Copied" apne aap hat jaye.
@@ -149,7 +160,7 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
       </div>
 
       {canCreate ? (
-      <form action={formAction} autoComplete="off" className="grid max-w-xl gap-4 sm:grid-cols-2">
+      <form action={formAction} onSubmit={onSubmit} autoComplete="off" className="grid max-w-xl gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="key-label" className="mb-1.5 block text-sm font-medium text-mist">
             Name for this key (optional)
@@ -209,7 +220,7 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
                   </div>
                   {k.status === "active" && (
                     <div className="flex flex-wrap gap-2">
-                      {canCreate && keyIsUsable(k, now) && <RotateButton keyId={k.id} formAction={formAction} pending={pending} />}
+                      {canCreate && keyIsUsable(k, now) && <RotateButton keyId={k.id} formAction={formAction} pending={pending} onSubmit={onSubmit} />}
                       <RevokeButton keyId={k.id} />
                     </div>
                   )}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
 import { changeCampaignReviewState } from "@/app/dashboard/advertiser/campaigns/creative-actions";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { REVIEW_ACTIONS, type ReviewAction } from "@/lib/campaigns/review";
 import { initialRunState } from "@/lib/campaigns/types";
 
@@ -10,9 +10,9 @@ const btn =
 
 /** Campaign ko review ke liye bhejna / wapas lena / draft me lana. */
 export default function CampaignReviewButton({ campaignId, action }: { campaignId: string; action: ReviewAction }) {
-  const [state, formAction, pending] = useActionState(changeCampaignReviewState, initialRunState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(changeCampaignReviewState, initialRunState);
   return (
-    <form action={formAction}>
+    <form action={formAction} onSubmit={onSubmit}>
       <input type="hidden" name="campaignId" value={campaignId} />
       <input type="hidden" name="action" value={action} />
       <button type="submit" disabled={pending} aria-busy={pending} className={btn}>

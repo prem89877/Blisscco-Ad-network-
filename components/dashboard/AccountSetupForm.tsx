@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import Field from "@/components/auth/Field";
 import SubmitButton from "@/components/auth/SubmitButton";
 import Notice from "@/components/auth/Notice";
@@ -8,14 +8,21 @@ import { setupAdvertiser, setupPublisher } from "@/app/dashboard/account/actions
 import { CATEGORY_OPTIONS } from "@/lib/campaigns/constants";
 import { COMPANY_MAX, NAME_MAX, URL_MAX, type AdvertiserFields, type PublisherFields, type SetupState } from "@/lib/accounts/validation";
 
+function formText(fd: FormData, key: string): string {
+  const v = fd.get(key);
+  return typeof v === "string" ? v : "";
+}
+
 const idleAdvertiser: SetupState<AdvertiserFields> = { status: "idle" };
 const idlePublisher: SetupState<PublisherFields> = { status: "idle" };
 
 /** Advertiser ka pehla step: business ka naam (+ website). Save hone par admin ke approval ka intezaar. */
 export function AdvertiserSetupForm() {
-  const [state, formAction] = useActionState(setupAdvertiser, idleAdvertiser);
+  const { state, formAction, onSubmit } = useGuardedAction(setupAdvertiser, idleAdvertiser, {
+    errorState: (prev, message, fd) => ({ ...prev, status: "error" as const, message, values: { companyName: formText(fd, "companyName"), websiteUrl: formText(fd, "websiteUrl") } }),
+  });
   return (
-    <form action={formAction} noValidate className="max-w-xl space-y-5">
+    <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-xl space-y-5">
       <Field
         id="adv-company"
         name="companyName"
@@ -44,10 +51,17 @@ export function AdvertiserSetupForm() {
 
 /** Publisher ka pehla step: chatbot / platform ka naam, website, category. */
 export function PublisherSetupForm() {
-  const [state, formAction] = useActionState(setupPublisher, idlePublisher);
+  const { state, formAction, onSubmit } = useGuardedAction(setupPublisher, idlePublisher, {
+    errorState: (prev, message, fd) => ({
+      ...prev,
+      status: "error" as const,
+      message,
+      values: { name: formText(fd, "name"), websiteUrl: formText(fd, "websiteUrl"), category: formText(fd, "category") },
+    }),
+  });
   const categoryError = state.fieldErrors?.category;
   return (
-    <form action={formAction} noValidate className="max-w-xl space-y-5">
+    <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-xl space-y-5">
       <Field
         id="pub-name"
         name="name"

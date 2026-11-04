@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
 import { changeCreativeStatus } from "@/app/dashboard/advertiser/campaigns/creative-actions";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { CREATIVE_ACTIONS, type CreativeAction } from "@/lib/campaigns/creative-validation";
 import { initialRunState } from "@/lib/campaigns/types";
 
@@ -10,13 +10,13 @@ const btn =
 
 /** Ad ke liye ek chhota button: Send for review / Take back / Move to draft / Archive. Asli check server + database me. */
 export default function CreativeActionButton({ creativeId, action }: { creativeId: string; action: CreativeAction }) {
-  const [state, formAction, pending] = useActionState(changeCreativeStatus, initialRunState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(changeCreativeStatus, initialRunState);
   const tone =
     action === "archive"
       ? "border-line text-mist/80 hover:text-aqua"
       : "border-aqua/60 text-aqua hover:bg-aqua/10";
   return (
-    <form action={formAction}>
+    <form action={formAction} onSubmit={onSubmit}>
       <input type="hidden" name="creativeId" value={creativeId} />
       <input type="hidden" name="action" value={action} />
       <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} ${tone}`}>

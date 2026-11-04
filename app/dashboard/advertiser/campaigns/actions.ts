@@ -18,8 +18,9 @@ const LIST_PATH = "/dashboard/advertiser/campaigns";
 // (3) validation, (4) RLS ke andar database call. Service-role key kahin use nahi hoti.
 
 async function requireActiveAdvertiser(): Promise<{ id: string } | { error: string }> {
-  await requireRole(["advertiser"]);
-  const { advertiser: adv, failed } = await loadMyAdvertiser();
+  // Role check aur advertiser ki row ek doosre par nirbhar nahi: saath chalao (ek database round trip kam).
+  // requireRole redirect karta hai (throw) toh Promise.all wahi redirect aage badhata hai; loadMyAdvertiser kabhi throw nahi karta.
+  const [, { advertiser: adv, failed }] = await Promise.all([requireRole(["advertiser"]), loadMyAdvertiser()]);
   // Database dikkat = "account nahi mila" nahi: alag, saaf message.
   if (failed) return { error: "Something went wrong. Please try again." };
   if (!adv) return { error: "Your advertiser account was not found. Please log out, log in again, or contact support." };
@@ -195,7 +196,13 @@ async function changeRunState(formData: FormData, to: "paused" | "active"): Prom
   if (!id) return { status: "error", message: "Campaign not found." };
 
   // Button/form ki state par bharosa nahi: campaign server par dobara padhte hain (sirf apne advertiser ka).
-  const loaded = await loadMyCampaign(adv.id, id);
+  // Resume ke liye campaign ke saath creatives aur kharch bhi chahiye: teeno ek saath padhte hain (RLS har query par lagti hai;
+  // campaign na mile / kisi aur ka ho toh neeche ke check par ye extra natije kabhi use nahi hote).
+  const [loaded, creatives, spend] = await Promise.all([
+    loadMyCampaign(adv.id, id),
+    to === "active" ? getCreativeSummary(id) : Promise.resolve(null),
+    to === "active" ? getCampaignSpend(id) : Promise.resolve(null),
+  ]);
   if (loaded.failed) return { status: "error", message: "Something went wrong. Please try again." };
   const current = loaded.campaign;
   if (!current) return { status: "error", message: "Campaign not found." };
@@ -205,7 +212,6 @@ async function changeRunState(formData: FormData, to: "paused" | "active"): Prom
     if (!canPause(current.status)) return { status: "error", message: PAUSE_BLOCK_MESSAGE };
   } else {
     // Resume ke liye teen cheezein dekhte hain: approved ad, end date, aur budget bacha hai ya nahi (kharch padh na paye toh database trigger final faisla karta hai).
-    const [creatives, spend] = await Promise.all([getCreativeSummary(current.id), getCampaignSpend(current.id)]);
     const check = checkResume(current, creatives ? creatives.approved : null, utcToday(), spend ? spend.spentTotal : null);
     if (!check.ok) return { status: "error", message: RESUME_BLOCK_MESSAGES[check.reason] };
   }

@@ -278,6 +278,23 @@ Separate from the older Step 3 table above. Automated rows are a sandbox run wit
 
 Earlier user-reported results stay as recorded above. Campaign page status, exactly: User-confirmed — currently not reproducible in Preview; the old error's root cause remains unknown.
 
+### Phase 2 Step 4 status (publisher earnings, ledger and payouts, 2026-11-04)
+
+Separate from the older Step 4 notes. Automated rows are a sandbox run with in-memory fakes (Node 22, no network); they are not Preview, real PostgreSQL or CI results. Preview rows rest on the user's word only; no output was seen. Detail: `PHASE2-STEP4-PUBLISHER-EARNINGS-LEDGER-VERIFICATION-REPORT.md`.
+
+| Check | Section | Status |
+|---|---|---|
+| Earnings, ledger and balance integrity (4 files, 142 tests) | Earnings and ledger | **PASS** (automated, mocked) |
+| Payout rules, security and integration (3 files, 82 tests) | Payouts | **PASS** (automated, mocked) |
+| Earnings summary loads on Preview | Earnings | **User-confirmed — completed successfully** |
+| Ledger/history shows expected records on Preview | Earnings | **User-confirmed — completed successfully** |
+| Payout page displays per current implementation on Preview | Payouts | **User-confirmed — completed successfully** |
+| Ineligible or insufficient balance: payout request rejected or disabled on Preview | Payouts | **User-confirmed — completed successfully** |
+| Valid payout request reaches the expected status on Preview (no real transfer) | Payouts | **User-confirmed — completed successfully** |
+| Real PostgreSQL tests for earnings, ledger and payouts | 6 | **PENDING** |
+
+Earlier user-reported results stay as recorded above. Campaign page status, exactly: User-confirmed — currently not reproducible in Preview; the old error's root cause remains unknown.
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.
@@ -289,3 +306,4 @@ Earlier user-reported results stay as recorded above. Campaign page status, exac
 - Phase 2 Step 4 changed only documents, one public text page (`app/privacy/page.tsx`) and a documentation-contract test. No ad-serving, authentication, ledger, payout or spend code was changed.
 - Phase 2 Step 3 changed only test files and documents. No application code, SQL file, migration, workflow, environment value or script was changed.
 - Phase 2 Step 5 changed only status rows in this runbook and in `MVP-FEATURE-STATUS.md`. No application code, test, SQL file, migration, workflow, script or environment value was changed.
+- Phase 2 Step 4 (publisher earnings, ledger and payouts) changed only this status table and its report. No application code, test, SQL file, migration, workflow, script or environment value was changed.

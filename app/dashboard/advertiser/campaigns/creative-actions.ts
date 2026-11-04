@@ -27,8 +27,9 @@ import type { RunStateResult } from "@/lib/campaigns/types";
 const LIST_PATH = "/dashboard/advertiser/campaigns";
 
 async function requireActiveAdvertiser(): Promise<{ id: string } | { error: string }> {
-  await requireRole(["advertiser"]);
-  const { advertiser: adv, failed } = await loadMyAdvertiser();
+  // Role check aur advertiser ki row ek doosre par nirbhar nahi: saath chalao (ek database round trip kam).
+  // requireRole redirect karta hai (throw) toh Promise.all wahi redirect aage badhata hai; loadMyAdvertiser kabhi throw nahi karta.
+  const [, { advertiser: adv, failed }] = await Promise.all([requireRole(["advertiser"]), loadMyAdvertiser()]);
   if (failed) return { error: "Something went wrong. Please try again." };
   if (!adv) return { error: "Your advertiser account was not found. Please set up your business first." };
   if (adv.status !== "active") return { error: "Your advertiser account is not approved yet, so changes are not allowed." };
@@ -149,7 +150,11 @@ export async function changeCampaignReviewState(_prev: RunStateResult, formData:
   if (!campaignId || !isReviewAction(action)) return { status: "error", message: "Campaign not found." };
   const rule = REVIEW_ACTIONS[action];
 
-  const loaded = await loadMyCampaign(adv.id, campaignId);
+  // "Review ke liye bhejo" me campaign aur reviewable ads ki ginti ek doosre par nirbhar nahi: saath padhte hain.
+  const [loaded, reviewable] = await Promise.all([
+    loadMyCampaign(adv.id, campaignId),
+    action === "submit" ? countReviewableCreatives(campaignId) : Promise.resolve(null),
+  ]);
   if (loaded.failed) return { status: "error", message: "Something went wrong. Please try again." };
   const current = loaded.campaign;
   if (!current) return { status: "error", message: "Campaign not found." };
@@ -158,7 +163,6 @@ export async function changeCampaignReviewState(_prev: RunStateResult, formData:
   }
 
   if (action === "submit") {
-    const reviewable = await countReviewableCreatives(current.id);
     const check = checkSubmitCampaign(current, reviewable, utcToday());
     if (!check.ok) return { status: "error", message: SUBMIT_BLOCK_MESSAGES[check.reason] };
   }

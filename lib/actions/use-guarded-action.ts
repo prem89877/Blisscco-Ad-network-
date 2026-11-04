@@ -1,0 +1,45 @@
+"use client";
+
+import { useActionState, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { DEFAULT_ACTION_TIMEOUT_MS, createActionGuard, type GuardState } from "./guard";
+
+type Options<S extends GuardState> = {
+  timeoutMs?: number;
+  errorState?: (prev: S, message: string, formData: FormData) => S;
+};
+
+/**
+ * useActionState + shared guard (lib/actions/guard.ts). Form par `action={formAction}` aur `onSubmit={onSubmit}` dono lagao.
+ *  - pending: server ka jawab aane (ya had / error) tak true; uske baad hamesha false.
+ *  - onSubmit: tezi se do tap par doosra submit rok deta hai (disabled button ke render hone se pehle ka gap).
+ *  - had / network error par router.refresh() server ki asli state dikha deta hai (manual reload nahi).
+ */
+export function useGuardedAction<S extends GuardState>(
+  action: (prev: S, formData: FormData) => Promise<S>,
+  initialState: S,
+  options: Options<S> = {},
+) {
+  const router = useRouter();
+  // Props (jaise Pause / Resume) badal sakte hain: guard hamesha sabse naya action bulata hai.
+  const actionRef = useRef(action);
+  useEffect(() => {
+    actionRef.current = action;
+  }, [action]);
+  const [guard] = useState(() =>
+    createActionGuard<S>({
+      action: (prev, formData) => actionRef.current(prev, formData),
+      refresh: () => router.refresh(),
+      timeoutMs: options.timeoutMs ?? DEFAULT_ACTION_TIMEOUT_MS,
+      errorState: options.errorState,
+    }),
+  );
+  const [state, formAction, pending] = useActionState(guard.run, initialState);
+  const onSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      if (!guard.tryBegin()) event.preventDefault();
+    },
+    [guard],
+  );
+  return { state, formAction, pending, onSubmit };
+}

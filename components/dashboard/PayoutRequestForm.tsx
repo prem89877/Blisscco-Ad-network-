@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
 import Field from "@/components/auth/Field";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { requestPayout } from "@/app/dashboard/publisher/payout-actions";
 import { initialRunState } from "@/lib/campaigns/types";
 
@@ -20,10 +20,10 @@ type Props = {
  * Koi bank / card / UPI / account field nahi, aur publisher id kabhi form se nahi jaati (database login se khud nikalta hai).
  */
 export default function PayoutRequestForm({ requestKey, defaultAmount, availableLabel }: Props) {
-  const [state, formAction] = useActionState(requestPayout, initialRunState);
+  const { state, formAction, onSubmit } = useGuardedAction(requestPayout, initialRunState);
 
   return (
-    <form action={formAction} noValidate className="max-w-sm space-y-4">
+    <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-sm space-y-4">
       <input type="hidden" name="requestKey" value={requestKey} />
       <Field
         id="payout-amount"

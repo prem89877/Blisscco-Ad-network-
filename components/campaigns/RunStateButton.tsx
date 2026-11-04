@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useId, useState } from "react";
 import { pauseCampaign, resumeCampaign } from "@/app/dashboard/advertiser/campaigns/actions";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { DELIVERY_NOTE } from "@/lib/campaigns/run-state";
 import { initialRunState } from "@/lib/campaigns/types";
 
@@ -17,7 +18,7 @@ const outline = `${btn} border border-aqua/60 text-aqua hover:bg-aqua/10`;
  * (success notice page par dikhta hai); error yahin dikhta hai.
  */
 export default function RunStateButton({ campaignId, mode }: Props) {
-  const [state, formAction, pending] = useActionState(mode === "pause" ? pauseCampaign : resumeCampaign, initialRunState);
+  const { state, formAction, pending, onSubmit } = useGuardedAction(mode === "pause" ? pauseCampaign : resumeCampaign, initialRunState);
   const [confirming, setConfirming] = useState(false);
   const headingId = useId();
 
@@ -29,7 +30,7 @@ export default function RunStateButton({ campaignId, mode }: Props) {
 
   if (mode === "resume") {
     return (
-      <form action={formAction}>
+      <form action={formAction} onSubmit={onSubmit}>
         <input type="hidden" name="campaignId" value={campaignId} />
         <button type="submit" disabled={pending} aria-busy={pending} className={outline}>
           {pending ? "Resuming…" : "Resume campaign"}
@@ -52,6 +53,7 @@ export default function RunStateButton({ campaignId, mode }: Props) {
   return (
     <form
       action={formAction}
+      onSubmit={onSubmit}
       role="group"
       aria-labelledby={headingId}
       className="max-w-md rounded-lg border border-amber-400/40 bg-amber-400/5 p-4"

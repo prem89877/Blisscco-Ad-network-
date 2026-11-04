@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
+import { useGuardedAction } from "@/lib/actions/use-guarded-action";
+import { readFormValues } from "@/lib/campaigns/validation";
 import { CATEGORY_OPTIONS, DESC_MAX, MAX_BUDGET, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
 import { checkBudgets, type BudgetField } from "@/lib/campaigns/budget-rules";
 import { BELOW_SPEND_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
@@ -70,7 +72,10 @@ function FieldShell({ id, label, hint, error, children }: FieldShellProps) {
 }
 
 export default function CampaignForm({ mode, action, campaign, categoryLocked = false, minStartDate, spentTotal, cancelHref }: Props) {
-  const [state, formAction] = useActionState(action, initialFormState);
+  // Had / network error par bhare hue values waapas (form reset hone par user ka likha gayab na ho).
+  const { state, formAction, onSubmit: guardSubmit } = useGuardedAction(action, initialFormState, {
+    errorState: (prev, message, formData) => ({ ...prev, status: "error" as const, message, values: readFormValues(formData) }),
+  });
   // Browser ki jaldi jaanch (sirf suvidha): server wale hi niyam (budget-rules.ts) use hote hain. Asli check server + database karta hai.
   const [clientErrors, setClientErrors] = useState<Partial<Record<BudgetField, string>>>({});
   // Jis budget field ko user ne chhua/jaancha, uske liye browser ka naya result dikhta hai (server ka purana error nahi).
@@ -126,7 +131,12 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
         setClientErrors(problems);
         setChecked({ totalBudget: true, dailyBudget: true });
         // Galat budget par server ko bhejte hi nahi; preventDefault se form action nahi chalta.
-        if (Object.keys(problems).length > 0) e.preventDefault();
+        if (Object.keys(problems).length > 0) {
+          e.preventDefault();
+          return;
+        }
+        // Double tap: pehla submit chal raha ho toh doosra rok do.
+        guardSubmit(e);
       }}
     >
       {campaign && <input type="hidden" name="campaignId" value={campaign.id} />}
