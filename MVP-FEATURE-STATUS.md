@@ -134,30 +134,43 @@ Full detail and sources: `DAY-C-PREVIEW-MANUAL-VERIFICATION-REPORT.md`, `DAY-B-C
 | GitHub CI on the latest commit | Day B report, section 2 | Done (user's word only), no run link or counts seen |
 | Real PostgreSQL integration run against the TEST project | Day B report, section 1 | Done (user's word only), no test count given |
 | Google sign-in on the Preview site | Day C report, section 2 | Done (user's word only), observed while setting up Preview |
+| GitHub CI after the Step 3 and Step 4 changes | User's report, 2026-11-04 | Done (user's word only), no run link, commit or counts seen |
+| Real PostgreSQL recheck on the TEST project after the Step 3 and Step 4 changes | User's report, 2026-11-04 | Done (user's word only), no test count seen |
 
 ### Automated checks and what they do not cover
 
 | Area | Source | Status |
 |---|---|---|
-| Ad serving regression tests with in-memory fakes, run in Claude's sandbox | Step 3 report | Automated, mocked. Preview recheck **Pending**. GitHub CI for the new Step 3 files **Pending** |
+| Ad serving regression tests with in-memory fakes, run in Claude's sandbox | Step 3 report | Automated, mocked. Preview recheck reported by the user, see Phase 2 Step 5 status. GitHub CI for the Step 3 changes: Done (user's word only), reported 2026-11-04, no run link or commit seen |
 | Documentation-contract file for the publisher onboarding document, run by the user in Termux before the Step 4 edits (output seen by Claude) | Step 4 report | Automated, no failure in the output seen. Counts are in the Step 4 report |
-| Documentation-contract files for the documents edited in Step 4, run in Claude's sandbox | Step 4 report | Automated, no network. Termux and CI reruns after the edits **Pending** |
+| Documentation-contract files for the documents edited in Step 4, run in Claude's sandbox | Step 4 report | Automated, no network. Termux rerun reported by the user, see Phase 2 Step 5 status. GitHub CI after the edits: Done (user's word only), reported 2026-11-04, no run link or commit seen |
 | Revive fallback wiring in the match path | Existing tests with a fake provider | Automated, mocked. Never run against a real Revive server, so **Unverified** |
-| Publisher example code in `examples/publisher-node/` and `examples/publisher-nextjs/` | Existing tests with a mocked Blisscco API | Automated, mocked. Never run against a real API, so **Unverified** |
+| Publisher example code in `examples/publisher-node/` and `examples/publisher-nextjs/` | Existing tests with a mocked Blisscco API | Automated, mocked, and never run by an automated test against a real API. The user reports a manual run (Phase 2 Step 5 status) but no output or details were shared, so the automated evidence alone stays **Unverified** |
 
 ### Failed, pending and unverified
 
 | Item | Source | Status |
 |---|---|---|
 | Two earlier CI runs failed because of document-test matching rules, not application code | Day B report, section 2 | Failed earlier. The user later reported a good run, with no link seen |
-| Advertiser campaign page error screen seen once after saving a creative | Step 2 report | **Pending**, root cause not found, no code changed |
+| Advertiser campaign page error screen seen once after saving a creative | Step 2 report | **Pending**, root cause not found, no code changed. Old issue not reproduced in latest user-confirmed Preview check (new advertiser account, 2026-11-04); root cause remains unknown. A user rerun on 2026-11-04 is in Phase 2 Step 5 status and does not name a cause |
 | Controlled Revive test | Day C report, section 4 | **Pending**, not approved, not run |
 | Revive JSON preview route, static fixture and manual check scripts | Prototype section above | **Unverified**, flags unset in Preview, scripts never run |
 | Real Revive endpoint, and billing or tracking for Revive ads | Not integrated section above | Not integrated, **Unverified** |
 | Whether the scheduled cleanup of old serve, event and retry records is switched on | Read-only look at the TEST project on 2026-11-03: the cleanup function exists, the `pg_cron` extension is not installed, so no nightly schedule exists there. Production was not looked at | TEST: not scheduled. Production: **Unverified** |
 | Publisher earnings, ledger and payout pages on Preview | No Preview check recorded | **Unverified** in Preview |
-| Admin review pages and manual creative approval on Preview | Day C report notes only | **Unverified** as a feature check |
+| Admin review pages and manual creative approval on Preview | Day C report notes only; automated tests passed in Termux, see `PHASE2-STEP1-ADMIN-REVIEW-VERIFICATION-REPORT.md` | **Unverified** on Preview (manual checks pending) |
 | Production deployment and Production data | Never accessed | **Unverified** |
+
+### Phase 2 Step 5 status (user-run manual checks, 2026-11-04)
+
+The user reported that these checks were run by hand. Claude saw no commands, output or counts. Each row covers only what it names. Payment checkout and Revive are not integrated, so their rows above stay Pending or Unverified, and so do the campaign page root cause and Production. GitHub CI and the real PostgreSQL recheck are in the table "Reported by the user, no log seen", as the user's word only.
+
+| Feature | Source | Status |
+|---|---|---|
+| Recheck on Preview of key handling, ad match, no-fill, impression and click after the Step 3 and Step 4 changes | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
+| Termux rerun of the documentation-contract files after the Step 4 edits | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
+| Publisher example code in `examples/publisher-node/` and `examples/publisher-nextjs/` run by hand | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
+| Rerun on Preview: add an ad, then send it for review, on the advertiser page | User's report, 2026-11-04 | **User-confirmed — completed successfully** |
 
 ## What stays manual
 

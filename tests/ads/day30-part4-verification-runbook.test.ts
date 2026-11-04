@@ -56,8 +56,11 @@ describe("day 30 part 4: structure", () => {
     assert.match(doc, /It is documentation only/);
     assert.match(doc, /Nothing was run to write it/);
     assert.match(doc, /No step is confirmed by this document/);
-    assert.doesNotMatch(doc, /^\s*- \[[xX]\]/m);
-    assert.ok((doc.match(/^- \[ \] /gm) ?? []).length >= 30);
+    // Phase 2 Step 5: a ticked box is allowed only inside section 7, where its own test requires a date and a status row.
+    for (const l of doc.split("\n").filter((x) => /^\s*- \[[xX]\]/.test(x))) {
+      assert.ok(section("7. Manual Preview checks").includes(l), `ticked box outside section 7: ${l}`);
+    }
+    assert.ok((doc.match(/^- \[[ x]\] /gm) ?? []).length >= 30);
   });
 });
 
@@ -225,11 +228,33 @@ describe("day 30 part 4: local, CI, Preview, TEST DB and Production are distingu
 describe("day 30 part 4: manual Preview checks", () => {
   const s = section("7. Manual Preview checks");
 
-  it("has the four subsections, each with unticked items", () => {
+  it("has the four subsections, each with at least four checklist items; 7d stays fully unticked", () => {
     for (const h of ["### 7a. Publisher API-key handling", "### 7b. Ad match and no-fill", "### 7c. Impression and click behaviour", "### 7d. Revive fallback stays disabled"]) {
       assert.ok(s.includes(h), h);
     }
-    for (const part of s.split(/^### /m).slice(1)) assert.ok((part.match(/^- \[ \] /gm) ?? []).length >= 4, part.split("\n")[0]);
+    for (const part of s.split(/^### /m).slice(1)) {
+      const name = part.split("\n")[0];
+      const unticked = (part.match(/^- \[ \] /gm) ?? []).length;
+      const ticked = (part.match(/^- \[x\] /gm) ?? []).length;
+      assert.ok(unticked + ticked >= 4, name);
+      // Phase 2 Step 5: the original rule (at least four unticked items) is kept for 7d, the Revive section.
+      if (name.startsWith("7d")) {
+        assert.equal(ticked, 0, "7d must stay unticked");
+        assert.ok(unticked >= 4, name);
+      }
+    }
+  });
+
+  it("a ticked box is dated, user-reported, and backed by a user-confirmed row naming its subsection", () => {
+    for (const part of s.split(/^### /m).slice(1)) {
+      const id = part.slice(0, 2);
+      for (const l of part.split("\n").filter((x) => /^- \[x\] /.test(x))) {
+        assert.match(l, /\(User-reported, \d{4}-\d{2}-\d{2}(, scope as reported)?\.\)$/, l);
+        assert.ok(["7a", "7b", "7c"].includes(id), `ticked box outside 7a to 7c: ${l}`);
+        const row = new RegExp("^\\| [^|\\n]+ \\| " + id + " \\| \\*\\*User-confirmed — completed successfully\\*\\*", "m");
+        assert.match(doc, row, `no user-confirmed row for ${id}`);
+      }
+    }
   });
 
   it("uses a TEST-backed Preview and a dedicated test publisher", () => {

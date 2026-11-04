@@ -4,6 +4,8 @@ This is a runbook for a person to follow after MVP completion. It is documentati
 
 Every box and every result row below starts empty. No step is confirmed by this document. A box is ticked only by the person who ran the step, with the date.
 
+Status update (Phase 2 Step 5): some boxes in 7a, 7b and 7c were ticked on the user's report, each with the date. See the Phase 2 Step 5 status table. The statement above describes the original authoring.
+
 Related files: `scripts/day28-verify.sh`, `DAY28-VERIFICATION-GUIDE.md`, `MVP-PILOT-SAFETY-CHECKLIST.md`, `DAY27-REAL-REVIVE-VERIFICATION.md`.
 
 ## 1. Rules
@@ -88,10 +90,10 @@ Preview is a deployed environment, so these checks are by hand. Use a Preview de
 - [ ] The test publisher is approved, and its key was created on the Publisher page of the Preview deployment.
 - [ ] The key was shown once and went straight into `BLISSCCO_PUBLISHER_API_KEY` in your shell or server environment.
 - [ ] `BLISSCCO_PUBLISHER_API_KEY` and `BLISSCCO_API_BASE_URL` have no public prefix such as `NEXT_PUBLIC_`.
-- [ ] A request without the key returns 401, and so does a request with a wrong key.
-- [ ] A key sent in the query string or the request body is not accepted.
-- [ ] The key does not appear in the Preview page source, the browser network tab or any log.
-- [ ] After a revoke on the Publisher page, the next request with that key returns 401.
+- [x] A request without the key returns 401, and so does a request with a wrong key. (User-reported, 2026-11-04.)
+- [x] A key sent in the query string or the request body is not accepted. (User-reported, 2026-11-04.)
+- [x] The key does not appear in the Preview page source, the browser network tab or any log. (User-reported, 2026-11-04, scope as reported.)
+- [x] After a revoke on the Publisher page, the next request with that key returns 401. (User-reported, 2026-11-04.)
 - [ ] The test key is revoked when testing ends.
 
 ### 7b. Ad match and no-fill
@@ -103,23 +105,23 @@ curl -i -X POST "https://YOUR-PREVIEW-HOST/api/v1/ads/match" \
   -d '{"topic":"gaming"}'
 ```
 
-- [ ] With an approved test campaign for the topic, the answer is 200 with `fill: true`, `sponsored: true` and the five public ad fields.
-- [ ] The response carries `X-Blisscco-Api-Version: 1` and `Cache-Control: no-store`.
-- [ ] A topic with no approved campaign returns 200 with `{"fill":false}`.
-- [ ] `{"topic":"health"}` returns the normal no-fill answer, with no reason given.
-- [ ] A wrong `Content-Type` returns 415, and an unknown body field returns 400.
+- [x] With an approved test campaign for the topic, the answer is 200 with `fill: true`, `sponsored: true` and the five public ad fields. (User-reported, 2026-11-04.)
+- [x] The response carries `X-Blisscco-Api-Version: 1` and `Cache-Control: no-store`. (User-reported, 2026-11-04.)
+- [x] A topic with no approved campaign returns 200 with `{"fill":false}`. (User-reported, 2026-11-04.)
+- [x] `{"topic":"health"}` returns the normal no-fill answer, with no reason given. (User-reported, 2026-11-04.)
+- [x] A wrong `Content-Type` returns 415, and an unknown body field returns 400. (User-reported, 2026-11-04.)
 - [ ] Your own client keeps working and shows no ad-related error when the answer is a no-fill, a 429 or a 503.
 
 ### 7c. Impression and click behaviour
 
-- [ ] Without the `X-Blisscco-Tracking: 1` header, the match response has no `tracking` object.
-- [ ] With the header, and only if the tracking secret is set for the Preview deployment, the response carries `tracking.token` and `tracking.click_ref`. If the secret is not set, tracking is off and the impression and click routes answer unavailable.
-- [ ] `POST /api/v1/ads/impression` with the token answers `recorded`, and the same token again answers `duplicate`.
-- [ ] A changed token is refused with 401.
-- [ ] `GET /api/v1/ads/click?ref=` with the encoded `click_ref` answers 302 to the destination stored for the ad.
-- [ ] A changed click reference is refused with 404.
+- [x] Without the `X-Blisscco-Tracking: 1` header, the match response has no `tracking` object. (User-reported, 2026-11-04.)
+- [x] With the header, and only if the tracking secret is set for the Preview deployment, the response carries `tracking.token` and `tracking.click_ref`. If the secret is not set, tracking is off and the impression and click routes answer unavailable. (User-reported, 2026-11-04.)
+- [x] `POST /api/v1/ads/impression` with the token answers `recorded`, and the same token again answers `duplicate`. (User-reported, 2026-11-04.)
+- [x] A changed token is refused with 401. (User-reported, 2026-11-04.)
+- [x] `GET /api/v1/ads/click?ref=` with the encoded `click_ref` answers 302 to the destination stored for the ad. (User-reported, 2026-11-04.)
+- [x] A changed click reference is refused with 404. (User-reported, 2026-11-04.)
 - [ ] Impressions are sent only from a server, because the impression route has no CORS.
-- [ ] The only charged event is the match request. Impressions and clicks are reporting counts.
+- [x] The only charged event is the match request. Impressions and clicks are reporting counts. (User-reported, 2026-11-04.)
 
 ### 7d. Revive fallback stays disabled
 
@@ -175,23 +177,23 @@ Run by the user with a TEST publisher key in the dedicated Preview. Claude did n
 | Revive fallback and preview flags unset in Preview | 7d | **User-confirmed — completed successfully** |
 | Controlled Revive test | 7d | **Pending**, not approved |
 
-The boxes in section 7 above are left as written. Only the person who ran each step ticks a box, so the user can tick them with the date.
+Section 7 boxes are ticked, with the date, only where the user reported the step and a user-confirmed row above names that subsection. Every other box stays unticked.
 
 ### Phase 2 Step 3 status (automated, mocked, 2026-11-03)
 
-These rows record only automated regression tests that use in-memory fakes. They are not Preview results and not real PostgreSQL results. Counts and commands are in `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md`. A Preview recheck is Pending until you run it or tell Claude you did.
+These rows record only automated regression tests that use in-memory fakes. They are not Preview results and not real PostgreSQL results. Counts and commands are in `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md`. The Preview recheck was run by the user and is recorded in the Phase 2 Step 5 status table below. GitHub CI and the real PostgreSQL recheck were reported by the user on 2026-11-04 as the user's word only, with no run link, commit or counts seen.
 
 | Check | Section | Status |
 |---|---|---|
-| Valid key and eligible campaign return the ad | 7b | Existing automated tests (mocked). Preview recheck **Pending** |
-| Invalid or revoked key is refused | 7a | Existing automated tests (mocked). Preview recheck **Pending** |
-| No eligible campaign returns the no-fill answer | 7b | Existing automated tests (mocked). Preview recheck **Pending** |
-| Every term of the sensitive list gives no-fill, as topic and as fallback | 7b | New automated test (mocked). Preview recheck **Pending** |
-| Impression is recorded, a repeat is a duplicate, a changed token is refused | 7c | Existing automated tests (mocked). Preview recheck **Pending** |
-| Click redirects to the stored destination, a changed reference is refused | 7c | Existing automated tests (mocked). Preview recheck **Pending** |
-| Disallowed destinations are never redirected to | 7c | New automated test (mocked). Preview recheck **Pending** |
-| Real PostgreSQL recheck for Step 3 | 6 | **Pending** |
-| GitHub CI for the Step 3 test files | 5 | **Pending** |
+| Valid key and eligible campaign return the ad | 7b | Existing automated tests (mocked). Preview recheck: see Phase 2 Step 5 status |
+| Invalid or revoked key is refused | 7a | Existing automated tests (mocked). Preview recheck: see Phase 2 Step 5 status |
+| No eligible campaign returns the no-fill answer | 7b | Existing automated tests (mocked). Preview recheck: see Phase 2 Step 5 status |
+| Every term of the sensitive list gives no-fill, as topic and as fallback | 7b | New automated test (mocked). Preview recheck: see Phase 2 Step 5 status |
+| Impression is recorded, a repeat is a duplicate, a changed token is refused | 7c | Existing automated tests (mocked). Preview recheck: see Phase 2 Step 5 status |
+| Click redirects to the stored destination, a changed reference is refused | 7c | Existing automated tests (mocked). Preview recheck: see Phase 2 Step 5 status |
+| Disallowed destinations are never redirected to | 7c | New automated test (mocked). Preview recheck: see Phase 2 Step 5 status |
+| Real PostgreSQL recheck for Step 3 | 6 | Done (user's word only), reported 2026-11-04, no test count seen |
+| GitHub CI for the Step 3 test files | 5 | Done (user's word only), reported 2026-11-04, no run link, commit or counts seen |
 
 ### Phase 2 Step 4 status (evidence kinds and Day C core checks, 2026-11-03)
 
@@ -217,12 +219,37 @@ Checks that remain open after Step 4:
 
 | Check | Section | Status |
 |---|---|---|
-| Advertiser campaign page error screen seen once | none | **Pending**, root cause not found |
+| Advertiser campaign page error screen seen once | none | **Pending**, root cause not found. Old issue not reproduced in latest user-confirmed Preview check (new advertiser account, 2026-11-04); root cause remains unknown. A rerun reported on 2026-11-04 is in Phase 2 Step 5 status and does not name a cause |
 | Controlled Revive test | 7d | **Pending**, not approved |
-| Recheck on the deployed Preview of the Step 3 automated tests | 7a to 7c | **Pending** |
-| GitHub CI and real PostgreSQL recheck for the files changed in Steps 3 and 4 | 5 and 6 | **Pending** |
-| Termux rerun of the documentation-contract files after the Step 4 edits | 3 | **Pending** |
+| Recheck on the deployed Preview of the Step 3 automated tests | 7a to 7c | Reported by the user, see Phase 2 Step 5 status |
+| GitHub CI and real PostgreSQL recheck for the files changed in Steps 3 and 4 | 5 and 6 | Done (user's word only), reported 2026-11-04, see Phase 2 Step 5 status |
+| Termux rerun of the documentation-contract files after the Step 4 edits | 3 | Reported by the user, see Phase 2 Step 5 status |
 | Production behaviour | none | Not checked, outside this runbook |
+
+### Phase 2 Step 5 status (user-run manual checks, 2026-11-04)
+
+The user reported that these checks were run by hand after the Step 3 and Step 4 changes. Claude did not see the commands, the output or any counts, and no key, token or URL is recorded here. The rows cover only the areas named in them. The campaign page root cause, the controlled Revive test and Production are not covered by this table and keep the status given above. GitHub CI and the real PostgreSQL recheck are in the second table below, as the user's word only.
+
+| Check | Section | Status |
+|---|---|---|
+| Recheck on Preview of key handling: valid, wrong, missing and revoked key | 7a | **User-confirmed — completed successfully** |
+| Recheck on Preview of ad match, no-fill and the sensitive topic | 7b | **User-confirmed — completed successfully** |
+| Recheck on Preview of impression, duplicate, changed token, click and changed reference | 7c | **User-confirmed — completed successfully** |
+| Termux rerun of the documentation-contract files after the Step 4 edits | 3 | **User-confirmed — completed successfully** |
+| Rerun on Preview: add an ad, then send it for review | Open items | **User-confirmed — completed successfully** |
+
+The last row is the rerun of the Step 2 check. The user gave no details, so no error screen and no reference code are recorded. It does not explain the one earlier error, so the root cause row above stays Pending.
+
+Reported on 2026-11-04 and recorded as the user's word only:
+
+| Check | Section | Status |
+|---|---|---|
+| GitHub CI for the Step 3 and Step 4 changes | 5 | Done (user's word only), no run link, commit or counts seen |
+| Real PostgreSQL recheck on the TEST project | 6 | Done (user's word only), no test count seen |
+
+Neither run is tied to a commit in these notes, so the files added in Phase 2 Step 5 are not covered by them.
+
+On the same user report, 16 boxes in 7a, 7b and 7c were ticked and dated. Boxes without a matching row, and all of 7d, stay unticked. The contract test for this runbook now matches each ticked box to a status row for its subsection.
 
 ## 9. Limits and what was not changed
 
@@ -234,3 +261,4 @@ Checks that remain open after Step 4:
 - Production data and Production credentials are outside this runbook.
 - Phase 2 Step 4 changed only documents, one public text page (`app/privacy/page.tsx`) and a documentation-contract test. No ad-serving, authentication, ledger, payout or spend code was changed.
 - Phase 2 Step 3 changed only test files and documents. No application code, SQL file, migration, workflow, environment value or script was changed.
+- Phase 2 Step 5 changed only status rows in this runbook and in `MVP-FEATURE-STATUS.md`. No application code, test, SQL file, migration, workflow, script or environment value was changed.
