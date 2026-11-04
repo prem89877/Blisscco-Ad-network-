@@ -251,6 +251,20 @@ Neither run is tied to a commit in these notes, so the files added in Phase 2 St
 
 On the same user report, 16 boxes in 7a, 7b and 7c were ticked and dated. Boxes without a matching row, and all of 7d, stay unticked. The contract test for this runbook now matches each ticked box to a status row for its subsection.
 
+### Phase 2 Step 2 status (regression rerun, 2026-11-04)
+
+Automated rows are a sandbox run with in-memory fakes (Node 22, no network). They are not Preview, real PostgreSQL or CI results. Detail: `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md`, section 9.
+
+| Check | Section | Status |
+|---|---|---|
+| Key, eligibility, no-fill and non-serving of pending, rejected, paused (5 files, 324 tests) | 7a, 7b | **PASS** (automated, mocked) |
+| Sensitive topics, token, duplicate and spend or ledger checks (7 files, 280 tests) | 7b, 7c | **PASS** (automated, mocked) |
+| Admin Review Flow on Preview (M1 to M9) | Admin review | **User-confirmed — completed successfully** |
+| Advertiser campaign page error | Open items | **Pending**, root cause unknown |
+| Controlled Revive test | 7d | **PENDING**, not approved |
+
+The Admin Review Flow row rests on the user's word only; no output was seen (see `PHASE2-STEP1-ADMIN-REVIEW-VERIFICATION-REPORT.md`). Campaign page status, exactly: User-confirmed — currently not reproducible in Preview. The old error's root cause remains unknown, so no root-cause box is ticked.
+
 ## 9. Limits and what was not changed
 
 - No command was run and no service was contacted to write this runbook.

@@ -76,3 +76,44 @@ Termux (Android, Node 24, user-run): the user's Termux run of `npm run lint` and
 ## 8. Files changed in Step 3
 
 `tests/ads/day30-part4-verification-runbook.test.ts`, `tests/ads/day10-part5-integration.test.ts`, `tests/ads/day17-part4-click-lifecycle.test.ts`, `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md`, `MVP-VERIFICATION-RUNBOOK.md`. No `.sh` file was added or changed, so `.github/workflows/ci.yml` is unchanged.
+
+## 9. Phase 2 Step 2 rerun (2026-11-04): focused regression, no changes to tests or code
+
+Request: verify the publisher ad-serving regression areas again, change a test only if one is missing or wrong. Result: **no test or application change was needed.** Every point of the request is already asserted in the listed files (keyword check across the files for revoked, expired, suspended, paused, draft, pending_review, rejected, spend and ledger found each of them; the Step 3 sections 2 and 3 above name the two gaps that were closed earlier).
+
+Environment: Claude's sandbox, Node v22.23.4, no network, no `node_modules`, no database, no Preview, no Production. Compile: `tsc -p tsconfig.test.json` (reports `TS2688`, Node type definitions missing, and still emits; same condition as section 5). Run: `node --require ./tests/register.cjs --test <compiled files>`. Real publisher key, database URL, Revive endpoint: none used.
+
+| # | Files (exact paths) | Tests | Pass | Fail | Skipped | Status |
+|---|---|---|---|---|---|---|
+| R1 | `tests/ads/publisher-auth.test.ts`, `tests/ads/v1-route.test.ts`, `tests/ads/mvp-e2e.test.ts`, `tests/ads/day10-part5-integration.test.ts`, `tests/workflows/day19-part3-publisher-key-serving.test.ts` | 324 | 324 | 0 | 0 | **PASS** (automated, mocked) |
+| R2 | `tests/ads/day11-part2-categories.test.ts`, `tests/ads/day11-part3-context.test.ts`, `tests/ads/day12-part4-impression.test.ts`, `tests/ads/day12-prompt5-part3-click.test.ts`, `tests/ads/day17-part4-click-lifecycle.test.ts`, `tests/ads/day18-part1-expired-idempotent-replay.test.ts`, `tests/workflows/day19-part4-tracking-analytics-flow.test.ts` | 280 | 280 | 0 | 0 | **PASS** (automated, mocked) |
+| R1 + R2 together | the 12 files above | 604 | 604 | 0 | 0 | **PASS** (automated, mocked) |
+
+Coverage by request point (all automated, mocked):
+
+| Point | Status |
+|---|---|
+| Valid active key and eligible, approved creative return an ad | **PASS** (R1) |
+| Missing, invalid, revoked, expired, suspended key rejected | **PASS** (R1) |
+| No eligible campaign or creative gives no-fill | **PASS** (R1) |
+| Pending, rejected, draft creative and paused or inactive campaign are not served | **PASS** (R1) |
+| Sensitive and unsupported topics give no-fill | **PASS** (R2 and R1) |
+| Invalid or expired impression and click tokens are refused | **PASS** (R2) |
+| Duplicate impression and click follow the existing idempotency rules | **PASS** (R2) |
+| Tracking leaves advertiser spend and ledger events unchanged | **PASS** (R2) |
+
+Evidence kinds, kept separate:
+
+| Kind | Status |
+|---|---|
+| Automated, mocked (this section, sandbox) | **PASS** (R1, R2) |
+| Real TEST PostgreSQL | Done (user's word only), reported 2026-11-04, no test count seen. Not rerun here. |
+| GitHub CI | Done (user's word only), reported 2026-11-04, no run link, commit or counts seen. Not rerun here. |
+| Preview manual checks 7a to 7c, rechecked after Steps 3 and 4 | User-confirmed — completed successfully (user's word only, no output seen) |
+| Preview: controlled Revive test | **PENDING**, not approved; Revive fallback stays off and was not contacted |
+| Admin Review Flow on Preview (M1 to M9, `PHASE2-STEP1-ADMIN-REVIEW-VERIFICATION-REPORT.md`) | User-confirmed — completed successfully (user's word only, 2026-11-04), preserved exactly from the Step 1 report |
+| Advertiser campaign page | User-confirmed — currently not reproducible in Preview. Old issue's root cause remains unknown. |
+
+A sandbox pass is not a Preview or PostgreSQL pass. Known limitations: the failing sandbox groups of section 5 (missing Node types) were not part of this run; after the document edits the whole suite was run once more in the sandbox: 4596 tests, 4586 passed, 10 failed, 0 skipped, the same 10 failures as in Step 5 (missing Node type definitions in a sandbox without `node_modules`; not in the files of R1 or R2). Status of that whole-suite run: **FAIL** in the sandbox, to be judged on a real install and CI.
+
+Files changed in this rerun: `PHASE2-STEP3-AD-SERVING-REGRESSION-REPORT.md` and `MVP-VERIFICATION-RUNBOOK.md` only. No test, application code, SQL, migration, workflow or script changed, so `.github/workflows/ci.yml` is unchanged.
