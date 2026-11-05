@@ -418,3 +418,12 @@ Blank fields in the table above are owner decisions and stay blank until the own
 - This section does not approve a pilot, does not start one and does not declare the publisher API ready for production use. Gates A to D in section 7 stay NOT CONFIRMED.
 - Publisher earnings and ledger charges are not shown in the panel. The ledger tests allow only the ledger SQL files to read the ledger, so a ledger summary for admins is a pending owner decision. Until then, earnings and charges are read in the existing ledger and payout views.
 - The ledger, the payout rules, the budget rules and the Revive flags were not changed.
+
+### 15d. Sign-off
+
+| Item | Evidence kept | Date | Checked by | Result |
+| --- | --- | --- | --- | --- |
+| Monitoring thresholds written | | | | NOT CONFIRMED |
+| Monitoring panel read | | | | NOT CONFIRMED |
+
+A row is filled only by a person, with a dated result. Nothing was run to write this table.
