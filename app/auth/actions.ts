@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv, requireSupabaseEnv } from "@/lib/supabase/env";
 import { safeNextPath } from "@/lib/auth/redirect";
-import { requireUser } from "@/lib/auth/session";
+import { getCurrentAccount, requireUser } from "@/lib/auth/session";
 import { OAUTH_INTENT_COOKIE, encodeIntent, type OAuthIntent } from "@/lib/auth/oauth-intent";
 import { setChosenRole } from "@/lib/auth/oauth-role";
 import { getSiteUrl } from "@/lib/auth/site-url";
@@ -242,6 +242,9 @@ export async function signOut(): Promise<void> {
 // sirf tab maanti hai jab naye user par "role_choice_pending" laga ho.
 export async function chooseAccountRole(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const user = await requireUser();
+  // Choice pehle ho chuki hai (Back dabake purana page, ya double tap): error nahi, seedha dashboard.
+  const current = await getCurrentAccount();
+  if (current && !current.roleChoicePending) redirect("/dashboard");
   const picked = formData.get("accountType");
   if (picked !== "advertiser" && picked !== "publisher") {
     return { status: "error", message: "Choose Advertiser or AI Publisher to continue." };

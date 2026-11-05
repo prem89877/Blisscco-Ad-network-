@@ -54,6 +54,7 @@ describe("oauth role choice: source checks", () => {
     const src = read("app/auth/actions.ts");
     const fn = src.slice(src.indexOf("export async function chooseAccountRole"));
     assert.match(fn, /await requireUser\(\)/);
+    assert.match(fn, /!current\.roleChoicePending\) redirect\("\/dashboard"\)/);
     assert.match(fn, /picked !== "advertiser" && picked !== "publisher"/);
     assert.match(fn, /setChosenRole\(user\.id, picked\)/);
     assert.ok(!/formData\.get\("(userId|user_id|profileId|role|status)"\)/.test(fn));
