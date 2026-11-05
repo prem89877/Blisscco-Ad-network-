@@ -62,3 +62,5 @@ Kya NAHI kar sakti: page/question ka matlab samajhna, keyword ya semantic/embedd
 - Publisher ki apni allowed/blocked categories (`publishers.category` DB me hai par matching me use nahi hota).
 - Campaign priority/bid, related-category map (jo hum explicitly maintain karein), keyword/page-level targeting (privacy review ke baad, aur sirf server-side).
 - Fallback par alag reporting (kitni baar fallback se fill hua), taaki publisher ko dikhe.
+
+
