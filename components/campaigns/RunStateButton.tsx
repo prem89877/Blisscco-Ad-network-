@@ -5,6 +5,7 @@ import { pauseCampaign, resumeCampaign } from "@/app/dashboard/advertiser/campai
 import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { DELIVERY_NOTE } from "@/lib/campaigns/run-state";
 import { initialRunState } from "@/lib/campaigns/types";
+import Spinner from "@/components/ui/Spinner";
 
 type Props = { campaignId: string; mode: "pause" | "resume" };
 
@@ -33,7 +34,7 @@ export default function RunStateButton({ campaignId, mode }: Props) {
       <form action={formAction} onSubmit={onSubmit}>
         <input type="hidden" name="campaignId" value={campaignId} />
         <button type="submit" disabled={pending} aria-busy={pending} className={outline}>
-          {pending ? "Resuming…" : "Resume campaign"}
+          {pending ? <><Spinner size="sm" className="mr-2" />Resuming…</> : "Resume campaign"}
         </button>
         {error}
       </form>
@@ -72,7 +73,7 @@ export default function RunStateButton({ campaignId, mode }: Props) {
           aria-busy={pending}
           className={`${btn} border border-amber-400/60 text-amber-300 hover:bg-amber-400/10`}
         >
-          {pending ? "Pausing…" : "Yes, pause campaign"}
+          {pending ? <><Spinner size="sm" className="mr-2" />Pausing…</> : "Yes, pause campaign"}
         </button>
         <button
           type="button"

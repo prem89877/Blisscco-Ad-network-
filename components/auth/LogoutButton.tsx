@@ -2,6 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { signOut } from "@/app/auth/actions";
+import Spinner from "@/components/ui/Spinner";
 
 function LogoutSubmit() {
   const { pending } = useFormStatus();
@@ -11,7 +12,7 @@ function LogoutSubmit() {
       disabled={pending}
       className="inline-flex min-h-11 items-center rounded px-1 text-sm font-medium text-mist/75 hover:text-aqua disabled:opacity-60"
     >
-      {pending ? "Logging out…" : "Log out"}
+      {pending ? <><Spinner size="sm" className="mr-2" />Logging out…</> : "Log out"}
     </button>
   );
 }

@@ -6,6 +6,7 @@ import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import type { AdminDecisionKind } from "@/lib/admin/decisions";
 import { REJECT_REASON_MAX } from "@/lib/admin/decisions";
 import { initialRunState } from "@/lib/campaigns/types";
+import Spinner from "@/components/ui/Spinner";
 
 const btn =
   "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
@@ -57,7 +58,7 @@ export default function AdminDecisionButton({ kind, id, decision, label, tone = 
       )}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} ${color}`}>
-          {pending ? "Please wait…" : label}
+          {pending ? <><Spinner size="sm" className="mr-2" />Please wait…</> : label}
         </button>
         {needsReason && (
           <button type="button" disabled={pending} onClick={() => setAsking(false)} className={`${btn} border-line text-mist/80`}>

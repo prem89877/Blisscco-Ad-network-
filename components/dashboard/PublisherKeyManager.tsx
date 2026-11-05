@@ -5,6 +5,7 @@ import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { createKey, revokeKey, rotateKey } from "@/app/dashboard/publisher/actions";
 import { EXPIRY_CHOICES, KEY_LABEL_MAX, initialKeyState, keyIsUsable, type KeyActionState, type PublisherKey } from "@/lib/publisher/keys";
 import { formatDate } from "@/lib/format";
+import Spinner from "@/components/ui/Spinner";
 
 const btn =
   "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
@@ -49,7 +50,7 @@ function RotateButton({
       </select>
       <div className="flex gap-2">
         <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} border-aqua/60 text-aqua hover:bg-aqua/10`}>
-          {pending ? "Creating…" : "Create new key"}
+          {pending ? <><Spinner size="sm" className="mr-2" />Creating…</> : "Create new key"}
         </button>
         <button type="button" disabled={pending} onClick={() => setOpen(false)} className={`${btn} border-line text-mist/80`}>
           Cancel
@@ -75,7 +76,7 @@ function RevokeButton({ keyId }: { keyId: string }) {
       <p className="text-xs text-mist/70">Apps using this key will stop working. Revoke it?</p>
       <div className="flex gap-2">
         <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} border-red-400/60 text-red-300 hover:bg-red-500/10`}>
-          {pending ? "Revoking…" : "Yes, revoke"}
+          {pending ? <><Spinner size="sm" className="mr-2" />Revoking…</> : "Yes, revoke"}
         </button>
         <button type="button" autoFocus disabled={pending} onClick={() => setConfirming(false)} className={`${btn} border-line text-mist/80`}>
           Cancel
@@ -187,7 +188,7 @@ export default function PublisherKeyManager({ keys, nowIso, canCreate = true }: 
         </div>
         <div className="sm:col-span-2">
           <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} border-transparent bg-violet px-5 text-base text-white hover:bg-[#6444F0]`}>
-            {pending ? "Creating…" : "Create new key"}
+            {pending ? <><Spinner size="sm" className="mr-2" />Creating…</> : "Create new key"}
           </button>
         </div>
       </form>

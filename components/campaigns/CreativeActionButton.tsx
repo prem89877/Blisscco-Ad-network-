@@ -4,6 +4,7 @@ import { changeCreativeStatus } from "@/app/dashboard/advertiser/campaigns/creat
 import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { CREATIVE_ACTIONS, type CreativeAction } from "@/lib/campaigns/creative-validation";
 import { initialRunState } from "@/lib/campaigns/types";
+import Spinner from "@/components/ui/Spinner";
 
 const btn =
   "inline-flex min-h-11 items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
@@ -20,7 +21,7 @@ export default function CreativeActionButton({ creativeId, action }: { creativeI
       <input type="hidden" name="creativeId" value={creativeId} />
       <input type="hidden" name="action" value={action} />
       <button type="submit" disabled={pending} aria-busy={pending} className={`${btn} ${tone}`}>
-        {pending ? "Please wait…" : CREATIVE_ACTIONS[action].label}
+        {pending ? <><Spinner size="sm" className="mr-2" />Please wait…</> : CREATIVE_ACTIONS[action].label}
       </button>
       {state.status === "error" && state.message && (
         <p role="alert" className="mt-2 max-w-xs text-sm text-red-300">
