@@ -77,7 +77,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
     for (const n of names) {
       if (allowedPublic.has(n)) continue;
       // baaki: SUPABASE_SECRET_KEY (server) + publisher ke apne server ke example env (guide ke code samples me sirf text)
-      assert.ok(["SUPABASE_SECRET_KEY", "BLISSCCO_PUBLISHER_API_KEY", "BLISSCCO_API_BASE_URL", "PORT", "NEXT_PUBLIC_XXX"].includes(n), `unexpected env name ${n}`);
+      assert.ok(["SUPABASE_SECRET_KEY", "BLISSCCO_PUBLISHER_API_KEY", "BLISSCCO_API_BASE_URL", "PORT", "NEXT_PUBLIC_XXX", "NODE_ENV" /* Next.js ka standard, secret nahi: app/auth/actions.ts me OAuth intent cookie ka `secure` flag */].includes(n), `unexpected env name ${n}`);
     }
   });
 
@@ -105,6 +105,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
       "lib/ads/match.ts",
       "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only
       "lib/ads/serve-db.ts",
+      "lib/auth/oauth-role.ts", // Google signup role set karna: server-only, sirf do role rpc (mark_role_choice_pending, set_initial_account_role)
       "lib/ledger/ledger-db.ts", // Day 13 part 2: ledger ka server-only service (admin reversal / adjustment rpc)
       "lib/publisher/keys-db.ts",
     ]);
