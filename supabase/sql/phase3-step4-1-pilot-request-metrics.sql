@@ -9,7 +9,7 @@
 --
 -- Is file me:
 --  A. public.ad_request_metrics_hourly : ghante ke bucket me (outcome) ka count + latency total/max. Ek row = ek ghanta x ek outcome.
---     KOI prompt, topic, publisher key, IP, user id, campaign id, ad text yahan nahi hai (columns hi nahi hain).
+--    h KOI prompt, topic, publisher key, IP, user id, campaign id, ad text yahan nahi hai (columns hi nahi hain).
 --  B. public.record_ad_request_metric(p_outcome, p_latency_ms) : sirf service_role. Ek counter badhata hai. Galat outcome / latency => error (kuch likha nahi jaata).
 --  C. public.get_pilot_monitoring_summary(p_days) : SIRF admin (private.is_admin()). Admin na ho toh 0 rows. Sirf padhta hai:
 --       request counts, latency, serves, impressions, clicks, campaign spend.
