@@ -26,12 +26,12 @@ Simulated or test values are never presented as real pilot results. No real pilo
 
 | Check | Preview DB (ficwu...) | Production DB (mflio...) |
 |---|---|---|
-| ad_request_metrics_hourly table | present | NOT present |
-| record_ad_request_metric function | present, service_role only | NOT present |
-| get_pilot_monitoring_summary function | present, authenticated only | NOT present |
+| ad_request_metrics_hourly table | present | present (0 rows, RLS on, no grants to any role) |
+| record_ad_request_metric function | present, service_role only | present, service_role only, security definer |
+| get_pilot_monitoring_summary function | present, authenticated only | present, authenticated only, admin check inside, does not read the ledger |
 | RLS on metrics table | on | n/a |
 
-All [CLAUDE-VERIFIED]. The migration `supabase/sql/phase3-step4-1-pilot-request-metrics.sql` was already applied on Preview by the owner. Claude did not apply it anywhere. Production was only read.
+All [CLAUDE-VERIFIED] (Production column re-read on 2026-11-05 via the Supabase connector; read-only queries, nothing was run or changed there by Claude). The migration `supabase/sql/phase3-step4-1-pilot-request-metrics.sql` was already applied on Preview by the owner. Claude did not apply it anywhere. Production was only read.
 
 Function check: `record_ad_request_metric('fill', 5)` was run inside a transaction that was deliberately rolled back. The row was inserted and then discarded, so the function works and no test data was left. [CLAUDE-VERIFIED]
 
@@ -65,18 +65,22 @@ Test files for Step 4 (from the task):
 
 Result: **[OWNER-REPORTED] all tests for this prompt are verified.** Claude did not run the test suite in this session (the sandbox has no network and no installed dependencies) and has no pass/fail counts to attach. Attach the real test output from the owner's run to this report before treating it as an audit record.
 
-## 6. Not yet verified
+## 6. Preview checks reported by the owner
+
+The owner reports that every item in the table below was done on Preview. These are [OWNER-REPORTED]. Claude has no output or screenshot for them and did not repeat them.
+
+## 6a. Items (original list)
 
 | Item | Status |
 |---|---|
-| no_fill outcome recorded on Preview (e.g. topic "politics") | [NOT DONE] |
-| unauthorized outcome recorded on Preview (wrong key) | [NOT DONE] |
-| Same Idempotency-Key replay does not inflate fill count | [NOT DONE] |
-| Admin sees the Pilot monitoring panel with real numbers | [NOT DONE] (login was failing on the main-branch deployment) |
-| Advertiser account cannot see the panel | [NOT DONE] |
-| Publisher account cannot see the panel | [NOT DONE] |
+| no_fill outcome recorded on Preview (e.g. topic "politics") | [OWNER-REPORTED done] |
+| unauthorized outcome recorded on Preview (wrong key) | [OWNER-REPORTED done] |
+| Same Idempotency-Key replay does not inflate fill count | [OWNER-REPORTED done] |
+| Admin sees the Pilot monitoring panel with real numbers | [OWNER-REPORTED done] (earlier login failure was on the main-branch deployment) |
+| Advertiser account cannot see the panel | [OWNER-REPORTED done] |
+| Publisher account cannot see the panel | [OWNER-REPORTED done] |
 | Publisher earnings and ledger charges in the panel | Not part of Step 4 (pending owner decision, per Step 4 report) |
-| Manual Preview verification | Partial only; not complete |
+| Manual Preview verification | [OWNER-REPORTED] complete |
 
 ## 7. Thresholds
 
@@ -88,12 +92,12 @@ Result: **[OWNER-REPORTED] all tests for this prompt are verified.** Claude did 
 
 Blocking items:
 
-1. The monitoring SQL has not been applied to the Production DB (mfliodvkaszqywajbshu). It must be applied there deliberately, after owner approval.
-2. `PILOT_METRICS_ENABLED` is not set for the Production environment (it exists for Preview only).
+1. ~~Monitoring SQL not applied to Production~~ Resolved: the table and both functions are present in the Production DB (section 2), with the expected grants.
+2. `PILOT_METRICS_ENABLED` for Production: [OWNER-REPORTED] set for Production and Preview. Claude did not re-check it in Vercel.
 3. Admin panel, and non-admin blocking, have not been verified.
 4. no_fill / unauthorized / duplicate-replay checks have not been done.
 5. Section 15b threshold fields are blank and the section 15 checklist items are unchecked.
-6. The Step 4 code must be merged to `main`; Production deploys from `main`, which is at commit 87f75e7. Whether that commit contains Step 4 was not verified.
+6. [OWNER-REPORTED] Step 4 code is on the deployed branch and the admin page shows the Pilot monitoring panel. Claude did not verify the `main` commit. Original note: the Step 4 code must be merged to `main`; Production deploys from `main`, which is at commit 87f75e7. Whether that commit contains Step 4 was not verified.
 7. Real test output (section 5) is not attached.
 
 What is low-risk by code reading (not run against Production): with the flag unset, recording is off and does not call the database. If the summary function is missing, the admin panel returns an "error" state instead of crashing (`loadPilotMonitoring` in `lib/ads/pilot-monitoring.ts`). Billing, ledger, payout and eligibility code were not changed in Step 4.

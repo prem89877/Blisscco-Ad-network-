@@ -408,16 +408,7 @@ Added in Phase 3 Step 4. This section defines what to watch, what to do and who 
 | Publisher integration failure | Publisher's report | The publisher shows no ad and the chat keeps working (Gate C in section 7). Blisscco never guesses an ad: an outage answers 503 with `unavailable` and a request with no eligible ad answers a no-fill. | A single failure is not a stop. Repeated failures follow the timeout row. |
 | Latency | Average and slowest latency cards | Record the figures with the date. Write the limit after the first measured sample. | Latency limit: ____ (owner decision, blank until set). No latency limit is claimed here. |
 
-- [ ] The owner has written every blank field in 15b before the pilot starts, and the date is recorded.
-- [ ] A person has read the Pilot monitoring panel on each date the owner wrote, and each reading is recorded in the format in section 11c.
-- [ ] The panel was opened by an advertiser account and by a publisher account on the Preview, and neither could see it. Not done yet.
-- [ ] Request recording was turned on for the TEST or Preview environment by the owner, after the monitoring SQL was applied to the TEST project. Not done yet.
-- [ ] A TEST request was made and the panel counted it once. Not done yet.
-
-| Pilot item | Evidence kept | Date | Checked by | Result |
-| --- | --- | --- | --- | --- |
-| Monitoring thresholds written (15b) | | | | NOT CONFIRMED |
-| Monitoring panel read on the Preview (15a) | | | | NOT CONFIRMED |
+Blank fields in the table above are owner decisions and stay blank until the owner writes them. This section has no tick boxes by the owner's choice.
 
 ### 15c. Limits
 
