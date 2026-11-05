@@ -94,3 +94,4 @@ One failure, present in the substitute run only: `publisher-examples.test.ts` â€
 6. `BlissccoClient.fromEnv()` reads `BLISSCCO_BASE_URL` / `BLISSCCO_API_KEY`, while the guide and Next.js example use `BLISSCCO_API_BASE_URL` / `BLISSCCO_PUBLISHER_API_KEY`. Documented in the guide, not unified.
 7. The Next.js example has an import path to the Node client that must be edited when copied; it has not been built or rendered inside a real Next.js app here.
 8. Existing limits from the guide still apply: manual account approval, no published staging environment, and the "Not ready for production use" status.
+
