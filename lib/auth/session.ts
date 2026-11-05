@@ -32,7 +32,7 @@ export async function requireUser(): Promise<User> {
 
 export type AccountRole = "advertiser" | "publisher" | "admin";
 export type AccountStatus = "active" | "suspended";
-export type CurrentAccount = { user: User; role: AccountRole; status: AccountStatus };
+export type CurrentAccount = { user: User; role: AccountRole; status: AccountStatus; roleChoicePending: boolean };
 
 function isRole(v: unknown): v is AccountRole {
   return v === "advertiser" || v === "publisher" || v === "admin";
@@ -51,15 +51,19 @@ export const getCurrentAccount = cache(async (): Promise<CurrentAccount | null> 
   if (!user) return null;
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("profiles")
-      .select("role, status")
+      .select("role, status, role_choice_pending")
       .eq("id", user.id)
       .maybeSingle();
+    if (error) {
+      // role_choice_pending column abhi database me na ho (migration baaki) toh purani query: login band nahi hota.
+      ({ data, error } = await supabase.from("profiles").select("role, status").eq("id", user.id).maybeSingle());
+    }
     if (error || !data) return null;
-    const row = data as { role?: unknown; status?: unknown };
+    const row = data as { role?: unknown; status?: unknown; role_choice_pending?: unknown };
     if (!isRole(row.role) || !isStatus(row.status)) return null;
-    return { user, role: row.role, status: row.status };
+    return { user, role: row.role, status: row.status, roleChoicePending: row.role_choice_pending === true };
   } catch {
     return null;
   }
@@ -73,6 +77,8 @@ export async function requireAccount(): Promise<CurrentAccount> {
   await requireUser();
   const account = await getCurrentAccount();
   if (!account || account.status !== "active") redirect("/dashboard/account-status");
+  // Naya Google user jisne abhi account type nahi chuna: pehle wahi (koi dashboard page nahi khulta).
+  if (account.roleChoicePending) redirect("/auth/choose-role");
   return account;
 }
 

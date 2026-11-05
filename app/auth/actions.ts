@@ -1,9 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv, requireSupabaseEnv } from "@/lib/supabase/env";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { requireUser } from "@/lib/auth/session";
+import { OAUTH_INTENT_COOKIE, encodeIntent, type OAuthIntent } from "@/lib/auth/oauth-intent";
+import { setChosenRole } from "@/lib/auth/oauth-role";
 import { getSiteUrl } from "@/lib/auth/site-url";
 import {
   normalizeEmail,
@@ -148,10 +153,27 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
 // Flow: yahan se Supabase -> Google -> Supabase -> /auth/confirm?code=... (wahan code exchange hota hai).
 // `next` redirectTo me nahi bhejte: Supabase ki allow-list exact URL match karti hai, isliye
 // hamesha plain /auth/confirm; login ke baad default /dashboard.
-// Naya Google user bhi database trigger se role = advertiser pata hai (admin kabhi nahi).
-export async function signInWithGoogle(): Promise<void> {
+// Role: signup page se aaye toh wahi jo user ne wahan chuna (advertiser / publisher). Login page se aaye aur user naya ho
+// toh /auth/choose-role par user khud chunta hai: koi bhi naya user ab chup-chaap advertiser nahi banta (admin kabhi nahi).
+export async function signInWithGoogle(formData: FormData): Promise<void> {
   const supabase = await getClient();
   if (!supabase) redirect("/login?error=config");
+
+  const intent: OAuthIntent =
+    formData.get("intent") === "signup"
+      ? { kind: "signup", role: formData.get("accountType") === "publisher" ? "publisher" : "advertiser" }
+      : { kind: "login" };
+  try {
+    (await cookies()).set(OAUTH_INTENT_COOKIE, encodeIntent(intent), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 600,
+    });
+  } catch {
+    // cookie na lag paye toh intent "login" maana jayega (user se pooch lenge): koi nuksan nahi
+  }
 
   let target: string | null = null;
   try {
@@ -213,4 +235,19 @@ export async function signOut(): Promise<void> {
     if (error) console.error("[auth] sign-out failed", { code: error.code, status: error.status });
   }
   redirect("/login?message=signed_out");
+}
+
+/* ---------------------- Choose account type (naya Google user) ---------------------- */
+// user id HAMESHA login se aati hai (form se kabhi nahi). Role sirf advertiser / publisher; database function bhi
+// sirf tab maanti hai jab naye user par "role_choice_pending" laga ho.
+export async function chooseAccountRole(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const user = await requireUser();
+  const picked = formData.get("accountType");
+  if (picked !== "advertiser" && picked !== "publisher") {
+    return { status: "error", message: "Choose Advertiser or AI Publisher to continue." };
+  }
+  const ok = await setChosenRole(user.id, picked);
+  if (!ok) return { status: "error", message: "We could not save your choice. Please try again." };
+  revalidatePath("/dashboard", "layout");
+  redirect("/dashboard");
 }

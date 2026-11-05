@@ -46,7 +46,7 @@ export default function LoginForm({ next, notice }: Props) {
         <SubmitButton pendingText="Logging in…">Log in</SubmitButton>
       </form>
 
-      <GoogleButton />
+      <GoogleButton intent="login" />
 
       {state.needsVerification && (
         <form action={resendAction} className="mt-4">

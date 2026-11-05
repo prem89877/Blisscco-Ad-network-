@@ -7,7 +7,9 @@ import LogoutButton from "@/components/auth/LogoutButton";
 import { currentLabel } from "@/lib/dashboard-nav";
 
 /** Sticky top bar shared by every dashboard page. Logo shows on phones; the sidebar has it on desktop. */
-export default function DashboardHeader({ email }: { email: string }) {
+const ROLE_LABELS = { advertiser: "Advertiser", publisher: "AI Publisher", admin: "Admin" } as const;
+
+export default function DashboardHeader({ email, role = null }: { email: string; role?: keyof typeof ROLE_LABELS | null }) {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-ink/95 px-4 py-3 min-[400px]:gap-3 min-[400px]:px-5 sm:px-8">
@@ -20,6 +22,14 @@ export default function DashboardHeader({ email }: { email: string }) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2 min-[400px]:gap-3">
+        {role && (
+          <span
+            data-testid="account-role-badge"
+            className="inline-flex items-center rounded-full border border-aqua/40 bg-aqua/10 px-2.5 py-1 text-xs font-medium text-aqua"
+          >
+            {ROLE_LABELS[role]}
+          </span>
+        )}
         {email && (
           <span className="hidden max-w-[14rem] truncate text-sm text-mist/60 xl:inline" title={email}>
             {email}

@@ -33,6 +33,7 @@
     "lib/accounts/validation.ts",
     "lib/admin/decisions.ts",
     "lib/auth/redirect.ts",
+    "lib/auth/oauth-intent.ts",
     "lib/auth/site-url-parse.ts",
     "lib/auth/validation.ts",
     "lib/dashboard-nav.ts",

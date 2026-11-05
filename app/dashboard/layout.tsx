@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -17,13 +18,14 @@ export const dynamic = "force-dynamic";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const account = await getCurrentAccount();
+  if (account?.roleChoicePending) redirect("/auth/choose-role");
   const items = navForRole(account?.role ?? null);
 
   return (
     <div className="min-h-dvh lg:flex">
       <Sidebar items={items} />
       <div className="min-w-0 flex-1">
-        <DashboardHeader email={user.email ?? ""} />
+        <DashboardHeader email={user.email ?? ""} role={account?.role ?? null} />
         <main
           id="main"
           tabIndex={-1}

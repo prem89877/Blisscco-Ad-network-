@@ -30,6 +30,7 @@ Koi SQL kisi database par chalayi nahi gayi. Order file-headers + asli object de
 | 33 | day-13-12 | 13-1, 13-4, 13-9, 5-3 | day-13-13 | day-13-14 |
 | 34 | day-13-15 | 13-4, 13-9 | **day-13-18 (new)** | - |
 | 35 | phase3-step4-1 (pilot request metrics; TEST first, optional until the owner decides to record metrics) | 3-5, 5-3, 12-2, 13-1 | checks in the file footer | - |
+| 36 | phase3-step5-1 (naye Google user ka account type chunna; Production par apply ho chuki) | 3-1, 3-2 | checks in the file footer | - |
 | end | - | - | day-13-16 (data consistency) | - |
 
 TEST-only extra: `day-5-10-test-data-cleanup.sql` (commit karke TEST rows delete karta hai).

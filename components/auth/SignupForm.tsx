@@ -96,9 +96,9 @@ export default function SignupForm() {
         <SubmitButton pendingText="Creating account…">Create account</SubmitButton>
       </form>
 
-      <GoogleButton />
+      <GoogleButton intent="signup" accountType={accountType} />
       <p className="mt-2 text-xs text-mist/55">
-        Signing up with Google creates an advertiser account. To join as an AI Publisher, use email sign-up above.
+        Google sign-up uses the account type selected above.
       </p>
 
       <p className="mt-6 text-center text-sm text-mist/70">
