@@ -31,13 +31,14 @@ Koi SQL kisi database par chalayi nahi gayi. Order file-headers + asli object de
 | 34 | day-13-15 | 13-4, 13-9 | **day-13-18 (new)** | - |
 | 35 | phase3-step4-1 (pilot request metrics; TEST first, optional until the owner decides to record metrics) | 3-5, 5-3, 12-2, 13-1 | checks in the file footer | - |
 | 36 | phase3-step5-1 (naye Google user ka account type chunna; Production par apply ho chuki) | 3-1, 3-2 | checks in the file footer | - |
+| 37 | phase4-step3-1 (advertiser creative submission: brand/logo/banner/keywords columns, private bucket `creative-assets`, storage policies, guard_creative_changes; **TEST first**) | 3-4, 3-5, 5-11 | checks C1-C5 in the file footer | - |
 | end | - | - | day-13-16 (data consistency) | - |
 
 TEST-only extra: `day-5-10-test-data-cleanup.sql` (commit karke TEST rows delete karta hai).
 
 ## Rerun rule
 Har migration rerun-safe hai, par **purani function-redefining migration baad mein dobara chalane se naya version hat jata hai**
-(13-4 ke baad 13-15 ka lock; 7-1 ke baad 7-5; 12-5/9-5/7-1 ke baad 13-4 ki ledger line). Dobara chalani ho toh us point se poori chain chalao,
+(13-4 ke baad 13-15 ka lock; 7-1 ke baad 7-5; 3-5 ke baad phase4-step3-1 (guard_creative_changes); 12-5/9-5/7-1 ke baad 13-4 ki ledger line). Dobara chalani ho toh us point se poori chain chalao,
 phir verify (13-5, 13-18, day-8-1 C3 ye regression pakadte hain).
 
 ## Verify gaps (repo mein read-only verify nahi hai)

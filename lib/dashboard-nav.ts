@@ -5,13 +5,14 @@ export type NavRole = "advertiser" | "publisher" | "admin";
 export const DASHBOARD_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/advertiser/campaigns", label: "Campaigns" },
+  { href: "/dashboard/advertiser/creatives", label: "Ads" },
   { href: "/dashboard/publisher", label: "Publisher" },
   { href: "/dashboard/admin", label: "Admin" },
   { href: "/dashboard/analytics", label: "Analytics" },
 ];
 
 const ROLE_LINKS: Record<NavRole, readonly string[]> = {
-  advertiser: ["/dashboard", "/dashboard/advertiser/campaigns", "/dashboard/analytics"],
+  advertiser: ["/dashboard", "/dashboard/advertiser/campaigns", "/dashboard/advertiser/creatives", "/dashboard/analytics"],
   publisher: ["/dashboard", "/dashboard/publisher", "/dashboard/analytics"],
   admin: ["/dashboard", "/dashboard/admin", "/dashboard/analytics"],
 };

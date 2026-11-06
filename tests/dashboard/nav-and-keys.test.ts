@@ -14,7 +14,7 @@ import {
 const labels = (r: Parameters<typeof navForRole>[0]) => navForRole(r).map((i) => i.label);
 
 describe("dashboard nav: each role sees only its own links", () => {
-  it("advertiser", () => assert.deepEqual(labels("advertiser"), ["Overview", "Campaigns", "Analytics"]));
+  it("advertiser", () => assert.deepEqual(labels("advertiser"), ["Overview", "Campaigns", "Ads", "Analytics"]));
   it("publisher", () => assert.deepEqual(labels("publisher"), ["Overview", "Publisher", "Analytics"]));
   it("admin", () => assert.deepEqual(labels("admin"), ["Overview", "Admin", "Analytics"]));
   it("unknown role: only Overview", () => assert.deepEqual(labels(null), ["Overview"]));

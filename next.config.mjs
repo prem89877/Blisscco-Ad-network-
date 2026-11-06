@@ -15,6 +15,9 @@ const nextConfig = {
   // toh create/edit/approve ke baad purana data nahi dikhta.
   experimental: {
     staleTimes: { dynamic: 30, static: 180 },
+    // Phase 4 Step 3: ad form me logo (max 1 MB) + banner (max 2 MB) upload hote hain. Server action ki default limit 1 MB hai,
+    // isliye 5 MB. Asli size / type ki jaanch server action me (aur bucket ki 2 MB limit) hoti hai.
+    serverActions: { bodySizeLimit: "5mb" },
   },
   async headers() {
     return [

@@ -8,7 +8,9 @@ import { isPilotMetricsEnabled, loadPilotMonitoring } from "@/lib/ads/pilot-moni
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/campaigns/constants";
-import { toCreative, type Creative } from "@/lib/campaigns/creative-validation";
+import CreativePreview from "@/components/campaigns/CreativePreview";
+import { signAssetUrls } from "@/lib/campaigns/creative-submission-queries";
+import { SUBMITTED_CREATIVE_COLUMNS, toSubmittedCreative, type SubmittedCreative } from "@/lib/campaigns/creative-submission";
 import { utcToday } from "@/lib/campaigns/validation";
 import { CAMPAIGN_APPROVE_BLOCK_MESSAGES, campaignApproveBlock } from "@/lib/admin/decisions";
 import { formatDate } from "@/lib/format";
@@ -37,7 +39,7 @@ async function loadAdminData() {
     supabase.from("publishers").select("id, name, website_url, status, category, created_at").order("created_at", { ascending: false }).limit(30),
     supabase
       .from("ad_creatives")
-      .select("id, campaign_id, headline, body, cta_text, destination_url, status, rejection_reason")
+      .select(SUBMITTED_CREATIVE_COLUMNS)
       .eq("status", "pending_review")
       .order("created_at", { ascending: true })
       .limit(50),
@@ -62,7 +64,24 @@ async function loadAdminData() {
   const failed = Boolean(advs.error || pubs.error || creatives.error || campaigns.error);
   const advertisers = ((advs.data ?? []) as unknown[]).map(toAccount("company_name", null)).filter((a): a is Account => a !== null);
   const publishers = ((pubs.data ?? []) as unknown[]).map(toAccount("name", "category")).filter((a): a is Account => a !== null);
-  const creativeRows = ((creatives.data ?? []) as unknown[]).map(toCreative).filter((c): c is Creative => c !== null);
+  const creativeRows = ((creatives.data ?? []) as unknown[]).map(toSubmittedCreative).filter((c): c is SubmittedCreative => c !== null);
+
+  // Phase 4 Step 3: review ke liye logo / banner (private bucket, admin ke session se signed URL) aur campaign ki category (read-only).
+  const assetUrls = await signAssetUrls(
+    supabase,
+    creativeRows.flatMap((c) => [c.logoPath, c.bannerPath]),
+  );
+  const creativeCampaignIds = [...new Set(creativeRows.map((c) => c.campaignId))];
+  const creativeCategories = new Map<string, { name: string; category: string }>();
+  if (creativeCampaignIds.length > 0) {
+    const { data: cc } = await supabase.from("campaigns").select("id, name, category").in("id", creativeCampaignIds);
+    for (const row of (cc ?? []) as Record<string, unknown>[]) {
+      const id = str(row.id);
+      const name = str(row.name);
+      const category = str(row.category);
+      if (id && name && category) creativeCategories.set(id, { name, category });
+    }
+  }
   const campaignRows = ((campaigns.data ?? []) as Record<string, unknown>[])
     .map((r): PendingCampaign | null => {
       const id = str(r.id);
@@ -94,7 +113,7 @@ async function loadAdminData() {
     }
   }
 
-  return { failed: failed || approvedFailed, advertisers, publishers, creatives: creativeRows, campaigns: campaignRows };
+  return { failed: failed || approvedFailed, advertisers, publishers, creatives: creativeRows, campaigns: campaignRows, assetUrls, creativeCategories };
 }
 
 function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: Account[] }) {
@@ -163,12 +182,27 @@ export default async function AdminPage() {
             <ul className="space-y-3">
               {data.creatives.map((c) => (
                 <li key={c.id} className="rounded-xl border border-line p-4">
-                  <p className="break-words text-sm font-medium text-mist">{c.headline}</p>
-                  <p className="mt-1 whitespace-pre-line break-words text-sm text-mist/80">{c.body}</p>
-                  <p className="mt-1 break-all text-xs text-mist/60">
+                  <CreativePreview
+                    brandName={c.brandName}
+                    logoUrl={c.logoPath ? (data.assetUrls.get(c.logoPath) ?? null) : null}
+                    bannerUrl={c.bannerPath ? (data.assetUrls.get(c.bannerPath) ?? null) : null}
+                    headline={c.headline}
+                    body={c.body}
+                    ctaText={c.ctaText}
+                    destinationUrl={c.destinationUrl}
+                  />
+                  <p className="mt-2 break-all text-xs text-mist/60">
                     {c.ctaText ? `Button: ${c.ctaText} · ` : ""}
                     {c.destinationUrl}
                   </p>
+                  {data.creativeCategories.get(c.campaignId) && (
+                    <p className="mt-1 break-words text-xs text-mist/60">
+                      Campaign: {data.creativeCategories.get(c.campaignId)?.name} · Category (from campaign):{" "}
+                      {categoryLabel(data.creativeCategories.get(c.campaignId)?.category ?? "")}
+                    </p>
+                  )}
+                  {c.keywords && <p className="mt-1 break-words text-xs text-mist/60">Keywords (review only, not used for matching): {c.keywords}</p>}
+                  {(!c.logoPath || !c.bannerPath) && <p className="mt-1 text-xs text-amber-300">No logo or image uploaded for this ad (older ad).</p>}
                   <div className="mt-3 flex flex-wrap items-start gap-2">
                     <AdminDecisionButton kind="creative" id={c.id} decision="approve" label="Approve ad" />
                     <AdminDecisionButton kind="creative" id={c.id} decision="reject" label="Reject ad" tone="bad" needsReason />

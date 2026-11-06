@@ -427,3 +427,7 @@ Blank fields in the table above are owner decisions and stay blank until the own
 | Monitoring panel read | | | | NOT CONFIRMED |
 
 A row is filled only by a person, with a dated result. Nothing was run to write this table.
+
+## 16. Phase 4 Step 1: pointer to the gate record (2026-11-06)
+
+Added in Phase 4 Step 1. The dated item-by-item record for Gates A to D, with the source of each result and the evidence still required, is kept in `PHASE4-STEP1-GATE-CLOSURE-REPORT.md`, section 4. Where that report and the sign-off rows in section 7 differ, the report is newer. The section 7 rows are not edited here because existing document tests lock them. No box in this file is ticked, and no environment value, SQL or deployment was changed. This section does not approve a pilot, does not start one and does not declare the publisher API ready for production use.
