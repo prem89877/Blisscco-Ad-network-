@@ -33,3 +33,14 @@ Browser -> your own route (same origin) -> Blisscco:
 - Keep the **Sponsored** label. Links open with `rel="sponsored noopener noreferrer"`.
 - No CORS headers: the route is same-origin only.
 - No ad (no-fill, error, unsafe link) = the component renders nothing.
+
+## Rich ad card (optional fields)
+
+When the advertiser supplied them (and Blisscco has rich delivery switched on for your environment: server flag `RICH_AD_DELIVERY_ENABLED`, off by default), an ad can also carry `brand_name`, `logo_url` and `image_url` next to the five public fields.
+
+- The card shows: **Sponsored** label, logo + brand name, banner image, headline, description and the call-to-action.
+- **Text-only fallback**: every rich field is optional. No logo, no brand, no image, or an image that fails to load = the plain text card (headline, description, CTA). The **Sponsored** label is always there.
+- Image URLs look like `https://<your Blisscco API host>/api/v1/ads/asset/<ad id>?kind=logo` (or `kind=image`). They point at Blisscco's image proxy, need no key, and stop working (404) when the ad is paused, rejected or no longer approved.
+- `app/api/blisscco-ad/route.ts` keeps an image URL only if it is https (http for localhost), on exactly your `BLISSCCO_API_BASE_URL` host and the `/api/v1/ads/asset/` path; `components/SponsoredAd.tsx` checks the shape again. Anything else is dropped and the ad stays text-only. `lib/safe-url.ts` holds both checks.
+- Images load with `referrerPolicy="no-referrer"`, lazily, and are never fetched with your key.
+- Billing is unchanged: an image load is not an impression or a click.

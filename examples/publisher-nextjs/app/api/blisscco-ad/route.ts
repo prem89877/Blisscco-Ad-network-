@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 // In your own project, copy examples/publisher-node/src/{client,types}.ts next to this app and fix this import path.
 import { BlissccoClient } from "../../../../publisher-node/src/client";
-import { safeHref } from "../../../lib/safe-url";
+import { readRichFields, safeHref } from "../../../lib/safe-url";
 
 // SERVER-ONLY route. The browser sends just a topic; this route calls Blisscco with the secret key.
 // The key is read from server env here and nowhere else. No CORS headers are added on purpose
 // (same-origin only), and only POST is exported.
 //
 // Two request shapes, both POST, both same-origin:
-//   { topic }                       -> match (tracking opted in). Returns the 5 public ad fields + { tracking: { token?, click_ref? } } only.
+//   { topic }                       -> match (tracking opted in). Returns the 5 public ad fields (+ optional brand_name, logo_url, image_url) + { tracking: { token?, click_ref? } } only.
 //   { token, event: "impression" }  -> the exact Blisscco impression body. Forwarded server-side with client.reportImpression()
 //                                      (Blisscco's impression endpoint has no CORS, so the browser cannot call it directly).
 //   { click_ref, event: "click" }   -> a real user click. Forwarded server-side with client.reportClick(), which calls Blisscco's
@@ -47,6 +47,15 @@ const unavailable = () => reply({ fill: false, error: "unavailable" }, 503);
 
 const isToken = (v: unknown): v is string => typeof v === "string" && v.length <= MAX_TOKEN_LENGTH && TRACKING_TOKEN_RE.test(v);
 const isClickRef = (v: unknown): v is string => typeof v === "string" && v.length <= MAX_TOKEN_LENGTH && CLICK_REF_RE.test(v);
+
+/** Origin of your Blisscco API host (from the same server env as the client), or undefined if it cannot be parsed. */
+function apiOrigin(): string | undefined {
+  try {
+    return new URL(process.env.BLISSCCO_API_BASE_URL ?? "").origin;
+  } catch {
+    return undefined;
+  }
+}
 
 function makeClient(): BlissccoClient {
   return new BlissccoClient({
@@ -126,7 +135,10 @@ export async function POST(request: Request): Promise<Response> {
     if (!href) return reply({ fill: false }); // unsafe link => behave like no-fill, and no tracking token leaves the server
     // Explicit whitelist of the 5 public fields.
     const { id, headline, body: adBody, cta_text } = result.ad;
-    const out: Json = { fill: true, sponsored: true, ad: { id, headline, body: adBody, cta_text, destination_url: href } };
+    // Optional rich fields (brand_name, logo_url, image_url). Images only from YOUR Blisscco API host and only Blisscco's asset path;
+    // anything else is dropped and the ad stays text-only.
+    const rich = readRichFields(result.ad, apiOrigin());
+    const out: Json = { fill: true, sponsored: true, ad: { id, headline, body: adBody, cta_text, destination_url: href, ...rich } };
     // Minimum tracking data for the browser: the impression token and the public click ref, each only if Blisscco granted that event.
     // No expires_at, events or anything else. The destination never travels with the click ref.
     const t = result.tracking;

@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
-import { buildAdResponse, type MatchResponseBody } from "@/lib/ads/contract";
+import { buildAdResponse, buildRichFields, type MatchResponseBody } from "@/lib/ads/contract";
+import { assetBaseFromRequest } from "@/lib/ads/rich-assets";
 import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
 import { outcomeFromResponse, reportMatchMetric, type Defer, type MatchOutcome, type MetricSink } from "@/lib/ads/pilot-monitoring";
 import { pilotMetricSink, serveMatchForPublisher } from "@/lib/ads/service";
@@ -193,7 +194,8 @@ async function processMatch(request: Request, options: MatchHandlerOptions, trac
     case "unavailable":
       return json({ fill: false, error: "unavailable" }, 503);
     case "ad":
-      return json(buildAdResponse(result.ad, result.tracking), 200);
+      // Step 3B: rich fields sirf tab jab serve ne rich data diya (flag ON + advertiser ne logo/image/brand diya). Warna purane 5 fields.
+      return json(buildAdResponse(result.ad, result.tracking, buildRichFields(result.ad.id, result.rich, assetBaseFromRequest(request))), 200);
     case "provider_ad":
       // Day 22 Part 6: sirf server flag ON hone par (default band). Public response pehle se bana hai: tracking nahi, Blisscco serve/charge nahi.
       return json(result.response, 200);

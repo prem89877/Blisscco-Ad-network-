@@ -204,3 +204,15 @@ Rotation ka kram: Rotate -> nayi key server ke secret manager me -> deploy -> `L
 
 Publisher guide (`/dashboard/publisher/guide`) me do examples hain: TypeScript (`getSponsoredAd`: timeout, ek retry same Idempotency-Key ke saath, 429 par pause) aur JavaScript (Node 18+, apne frontend ke liye proxy; browser ko sirf 5 ad fields milti hain).
 Dono `tests/ads/publisher-examples.test.ts` me asli handler ke against chalaye jaate hain.
+
+## Phase 4 Step 3B addendum: optional rich fields (backward compatible)
+
+`ad` always has the five fields above. When (and only when) the server runs with `RICH_AD_DELIVERY_ENABLED=1` and the advertiser supplied them, `ad` may also contain three **optional** keys:
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `brand_name` | string, 1 to 80 characters of plain text | Advertiser's brand. |
+| `logo_url` | string | `https://<api host>/api/v1/ads/asset/<ad id>?kind=logo` (Blisscco image proxy). |
+| `image_url` | string | `https://<api host>/api/v1/ads/asset/<ad id>?kind=image` (Blisscco image proxy). |
+
+Each key is independent and can be missing; with none of them the response is byte-for-byte the five-field response. Storage paths, bucket names and signed URLs never appear. The proxy answers 404 unless the ad is approved, its campaign active and its advertiser active. Provider (Revive) responses never carry these keys.

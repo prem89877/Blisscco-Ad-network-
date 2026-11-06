@@ -447,6 +447,10 @@ export class BlissccoClient {
             body: ad.body as string,
             cta_text: ad.cta_text as string | null,
             destination_url: ad.destination_url as string,
+            // Optional rich fields: copied only when they are strings (no other key is ever passed through).
+            ...(typeof ad.brand_name === "string" ? { brand_name: ad.brand_name } : {}),
+            ...(typeof ad.logo_url === "string" ? { logo_url: ad.logo_url } : {}),
+            ...(typeof ad.image_url === "string" ? { image_url: ad.image_url } : {}),
           },
         };
         const t = body.tracking;

@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { safeHref } from "../lib/safe-url";
+import { readRichFields, safeHref } from "../lib/safe-url";
 
 // Runs in the browser, so it holds NO credentials. It only calls this site's own /api/blisscco-ad route.
 // Shows nothing for no-fill, errors or an unsafe link. An impression is reported only for an ad that is really on screen.
 // A click sends only the public click ref to this site's own route (which asks Blisscco to validate and count it),
 // then opens the already-validated https destination in a new tab. The browser never supplies a destination.
 
-type ShownAd = { id: string; headline: string; body: string; ctaText: string; href: string; token: string | null; clickRef: string | null };
+type ShownAd = {
+  id: string;
+  headline: string;
+  body: string;
+  ctaText: string;
+  href: string;
+  token: string | null;
+  clickRef: string | null;
+  // Optional rich fields. All three missing = the plain text-only card.
+  brand: string | null;
+  logoSrc: string | null;
+  imageSrc: string | null;
+};
 
 // Shape checks only (same as the server). Blisscco verifies signature, expiry, serve and destination.
 const TRACKING_TOKEN_RE = /^bt1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -25,11 +37,18 @@ function toShownAd(data: unknown): ShownAd | null {
   const t: { token?: unknown; click_ref?: unknown } = typeof d.tracking === "object" && d.tracking !== null ? d.tracking : {};
   const token = typeof t.token === "string" && t.token.length <= 512 && TRACKING_TOKEN_RE.test(t.token) ? t.token : null;
   const clickRef = typeof t.click_ref === "string" && t.click_ref.length <= 512 && CLICK_REF_RE.test(t.click_ref) ? t.click_ref : null;
-  return { id, headline, body, ctaText: typeof cta_text === "string" && cta_text ? cta_text : "Learn more", href, token, clickRef };
+  // Rich fields are re-checked here too: only Blisscco's own asset path is ever used as an image address.
+  const rich = readRichFields(d.ad);
+  return {
+    id, headline, body, ctaText: typeof cta_text === "string" && cta_text ? cta_text : "Learn more", href, token, clickRef,
+    brand: rich.brand_name ?? null, logoSrc: rich.logo_url ?? null, imageSrc: rich.image_url ?? null,
+  };
 }
 
 export default function SponsoredAd({ topic }: { topic: string }) {
   const [ad, setAd] = useState<ShownAd | null>(null);
+  // An image that fails to load is dropped: the card falls back to text-only (never a broken-image icon).
+  const [brokenImages, setBrokenImages] = useState<{ logo: boolean; image: boolean }>({ logo: false, image: false });
   const asideRef = useRef<HTMLElement | null>(null);
   const reportedToken = useRef<string | null>(null);
   const reportedClickRef = useRef<string | null>(null);
@@ -44,7 +63,10 @@ export default function SponsoredAd({ topic }: { topic: string }) {
       signal: controller.signal,
     })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setAd(toShownAd(data)))
+      .then((data) => {
+        setBrokenImages({ logo: false, image: false });
+        setAd(toShownAd(data));
+      })
       .catch(() => setAd(null));
     return () => controller.abort();
   }, [topic]);
@@ -115,9 +137,40 @@ export default function SponsoredAd({ topic }: { topic: string }) {
   }
 
   if (!ad) return null;
+  const logoSrc = brokenImages.logo ? null : ad.logoSrc;
+  const imageSrc = brokenImages.image ? null : ad.imageSrc;
   return (
     <aside ref={asideRef} aria-label="Sponsored" style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, maxWidth: 420 }}>
       <p style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: "uppercase" }}>Sponsored</p>
+      {(logoSrc || ad.brand) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0" }}>
+          {logoSrc && (
+            <img
+              src={logoSrc}
+              alt=""
+              width={32}
+              height={32}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={() => setBrokenImages((b) => ({ ...b, logo: true }))}
+              style={{ width: 32, height: 32, objectFit: "contain", borderRadius: 4 }}
+            />
+          )}
+          {ad.brand && <span style={{ fontSize: 14, fontWeight: 600 }}>{ad.brand}</span>}
+        </div>
+      )}
+      {imageSrc && (
+        <img
+          src={imageSrc}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setBrokenImages((b) => ({ ...b, image: true }))}
+          style={{ display: "block", width: "100%", height: "auto", aspectRatio: "1.91 / 1", objectFit: "cover", borderRadius: 6, margin: "6px 0" }}
+        />
+      )}
       <h3 style={{ margin: "4px 0" }}>{ad.headline}</h3>
       <p style={{ margin: "0 0 8px" }}>{ad.body}</p>
       <button type="button" onClick={onAdClick} style={{ padding: 0, border: 0, background: "none", color: "#06c", textDecoration: "underline", cursor: "pointer", font: "inherit" }}>

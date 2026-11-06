@@ -53,7 +53,7 @@ describe("day 29 part 1: quick-start routes are the real routes", () => {
     for (const r of ROUTES) assert.ok(g.includes(`"${r.method} ${r.path}"`), `${r.method} ${r.path} in the route table`);
     for (const p of apiPaths(g)) {
       assert.notEqual(p, "/api/ads/match", "the legacy route must not be documented for publishers");
-      if (p.startsWith("/api/blisscco-ad") || p === "/api/v1/ads") continue; // the example's own route, or a folder name in a comment
+      if (p.startsWith("/api/blisscco-ad") || p === "/api/v1/ads" || p === "/api/v1/ads/asset") continue; // the example's own route, a folder name in a comment, or the Step 3B image proxy (documented in section 4e, not a publisher call)
       assert.ok(ROUTES.some((r) => r.path === p), `unknown API path in the guide: ${p}`);
     }
   });

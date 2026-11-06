@@ -4,6 +4,8 @@ import { acceptClick, type ClickResult } from "./click";
 import { mintClickRef } from "./click-ref";
 import { lookupServeForClick, recordClickEvent } from "./click-db";
 import { routeServeWithFallback, type RoutedServeResult } from "./fallback-routing";
+import { lookupRichAssets } from "./rich-assets-db";
+import { isRichAdDeliveryEnabled, richFieldsFromRecord, type RichAdFields } from "./rich-assets";
 import { providerFallbackFromEnv, publicAdFromFallbackFill } from "./fallback-provider";
 import type { MatchSuccessResponse } from "./contract";
 import { acceptImpression, type ImpressionResult } from "./impression";
@@ -40,7 +42,16 @@ function trackingConfig(): TrackingConfig | null {
   return config;
 }
 
+// Phase 4 Step 3B: Rich Ad Delivery. Flag RICH_AD_DELIVERY_ENABLED exact "1" (default BAND: database ko bulaya bhi nahi jaata).
+// Sirf read-only lookup (get_creative_rich_assets); fail ho toh ad text-only jaata hai.
+async function loadRichFields(creativeId: string): Promise<RichAdFields | null> {
+  if (!isRichAdDeliveryEnabled(process.env)) return null;
+  const found = await lookupRichAssets(creativeId);
+  return found.outcome === "ok" ? richFieldsFromRecord(found.record) : null;
+}
+
 const productionDeps: ServeDeps = {
+  loadRich: loadRichFields,
   authorize: authorizePublisher,
   select: (request, unitCostUsd) =>
     selectAd(request, {

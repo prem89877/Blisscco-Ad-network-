@@ -761,7 +761,8 @@ export default async function PublisherGuidePage() {
           </div>
           <p className="mt-2 text-sm text-mist/75">
             <code>sponsored</code> is always <code>true</code> on a match. <code>cta_text</code> can be{" "}
-            <code>null</code>. Only these five ad fields are returned.
+            <code>null</code>. These five ad fields are always returned. Three more optional fields can follow when the advertiser supplied
+            them (section 4e); without them the ad is exactly these five fields.
           </p>
           <p className="mt-4 text-sm font-medium">No-fill (200)</p>
           <div className="mt-2">
@@ -973,6 +974,26 @@ export default async function PublisherGuidePage() {
           <p className="mt-3 text-sm text-mist/75">
             Rate limits are the same best-effort, per-IP limits as the impression endpoint. A click does not change spend.
           </p>
+        </Panel>
+
+        <Panel
+          title="4e. Optional rich fields: brand_name, logo_url, image_url"
+          note="Backward compatible. Absent unless Blisscco has rich delivery switched on and the advertiser gave a brand name, logo or image. Always handle the text-only case."
+        >
+          <p className="text-sm text-mist/75">
+            When present, these keys sit inside <code>ad</code> next to the five fields: <code>brand_name</code> (plain text, up to 80
+            characters), <code>logo_url</code> and <code>image_url</code>. Each key is independent and any of them can be missing, so your
+            code must render a <strong>text-only</strong> card (headline, description, call-to-action) when they are. Keep the visible{" "}
+            <strong>Sponsored</strong> label in both cases.
+          </p>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-mist/75">
+            <li>The image URLs always have the shape <code>https://{'{API host}'}/api/v1/ads/asset/{'{ad id}'}?kind=logo</code> or <code>?kind=image</code>. They point at Blisscco&apos;s own image proxy, never at a storage address, and they need no API key.</li>
+            <li>Load them in an <code>img</code> tag only (empty <code>alt</code>, <code>referrerPolicy=&quot;no-referrer&quot;</code>). Do not fetch them with your key and do not copy them to another host: the proxy answers 404 as soon as the ad is paused, rejected or no longer approved.</li>
+            <li>Before using a URL, check that it is https (http only for localhost), that its host is your Blisscco API host, and that its path starts with <code>/api/v1/ads/asset/</code>. The Next.js example does this for you. If an image fails to load, drop it and show the text-only card.</li>
+            <li>Advertiser uploads are checked before they are stored: logo 64 to 1024 pixels per side (at most 1 MB), ad image 600 to 2400 pixels wide in a <code>1.91:1</code> shape, such as 1200 x 628 (at most 2 MB), PNG, JPEG or WebP only.</li>
+            <li>Showing an image does not change billing: the serve, impression and click rules (sections 4a to 4d) are exactly as before. Fetching an image is not an impression or a click.</li>
+            <li>Availability: Blisscco enables this per environment with the server flag <code>RICH_AD_DELIVERY_ENABLED</code> (default off, used on TEST and Preview first). While it is off every response is text-only.</li>
+          </ul>
         </Panel>
 
         <Panel title="5. Errors and retries">

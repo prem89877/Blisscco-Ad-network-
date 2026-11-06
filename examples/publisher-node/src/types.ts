@@ -19,6 +19,12 @@ export type PublicAd = {
   body: string;
   cta_text: string | null;
   destination_url: string;
+  /** Optional rich fields. Present only when the advertiser supplied them and Blisscco delivers them. Absent = text-only ad. */
+  brand_name?: string;
+  /** Blisscco asset-proxy URL (https://<api host>/api/v1/ads/asset/<ad id>?kind=logo). Load it in an <img>; never fetch it with your API key. */
+  logo_url?: string;
+  /** Same, ?kind=image (the ad banner). */
+  image_url?: string;
 };
 
 export type PublicTracking = {

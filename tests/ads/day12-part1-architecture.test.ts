@@ -106,6 +106,7 @@ describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
       "app/api/ads/match/route.ts",
       "app/api/revive-json-preview/route.ts", // Day 24 Part 2: alag flag se band GET prototype (tests/ads/day24-part2 usse bandhta hai)
       "app/api/supabase-health/route.ts",
+      "app/api/v1/ads/asset/[id]/route.ts", // Phase 4 Step 3B (read-only image proxy)
       "app/api/v1/ads/click/route.ts", // Day 12 prompt 5 part 3
       "app/api/v1/ads/impression/route.ts",
       "app/api/v1/ads/match/route.ts",

@@ -5,12 +5,14 @@ import { ADV_A, ADV_B, CAMP_A, CAMP_A_CLOSED, CAMP_B, fake, type FakeRow } from 
 import { submitCreative } from "@/app/dashboard/advertiser/creatives/actions";
 import { initialSubmissionState } from "@/lib/campaigns/creative-submission";
 import { isOwnedAssetPath } from "@/lib/campaigns/creative-assets";
+import { makeJpeg, makePng } from "./image-fixtures";
 
 // Ye tests server action ko NAKLI database + storage ke saath chalate hain. Asli upload, RLS, storage policy aur admin approval
 // TEST database par manually check hone baaki hain (PHASE4-STEP3 report me "pending manual").
 
-const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8]);
-const JPG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 2, 3, 4]);
+// Step 3B: ab upload par pixel dimensions bhi jaanche jaate hain, isliye fixtures me sahi dimensions wale header (logo 256x256, banner 1200x628).
+const PNG = makePng(256, 256);
+const JPG = makeJpeg(1200, 628);
 const RID = "d1d1d1d1-d1d1-41d1-81d1-d1d1d1d1d1d1";
 const png = (name = "logo.png") => new File([PNG], name, { type: "image/png" });
 const jpg = (name = "banner.jpg") => new File([JPG], name, { type: "image/jpeg" });

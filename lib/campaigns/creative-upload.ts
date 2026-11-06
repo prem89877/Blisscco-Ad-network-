@@ -1,4 +1,5 @@
 import { ASSET_BUCKET, ASSET_LIMITS, checkImageMeta, checkImageUpload, type AssetKind, type ImageCheck } from "@/lib/campaigns/creative-assets";
+import { checkImageDimensions } from "@/lib/campaigns/image-dimensions";
 
 // Upload ke chhote helpers (server action se alag file me: action file me sirf auth-gated actions rehte hain).
 // Koi database yahan nahi; storage client bahar se aata hai (advertiser ka apna session).
@@ -11,7 +12,12 @@ export async function checkFile(kind: AssetKind, file: File): Promise<{ check: I
   if (bytes.length > ASSET_LIMITS[kind].maxBytes) {
     return { check: { ok: false, error: `${ASSET_LIMITS[kind].label} is too large.` }, bytes: null };
   }
-  return { check: checkImageUpload(kind, { name: file.name, type: file.type, size: bytes.length }, bytes.subarray(0, 16)), bytes };
+  const check = checkImageUpload(kind, { name: file.name, type: file.type, size: bytes.length }, bytes.subarray(0, 16));
+  if (!check.ok) return { check, bytes };
+  // Step 3B: asli bytes se pixel dimensions (logo) aur dimensions + aspect ratio (banner). Fail => reject, upload nahi hota.
+  const dims = checkImageDimensions(kind, check.mime, bytes);
+  if (!dims.ok) return { check: { ok: false, error: dims.error }, bytes: null };
+  return { check, bytes };
 }
 
 export function uploadedPaths(uploaded: Partial<Record<AssetKind, string>>): string[] {

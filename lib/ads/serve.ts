@@ -3,6 +3,7 @@ import type { CategorySlug } from "./taxonomy";
 import type { SelectionOutcome, SelectionRequest } from "./selection";
 import type { MatchedAd, MatchRequest, ServeReceipt } from "./types";
 import type { TrackingGrant } from "./tracking-token";
+import type { RichAdFields } from "./rich-assets";
 // NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
 // Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
 
@@ -51,10 +52,15 @@ export type ServeDeps = {
    * aur sirf tab jab publisher ne opt-in kiya ho. null/throw => ad bina `tracking` ke (serve phir bhi hui hai, bas token nahi).
    */
   issueTracking?: (input: { publisherId: string; serveRef: string; servedAtMs: number; creativeId: string }) => TrackingGrant | null;
+  /**
+   * Optional (Phase 4 Step 3B): serve ho chuke ad ke liye brand / logo / image ka rich data. SIRF read; serve, spend ya tracking par asar nahi.
+   * null / throw / dep na ho => ad bina rich fields ke (text-only), jaisa pehle tha.
+   */
+  loadRich?: (creativeId: string) => Promise<RichAdFields | null>;
 };
 
 export type ServeResult =
-  | { kind: "ad"; ad: MatchedAd; tracking?: TrackingGrant }
+  | { kind: "ad"; ad: MatchedAd; tracking?: TrackingGrant; rich?: RichAdFields }
   | { kind: "no_fill" }
   | { kind: "unauthorized" }
   | { kind: "rate_limited" }
@@ -86,6 +92,18 @@ function grantFor(
   }
 }
 
+/** Rich data sirf KAMYAB serve ke baad, aur kisi bhi gadbad par `{}` (ad text-only jaata hai, serve par asar nahi). */
+async function richFor(deps: ServeDeps, creativeId: string): Promise<{ rich?: RichAdFields }> {
+  if (!deps.loadRich) return {};
+  try {
+    const rich = await deps.loadRich(creativeId);
+    if (!rich || (rich.brandName === null && !rich.hasLogo && !rich.hasImage)) return {};
+    return { rich };
+  } catch {
+    return {};
+  }
+}
+
 /** Kabhi throw nahi karta: kuch bhi anjaana => "unavailable" (route 503 + fill:false deta hai). */
 export async function serveAd(keyHash: string, request: MatchRequest, deps: ServeDeps): Promise<ServeResult> {
   try {
@@ -105,7 +123,7 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
       if (replay.outcome === "found") {
         // Retry: wahi serve, wahi receipt => wahi token (naya serve/naya token nahi). Receipt na ho (purani serve) => token nahi.
         const grant = grantFor(request, deps, auth.publisher.id, replay.serve, replay.ad.id);
-        return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}) };
+        return { kind: "ad", ad: publicFields(replay.ad), ...(grant ? { tracking: grant } : {}), ...(await richFor(deps, replay.ad.id)) };
       }
       if (replay.outcome === "rejected") return { kind: "no_fill" };
       if (replay.outcome === "unauthorized") return { kind: "unauthorized" };
@@ -161,7 +179,7 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
           // Concurrent retry me DB pehle charge hue creative (replayedAd) ka ad deta hai: click ref bhi usi original creative se bandhta hai.
           const served = recorded.replayedAd ?? attempt;
           const grant = grantFor(request, deps, auth.publisher.id, recorded.serve, served.id);
-          return { kind: "ad", ad: publicFields(served), ...(grant ? { tracking: grant } : {}) };
+          return { kind: "ad", ad: publicFields(served), ...(grant ? { tracking: grant } : {}), ...(await richFor(deps, served.id)) };
         }
         if (recorded.outcome !== "rejected") return { kind: "unavailable" };
       }

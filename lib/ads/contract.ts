@@ -4,6 +4,7 @@ import { MAX_TOKEN_LENGTH, type TrackingEvent, type TrackingGrant } from "./trac
 import type { ParseFailure } from "./validation";
 import { safeDestination } from "./click";
 import { BODY_MAX, CTA_MAX, HEADLINE_MAX } from "@/lib/campaigns/creative-validation";
+import { assetUrl, type RichAdFields } from "./rich-assets";
 
 // POST /api/v1/ads/match (aur purana /api/ads/match) ka PUBLIC request/response contract.
 // Sirf TYPES + ek chhota mapper. Koi database/env/network nahi (pura pure module).
@@ -41,10 +42,38 @@ export type PublicAd = {
   body: string;
   cta_text: string | null;
   destination_url: string;
+  /** Optional rich fields (Phase 4 Step 3B). Sirf tab jab server par RICH_AD_DELIVERY_ENABLED=1 aur advertiser ne diya ho. */
+  brand_name?: string;
+  logo_url?: string;
+  image_url?: string;
 };
 
 /** PublicAd ke exact keys (tests inhi se check karte hain ki koi extra key na ho). */
 export const PUBLIC_AD_FIELDS = ["id", "headline", "body", "cta_text", "destination_url"] as const;
+
+/** Optional, backward-compatible extra ad keys (Step 3B). Rich data na ho toh ye keys hoti hi nahi: jawab purane 5 fields jaisa. */
+export const PUBLIC_AD_OPTIONAL_FIELDS = ["brand_name", "logo_url", "image_url"] as const;
+
+export type PublicRichFields = { brand_name?: string; logo_url?: string; image_url?: string };
+
+const BRAND_NAME_MAX = 80;
+
+/**
+ * Rich data -> public optional fields. Brand naam plain text hi (koi < > & entity / control char nahi, 1..80), warna chhoda jaata hai.
+ * Image URL hamesha Blisscco ka apna proxy URL hai (private bucket ka path ya signed URL kabhi nahi). assetBase invalid => URLs nahi.
+ * Kuch bhi na ho toh undefined (response purane jaisa).
+ */
+export function buildRichFields(adId: string, rich: RichAdFields | undefined, assetBase: string | null): PublicRichFields | undefined {
+  if (!rich) return undefined;
+  const out: PublicRichFields = {};
+  const brand = rich.brandName === null ? null : plainText(rich.brandName, BRAND_NAME_MAX);
+  if (brand) out.brand_name = brand;
+  if (assetBase !== null && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(adId)) {
+    if (rich.hasLogo) out.logo_url = assetUrl(assetBase, adId, "logo");
+    if (rich.hasImage) out.image_url = assetUrl(assetBase, adId, "image");
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 /**
  * Sirf tab (opt-in header `X-Blisscco-Tracking: 1` + kamyab serve + server par tracking secret set). Serve ka reference token ke ANDAR hai
@@ -121,8 +150,13 @@ export function toPublicAd(ad: MatchedAd): PublicAd {
 }
 
 /** Har ad response yahin se banta hai, isliye `sponsored: true` kabhi chhoot nahi sakta. */
-export function buildAdResponse(ad: MatchedAd, tracking?: TrackingGrant): MatchSuccessResponse {
-  const base: MatchSuccessResponse = { fill: true, sponsored: true, ad: toPublicAd(ad) };
+export function buildAdResponse(ad: MatchedAd, tracking?: TrackingGrant, rich?: PublicRichFields): MatchSuccessResponse {
+  // Explicit whitelist: rich ke sirf 3 optional keys (aur sirf string values) ad me jaati hain.
+  const richOut: PublicRichFields = {};
+  if (rich && typeof rich.brand_name === "string") richOut.brand_name = rich.brand_name;
+  if (rich && typeof rich.logo_url === "string") richOut.logo_url = rich.logo_url;
+  if (rich && typeof rich.image_url === "string") richOut.image_url = rich.image_url;
+  const base: MatchSuccessResponse = { fill: true, sponsored: true, ad: { ...toPublicAd(ad), ...richOut } };
   if (!tracking) return base;
   // Explicit whitelist: grant ke extra fields (agar kabhi aaye) bahar nahi jaate.
   // click_ref sirf tab: non-empty string jo `bc1.<payload>.<sig>` shape ka ho (warna chup-chaap hata diya jaata hai).

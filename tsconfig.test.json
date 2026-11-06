@@ -26,6 +26,7 @@
     "lib/campaigns/creative-validation.ts",
     "lib/campaigns/creative-assets.ts",
     "lib/campaigns/creative-upload.ts",
+    "lib/campaigns/image-dimensions.ts",
     "lib/campaigns/creative-submission.ts",
     "lib/campaigns/creative-submission-queries.ts",
     "lib/campaigns/types.ts",
@@ -53,6 +54,7 @@
     "app/dashboard/admin/payout-actions.ts",
     "app/api/ads/match/route.ts",
     "app/api/v1/ads/match/route.ts",
+    "app/api/v1/ads/asset/[id]/route.ts",
     "app/api/v1/ads/impression/route.ts",
     "app/api/v1/ads/click/route.ts",
     "tests/**/*.ts"
