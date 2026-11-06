@@ -55,7 +55,7 @@ type SignClient = {
       createSignedUrls: (
         paths: string[],
         expiresIn: number,
-      ) => Promise<{ data: { path: string | null; signedUrl: string; error: string | null }[] | null; error: unknown }>;
+      ) => Promise<{ data: { path: string | null; signedUrl: string | null; error: string | null }[] | null; error: unknown }>;
     };
   };
 };
