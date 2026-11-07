@@ -181,10 +181,11 @@ create policy creative_assets_insert_own on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'creative-assets'
-    and (storage.foldername(name))[1] = (select private.my_active_advertiser_id())::text
+    and (storage.foldername(objects.name))[1] = (select private.my_active_advertiser_id())::text
     and exists (
       select 1 from public.campaigns c
-      where c.id::text = (storage.foldername(name))[2]
+      -- objects.name MUST be qualified: inside this subquery a bare `name` means campaigns.name and every upload would be denied.
+      where c.id::text = (storage.foldername(objects.name))[2]
         and c.advertiser_id = (select private.my_active_advertiser_id())
         and c.status not in ('archived', 'completed')
     )
