@@ -37,8 +37,8 @@ describe("phase 4 step 3 | SQL file is safe and minimal", () => {
     assert.doesNotMatch(sql, /\b(drop table|drop column|truncate|delete from|alter table [^;]* drop column)\b/i);
     assert.doesNotMatch(sql, /\bdisable row level security\b/i);
   });
-  it("bucket is private, 2 MB, images only", () => {
-    assert.match(sql, /'creative-assets', 'creative-assets', false, 2097152/);
+  it("bucket is private, 4 MB, images only", () => {
+    assert.match(sql, /'creative-assets', 'creative-assets', false, 4194304/);
     assert.match(sql, /array\['image\/png', 'image\/jpeg', 'image\/webp'\]/);
     assert.doesNotMatch(sql, /public\s*=\s*true/i);
     assert.doesNotMatch(sql, /svg/i);
@@ -137,16 +137,16 @@ describe("phase 4 step 3 | no secrets, no auto-approval in new code", () => {
   });
   it("next.config: bigger server-action body for uploads, still no env block", () => {
     const cfg = read("next.config.mjs");
-    assert.match(cfg, /bodySizeLimit:\s*"5mb"/);
+    assert.match(cfg, /bodySizeLimit:\s*"8mb"/);
     assert.doesNotMatch(code(cfg), /\benv\s*:/);
   });
 });
 
 describe("phase 4 step 3 | existing flows are preserved", () => {
-  it("old creative form action and its fields are untouched", () => {
+  it("old creative form action keeps its text fields; it only gained optional logo / ad image (no brand name or keywords)", () => {
     const src = read("app/dashboard/advertiser/campaigns/creative-actions.ts");
     assert.match(src, /export async function createCreative/);
-    assert.doesNotMatch(src, /brand_name|logo_path|banner_path/);
+    assert.doesNotMatch(src, /brand_name|keywords/);
   });
   it("campaign page still has the old 'Add an ad' form", () => {
     assert.match(read("app/dashboard/advertiser/campaigns/[id]/page.tsx"), /<CreativeForm\b/);

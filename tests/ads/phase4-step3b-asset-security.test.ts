@@ -299,11 +299,11 @@ describe("step 3B asset proxy | the file itself is verified again before it is s
     await assert404(await get(cid(1), "kind=image"), "banner huge");
   });
 
-  it("an oversize file (logo > 1 MB, banner > 2 MB) => 404", async () => {
+  it("an oversize file (logo > 2 MB, banner > 4 MB) => 404", async () => {
     const big = (n: number) => { const a = new Uint8Array(n); a.set(makePng(256, 256)); return a; };
-    objects.set(LOGO_A, big(1024 * 1024 + 1));
+    objects.set(LOGO_A, big(2 * 1024 * 1024 + 1));
     await assert404(await get(cid(1), "kind=logo"), "logo big");
-    const bigJ = new Uint8Array(2 * 1024 * 1024 + 1);
+    const bigJ = new Uint8Array(4 * 1024 * 1024 + 1);
     bigJ.set(makeJpeg(1200, 628));
     objects.set(BANNER_A, bigJ);
     await assert404(await get(cid(1), "kind=image"), "banner big");

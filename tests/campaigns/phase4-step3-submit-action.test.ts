@@ -137,10 +137,10 @@ describe("phase 4 step 3 | submit: validation blocks bad input before any upload
   it("PNG bytes declared as JPEG are rejected", async () => {
     blocked(await run(form({ banner: new File([PNG], "banner.jpg", { type: "image/jpeg" }) })));
   });
-  it("oversized logo (> 1 MB) and banner (> 2 MB) are rejected", async () => {
+  it("oversized logo (> 2 MB) and banner (> 4 MB) are rejected", async () => {
     const big = (n: number) => { const a = new Uint8Array(n); a.set(PNG); return a; };
-    blocked(await run(form({ logo: new File([big(1024 * 1024 + 1)], "logo.png", { type: "image/png" }) })));
-    blocked(await run(form({ banner: new File([big(2 * 1024 * 1024 + 1)], "banner.png", { type: "image/png" }) })));
+    blocked(await run(form({ logo: new File([big(2 * 1024 * 1024 + 1)], "logo.png", { type: "image/png" }) })));
+    blocked(await run(form({ banner: new File([big(4 * 1024 * 1024 + 1)], "banner.png", { type: "image/png" }) })));
   });
   it("a text value in a file field is rejected", async () => {
     blocked(await run(form({ logo: "not-a-file" })));

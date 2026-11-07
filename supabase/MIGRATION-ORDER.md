@@ -33,6 +33,7 @@ Koi SQL kisi database par chalayi nahi gayi. Order file-headers + asli object de
 | 36 | phase3-step5-1 (naye Google user ka account type chunna; Production par apply ho chuki) | 3-1, 3-2 | checks in the file footer | - |
 | 37 | phase4-step3-1 (advertiser creative submission: brand/logo/banner/keywords columns, private bucket `creative-assets`, storage policies, guard_creative_changes; **TEST first**) | 3-4, 3-5, 5-11 | checks C1-C5 in the file footer | - |
 | 38 | phase4-step3b-1 (read-only `get_creative_rich_assets`, used by the match API rich fields and the `/api/v1/ads/asset/[id]` image proxy; **TEST first**) | phase4-step3-1 | checks R1-R5 in the file footer | - |
+| 39 | phase4-step3c-1 (creative image limits: bucket `creative-assets` file_size_limit 2 MB -> 4 MB; logo 2 MB / banner 4 MB; **TEST first**) | phase4-step3-1 | check in the file footer | - |
 | end | - | - | day-13-16 (data consistency) | - |
 
 TEST-only extra: `day-5-10-test-data-cleanup.sql` (commit karke TEST rows delete karta hai).

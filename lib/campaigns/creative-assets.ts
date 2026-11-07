@@ -3,8 +3,8 @@
 // SVG aur GIF jaan-boojh kar band: SVG me script chhup sakti hai.
 
 export const ASSET_BUCKET = "creative-assets";
-export const LOGO_MAX_BYTES = 1024 * 1024; // 1 MB
-export const BANNER_MAX_BYTES = 2 * 1024 * 1024; // 2 MB (bucket ki limit bhi yahi hai)
+export const LOGO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+export const BANNER_MAX_BYTES = 4 * 1024 * 1024; // 4 MB (bucket ki limit bhi yahi hai)
 
 export type AssetKind = "logo" | "banner";
 export type ImageMime = "image/png" | "image/jpeg" | "image/webp";

@@ -11,10 +11,13 @@ export const MAX_CREATIVES_PER_CAMPAIGN = 20;
 export type CreativeFieldName = "headline" | "body" | "ctaText" | "destinationUrl";
 export type CreativeFormValues = Record<CreativeFieldName, string>;
 
+// Logo aur ad image (dono optional) alag se: file hai, isliye text values ke saath nahi padhi jaati.
+export type CreativeImageFieldName = "logo" | "banner";
+
 export type CreativeFormState = {
   status: "idle" | "error";
   message?: string;
-  fieldErrors?: Partial<Record<CreativeFieldName, string>>;
+  fieldErrors?: Partial<Record<CreativeFieldName | CreativeImageFieldName, string>>;
   values?: CreativeFormValues;
 };
 export const initialCreativeState: CreativeFormState = { status: "idle" };

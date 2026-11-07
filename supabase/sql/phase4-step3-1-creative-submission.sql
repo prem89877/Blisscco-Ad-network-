@@ -8,7 +8,7 @@
 -- Kya badalta hai (sirf zaroori):
 --  1. ad_creatives me 4 naye NULLABLE columns: brand_name, logo_path, banner_path, keywords.
 --     Purane creatives aur purana "Add an ad" form bina badlaav chalte hain (columns NULL).
---  2. Private storage bucket "creative-assets" (public = false, 2 MB, sirf png/jpeg/webp).
+--  2. Private storage bucket "creative-assets" (public = false, 4 MB, sirf png/jpeg/webp).
 --  3. storage.objects policies: advertiser sirf apne advertiser/campaign folder me upload kare,
 --     sirf apne folder ki images dekhe; admin review ke liye sab dekh sake. Publisher/anon ko kuch nahi.
 --  4. Column GRANTS naye columns ke liye (review columns phir bhi kabhi writable nahi).
@@ -161,10 +161,10 @@ create trigger ad_creatives_guard_changes
 -- 4. Private storage bucket (public = false: koi public URL nahi; dikhane ke liye signed URL, server se)
 -- ---------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('creative-assets', 'creative-assets', false, 2097152, array['image/png', 'image/jpeg', 'image/webp'])
+values ('creative-assets', 'creative-assets', false, 4194304, array['image/png', 'image/jpeg', 'image/webp'])
 on conflict (id) do update
   set public = false,
-      file_size_limit = 2097152,
+      file_size_limit = 4194304,
       allowed_mime_types = array['image/png', 'image/jpeg', 'image/webp'];
 
 -- ---------------------------------------------------------------------
@@ -222,7 +222,7 @@ commit;
 --   where table_schema = 'public' and table_name = 'ad_creatives'
 --     and column_name in ('brand_name', 'logo_path', 'banner_path', 'keywords') order by column_name;
 --
--- C2. Bucket private hai (Expect: 1 row, public = false, file_size_limit = 2097152):
+-- C2. Bucket private hai (Expect: 1 row, public = false, file_size_limit = 4194304):
 --   select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'creative-assets';
 --
 -- C3. Policies (Expect: 4 rows, sab roles = {authenticated}):

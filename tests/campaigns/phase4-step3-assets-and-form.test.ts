@@ -39,7 +39,7 @@ describe("phase 4 step 3 | image checks", () => {
     assert.equal(sniffImageMime(TEXT), null);
     assert.equal(sniffImageMime(new Uint8Array()), null);
   });
-  it("rejects empty files and files over the limit (logo 1 MB, banner 2 MB)", () => {
+  it("rejects empty files and files over the limit (logo 2 MB, banner 4 MB)", () => {
     assert.equal(checkImageMeta("logo", { name: "a.png", type: "image/png", size: 0 }).ok, false);
     assert.equal(checkImageMeta("logo", { name: "a.png", type: "image/png", size: LOGO_MAX_BYTES }).ok, true);
     assert.equal(checkImageMeta("logo", { name: "a.png", type: "image/png", size: LOGO_MAX_BYTES + 1 }).ok, false);

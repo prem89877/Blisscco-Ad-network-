@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
@@ -8,6 +9,8 @@ import { countReviewableCreatives, loadMyAdvertiser, loadMyCampaign } from "@/li
 import { isUuid } from "@/lib/campaigns/constants";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
 import { utcToday } from "@/lib/campaigns/validation";
+import { ASSET_BUCKET, ASSET_LIMITS, buildAssetPath, type AssetKind } from "@/lib/campaigns/creative-assets";
+import { checkFile, removeQuietly, uploadedPaths } from "@/lib/campaigns/creative-upload";
 import {
   CREATIVE_ACTIONS,
   MAX_CREATIVES_PER_CAMPAIGN,
@@ -41,6 +44,17 @@ function readId(fd: FormData, key: string): string | null {
   return typeof v === "string" && isUuid(v) ? v : null;
 }
 
+type PickedFile = { file: File } | { none: true } | { invalid: true };
+
+/** File input se File nikalo. Khali input (size 0 / naam khali) = "chuna nahi" (images yahan optional hain). */
+function pickFile(fd: FormData, key: string): PickedFile {
+  const v = fd.get(key);
+  if (v === null) return { none: true };
+  if (typeof v === "string") return v.length === 0 ? { none: true } : { invalid: true };
+  if (v.size === 0 && v.name === "") return { none: true };
+  return { file: v };
+}
+
 export async function createCreative(_prev: CreativeFormState, formData: FormData): Promise<CreativeFormState> {
   const values = readCreativeValues(formData);
   const adv = await requireActiveAdvertiser();
@@ -61,6 +75,24 @@ export async function createCreative(_prev: CreativeFormState, formData: FormDat
     return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: parsed.errors, values };
   }
 
+  // --- Images (logo + ad image): dono optional. Chuni hui file ki poori jaanch (type, size, asli bytes, dimensions) server par. ---
+  const picks: Record<AssetKind, PickedFile> = { logo: pickFile(formData, "logo"), banner: pickFile(formData, "banner") };
+  const checked: Partial<Record<AssetKind, { mime: string; ext: "png" | "jpg" | "webp"; bytes: Uint8Array }>> = {};
+  const imageErrors: Partial<Record<AssetKind, string>> = {};
+  for (const kind of ["logo", "banner"] as const) {
+    const pick = picks[kind];
+    if ("invalid" in pick) {
+      imageErrors[kind] = `${ASSET_LIMITS[kind].label} must be a PNG, JPG or WebP image.`;
+    } else if ("file" in pick) {
+      const { check, bytes } = await checkFile(kind, pick.file);
+      if (!check.ok || bytes === null) imageErrors[kind] = check.ok ? "Something went wrong. Please try again." : check.error;
+      else checked[kind] = { mime: check.mime, ext: check.ext, bytes };
+    }
+  }
+  if (Object.keys(imageErrors).length > 0) {
+    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: imageErrors, values };
+  }
+
   const supabase = await createClient();
   const { count } = await supabase
     .from("ad_creatives")
@@ -71,15 +103,37 @@ export async function createCreative(_prev: CreativeFormState, formData: FormDat
     return { status: "error", message: `A campaign can have at most ${MAX_CREATIVES_PER_CAMPAIGN} ads. Archive an old one first.`, values };
   }
 
+  // --- Upload (advertiser ke apne session se; storage policy folder ownership rokti hai) ---
+  const uploaded: Partial<Record<AssetKind, string>> = {};
+  for (const kind of ["logo", "banner"] as const) {
+    const item = checked[kind];
+    if (!item) continue;
+    const path = buildAssetPath({ advertiserId: adv.id, campaignId, kind, ext: item.ext, randomId: randomUUID() });
+    if (!path) {
+      await removeQuietly(supabase.storage, uploadedPaths(uploaded));
+      return { status: "error", message: "Something went wrong. Please try again.", values };
+    }
+    const { error: uploadError } = await supabase.storage.from(ASSET_BUCKET).upload(path, item.bytes, { contentType: item.mime, upsert: false, cacheControl: "3600" });
+    if (uploadError) {
+      console.error("[creatives] upload failed", { kind });
+      await removeQuietly(supabase.storage, uploadedPaths(uploaded));
+      return { status: "error", message: "The image could not be uploaded. Please try again.", values };
+    }
+    uploaded[kind] = path;
+  }
+
   const { error } = await supabase.from("ad_creatives").insert({
     campaign_id: campaignId,
     headline: parsed.value.headline,
     body: parsed.value.body,
     cta_text: parsed.value.ctaText,
     destination_url: parsed.value.destinationUrl,
+    ...(uploaded.logo ? { logo_path: uploaded.logo } : {}),
+    ...(uploaded.banner ? { banner_path: uploaded.banner } : {}),
   });
   if (error) {
     logDbError("creative create", error);
+    await removeQuietly(supabase.storage, uploadedPaths(uploaded));
     return { status: "error", message: mapDbError(error), values };
   }
 
