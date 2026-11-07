@@ -22,20 +22,29 @@ Evidence labels: **Code read** = Claude read the code or document in the zip; no
 | API unavailable | Docs and examples: 503 or network error => no ad, chat unaffected; client throws `BlissccoRetryExhaustedError` with `safeNoFill = true` |
 | Suspension and emergency revoke procedure text | Present and consistent: onboarding section 2 and 4, `MVP-PILOT-SAFETY-CHECKLIST.md` 10e (revoke first, then check 401) |
 
+### 2b. Owner results added 2026-11-07
+| Item | Result | Source |
+| --- | --- | --- |
+| Suspended TEST publisher with a current (not revoked) key => match request returns 401 | VERIFIED | Seen (Termux screenshot, status line `401`). Owner stated the publisher was suspended before the request and the key was a new, unrevoked one |
+| Control: after re-approval the same key on a sensitive topic (health) returns `{"fill":false}` with HTTP 200, no ad served, no spend | VERIFIED | Seen (same screenshot). Together with the row above this separates the 401 (suspension) from a bad or revoked key |
+| Publisher signup => Waiting for approval => admin approves => key can be created | VERIFIED | User-confirmed (word only) |
+| Key is shown only once (not after reload) | VERIFIED | User-confirmed (word only) |
+| CI workflow (type check, `npm test` incl. onboarding doc test, ESLint, build) green after push | VERIFIED | User-confirmed (word only; no run link or log seen). This replaces the Termux `npm test` request |
+| Revoke-practice date | NOT RECORDED | Owner says the date can be seen, but gave no date. Left blank, not invented |
+| Pilot publisher's written confirmations (Sponsored label, guide sections 6 and 6a, own 429/503 handling) | PENDING by owner's decision | Stays pending |
+No key, host or token is written in this report. The Preview host visible in the screenshot is deliberately not recorded.
+
 ## 3. Pending and unverified
-1. Real Preview check: suspend the TEST publisher => request returns 401; then re-approve. Not on record (only mocked tests). PENDING (owner).
-2. Real Preview check: new publisher signup => Waiting for approval => admin approves => key can be created. Not on record. PENDING (owner).
-3. Key is shown only once on screen (create, then reload). PENDING (owner).
-4. Date of the practised TEST-key revoke is not in the sign-off table (the 401 itself is User-confirmed). PENDING (owner writes the date).
-5. Mocked-only by decision (cannot be safely caused on Preview): 429, 503, expired key. Stay "mocked tests only".
-6. Publisher's own 429 and 503 handling, written Sponsored-label confirmation, receipt of guide sections 6 and 6a, knowing it owns its interface (Gate A and D items). PENDING, needs the pilot publisher's written confirmation.
-7. Not run in this step: `npm test` including `tests/publisher/day30-part3-onboarding-doc.test.ts` after the doc edit. PENDING (owner, Termux).
+1. Date of the practised TEST-key revoke (the 401 after revoke is User-confirmed from earlier steps; only the date is missing). PENDING (owner writes it).
+2. Pilot publisher's written confirmations and its own 429/503 handling (Gate A and D items). PENDING by owner's decision; needs the publisher.
+3. Mocked-only by decision (cannot be safely caused on Preview): 429, 503, expired key.
+4. Evidence strength: signup/approval flow, key shown once, and CI green are the owner's word only.
 
 ## 4. Publisher onboarding status
-Code and documentation agree on the setup flow (signup, Waiting for approval, manual approval or suspension, key creation with expiry, key shown once). Real Preview confirmation of registration, approval and suspension is pending (items 1 to 3).
+Code and documentation agree on the setup flow (signup, Waiting for approval, manual approval or suspension, key creation with expiry, key shown once). Registration, approval and suspension are confirmed on Preview (section 2b: suspension Seen, signup/approval User-confirmed). Key shown once: User-confirmed.
 
 ## 5. API authentication and security status
-Previously verified items stand (section 1). No new weakness found by code read. Real suspension => 401 on Preview is the only authentication check still without a real result.
+Previously verified items stand (section 1). No new weakness found by code read. Suspension => 401 is now Seen on Preview, with a control that rules out a bad key. Expiry, 429 and 503 remain mocked-test only by decision.
 
 ## 6. Documentation issues
 - **Found and fixed:** `PUBLISHER-PILOT-ONBOARDING.md` said the response and the checklist carry only the five public ad fields. Since Step 3B, `brand_name`, `logo_url` and `image_url` can appear when rich delivery is on (default off). Three lines were corrected and a short section 12 added. No code, route or contract changed.
@@ -47,10 +56,10 @@ Previously verified items stand (section 1). No new weakness found by code read.
 No code, SQL, config or environment value changed. No `.sh` script added, so `.github/workflows/ci.yml` is unchanged.
 
 ## 8. Remaining blockers
-No blocker found by code and document review. Open: pending items in section 3.
+No technical blocker. Open: revoke-practice date, and the pilot publisher's written confirmations (owner decision: stays pending).
 
 ## 9. Manual confirmations required from the owner
-Items 1 to 4 and 7 of section 3 (Preview suspension => 401, signup and approval flow, key shown once, revoke date, `npm ci && npm test`); item 6 from the pilot publisher in writing. Nothing here is marked successful by Claude.
+Revoke-practice date. Pilot publisher's written confirmations (kept pending by owner). Nothing else from this step. Everything marked User-confirmed above rests on the owner's word.
 
 ## 10. Overall publisher readiness
-**Not declared ready.** For the controlled TEST pilot only: code and documentation are consistent and no new weakness was found by reading, but the real Preview confirmations in section 3 are still open. This is not approval for live traffic or Production. Step 6 not started; waiting for your confirmation.
+**Technically ready for the controlled TEST pilot; not declared fully ready.** Code and documentation agree, the one documentation error was fixed, publisher authentication including suspension is verified on Preview, and CI is green (User-confirmed). Still open: the revoke-practice date and the pilot publisher's written confirmations. This is not approval for live traffic or Production. Step 6 not started; waiting for your confirmation.
