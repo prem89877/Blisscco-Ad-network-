@@ -22,11 +22,11 @@ export default function MobileNav({ items }: { items: NavItem[] }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex min-h-14 items-center justify-center border-t-2 px-0.5 text-center text-[12px] font-medium transition-colors min-[360px]:text-[13px] ${
-                  active ? "border-aqua bg-violet/10 text-aqua" : "border-transparent text-mist/70 hover:text-mist"
+                  active ? "border-aqua bg-violet/10 text-aqua" : "border-transparent text-mist/70 hover:text-mist active:bg-violet/15"
                 }`}
               >
                 <span className="truncate">{item.label}</span>
-                <NavPending className="inset-x-2 -top-0.5 h-0.5" />
+                <NavPending variant="mobile" />
               </Link>
             </li>
           );

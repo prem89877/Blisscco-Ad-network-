@@ -180,7 +180,12 @@ export async function signInWithGoogle(formData: FormData): Promise<void> {
     const siteUrl = await getSiteUrl();
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${siteUrl}/auth/confirm` },
+      options: {
+        redirectTo: `${siteUrl}/auth/confirm`,
+        // Har baar Google ka account chooser dikhao. Iske bina Google browser me pehle se logged-in account (jaise admin ka)
+        // chup-chaap chun leta hai aur koi bhi "Continue with Google" dabane par wahi account login ho jata hai.
+        queryParams: { prompt: "select_account" },
+      },
     });
     if (error) {
       console.error("[auth] google oauth start failed", { code: error.code, status: error.status });

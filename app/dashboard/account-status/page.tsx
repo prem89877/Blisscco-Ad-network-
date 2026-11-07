@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 // Sirf requireUser (requireAccount nahi), warna redirect loop banta.
 export default async function AccountStatusPage() {
-  await requireUser();
-  const account = await getCurrentAccount();
+  // Speed: user ka asli check aur profile query ek saath (requireUser redirect kare toh wahi aage badhta hai; getCurrentAccount fail closed).
+  const [, account] = await Promise.all([requireUser(), getCurrentAccount()]);
   if (account && account.status === "active") redirect("/dashboard");
 
   const suspended = account?.status === "suspended";

@@ -13,11 +13,13 @@ export const metadata: Metadata = {
 };
 
 // Har request par server user verify karta hai (middleware ke upar doosri, asli rok).
+// force-dynamic jaan-boojh kar rakha hai: ye safety net hai (env na hone par bhi redirect build time par pakka na ho jaye) aur isse speed par
+// koi asar nahi: client Router Cache (next.config staleTimes) alag cheez hai aur dynamic pages par bhi chalta hai.
 export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
-  const account = await getCurrentAccount();
+  // Speed: user ka asli check aur profile query ek saath (dono React cache() se page ke saath bhi share hote hain).
+  const [user, account] = await Promise.all([requireUser(), getCurrentAccount()]);
   if (account?.roleChoicePending) redirect("/auth/choose-role");
   const items = navForRole(account?.role ?? null);
 

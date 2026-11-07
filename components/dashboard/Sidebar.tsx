@@ -24,11 +24,11 @@ export default function Sidebar({ items }: { items: NavItem[] }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={`relative flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
-                    active ? "bg-violet/20 text-aqua" : "text-mist/75 hover:bg-surface hover:text-mist"
+                    active ? "bg-violet/20 text-aqua" : "text-mist/75 hover:bg-surface hover:text-mist active:bg-violet/20"
                   }`}
                 >
                   {item.label}
-                  <NavPending className="inset-y-2 left-0 w-0.5" />
+                  <NavPending variant="sidebar" />
                 </Link>
               </li>
             );

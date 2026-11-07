@@ -22,7 +22,8 @@ function warnConfigUnusableOnce() {
 /**
  * Har matching request par:
  *  1. session cookie refresh (token expire hone se pehle),
- *  2. getUser() se server par verify,
+ *  2. protected routes par getClaims() (JWT signature local verify, JWKS cached: koi network call nahi); /login aur /signup par getUser()
+ *     (Supabase Auth server se asli check),
  *  3. /dashboard bina login ke => /login?next=..., login ke baad /login,/signup => /dashboard.
  * NOTE: ye pehli rok hai. Asli protection server components/actions me bhi hai (requireUser).
  */
@@ -67,9 +68,17 @@ export async function updateSession(request: NextRequest) {
   });
 
   // Is call aur createServerClient ke beech koi aur code mat likhna (session refresh toot sakta hai).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  //
+  // /dashboard/*: getClaims() (asymmetric ES256 key ki signature local verify; expire token yahin refresh hota hai). Ye sirf pehli rok hai:
+  // ye revoke hua session expiry tak valid maan sakta hai, isliye asli, revoke-aware check har page / action me getUser() (lib/auth/session.ts) karta hai.
+  // /login, /signup: getUser() (network) hi. Warna revoked session par /dashboard -> /login -> /dashboard ka loop ban jata
+  // (dashboard use bahar bhejta, middleware use wapas andar). Ye pages kam khulte hain, isliye yahan extra network call ka farq nahi padta.
+  let user: unknown = null;
+  if (isAuthPage) {
+    user = (await supabase.auth.getUser()).data.user;
+  } else {
+    user = (await supabase.auth.getClaims()).data?.claims ?? null;
+  }
 
   const redirectWithCookies = (to: URL) => {
     const redirectResponse = NextResponse.redirect(to);
