@@ -36,3 +36,15 @@ Mocked: 87 new tests pass. Full suite: 4847 pass, 1 fail. The 1 fail (`day 28 pa
 ## 9. Blockers / decisions
 - Images are NOT sent to publishers (API contract unchanged). If ads must show logo + image in the chatbot, that needs an API contract change and a delivery decision: needs your confirmation (not done in this step).
 - Orphan image files are possible if cleanup fails (best-effort); harmless, private.
+
+## 10. Phase 4 Step 4 update (2026-11-07) - appended, history above unchanged
+Pending manual checks from section 8, status now (User-confirmed = owner's word, no screenshots):
+- Item 1 (SQL on TEST, C1-C5): VERIFIED with real output pasted by owner on 2026-11-07 (all 5 pass; bucket limit 4194304). A later rerun of the file failed with 23514 on ad_creatives_logo_path_check and rolled back; cause not yet explained (see Step 4 report section 3).
+- Item 2 (real logo + banner, open on advertiser and admin page): User-confirmed.
+- Item 3 (rejects: GIF, SVG, over-size, renamed text): User-confirmed. Bad URL: User-confirmed (http rejected, https accepted).
+- Item 4 (Advertiser B cannot see A's ads/images): User-confirmed for dashboard; direct storage URL not explicitly stated.
+- Item 5 (new ad Pending, not served): User-confirmed (pending asset => 404; ineligible not served).
+- Item 6 (admin approve, reject with reason, edit + resubmit): User-confirmed.
+- Item 7 (approved ad edited goes back to draft): User-confirmed.
+Details: PHASE4-STEP4-CREATIVE-WORKFLOW-VERIFICATION-REPORT.md.
+Fix 2026-11-07: path regex now uses [.] instead of backslash-dot. Fixed SQL rerun on TEST: passed without error (User-confirmed, no output pasted).

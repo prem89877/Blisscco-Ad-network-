@@ -19,6 +19,8 @@
 -- of existing tables, admin_review_creative(). Keywords sirf review ke liye hain, matching me use nahi hote.
 -- Images publisher API ko nahi jaatin (API contract wahi: 5 text fields).
 --
+-- 2026-11-07 fix: path CHECK me regex ka '\.' ab '[.]' hai (same matlab: sirf ek literal dot). Backslash copy-paste / editor me badal jata tha aur
+-- rerun par 23514 aata tha. Strictness wahi hai; koi constraint dheela nahi hua.
 -- Rerun rule: ye file rerun-safe hai. Par day-3-5 DOBARA chalane se guard_creative_changes() purana ho jata hai;
 -- tab is file ko phir chalao.
 -- =====================================================================
@@ -45,11 +47,11 @@ alter table public.ad_creatives add constraint ad_creatives_brand_name_check
 
 alter table public.ad_creatives drop constraint if exists ad_creatives_logo_path_check;
 alter table public.ad_creatives add constraint ad_creatives_logo_path_check
-  check (logo_path is null or logo_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/logo-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$');
+  check (logo_path is null or logo_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/logo-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.](png|jpg|webp)$');
 
 alter table public.ad_creatives drop constraint if exists ad_creatives_banner_path_check;
 alter table public.ad_creatives add constraint ad_creatives_banner_path_check
-  check (banner_path is null or banner_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/banner-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$');
+  check (banner_path is null or banner_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/banner-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.](png|jpg|webp)$');
 
 alter table public.ad_creatives drop constraint if exists ad_creatives_keywords_check;
 alter table public.ad_creatives add constraint ad_creatives_keywords_check

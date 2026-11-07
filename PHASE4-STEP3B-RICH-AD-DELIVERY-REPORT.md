@@ -38,3 +38,12 @@ Scope: TEST / Preview only. Production untouched. No billing, payout, ledger, RL
 - 1 automated test (day28-part1 strict compile of the Next.js route) and 1 new test (type-check of route + card) need the `next` / `@types/react` packages; they ran only in CI, not in the authoring sandbox.
 - Images uploaded before Step 3B have no stored dimension check; the proxy 404s any that break the rules and the card falls back to text-only.
 - Image responses are cached for up to 60 seconds, so a paused ad's image can stay visible that long.
+
+## Phase 4 Step 4 update (2026-11-07) - appended, history above unchanged
+- Flag OFF asset URL 404 (row marked NOT VERIFIED above): still NOT VERIFIED. Re-test with full URL `https://<preview-host>/api/v1/ads/asset/<creative_id>?kind=image` (expect empty 404, not the styled "page not found").
+- Invalid / ineligible creative assets => 404 for pending, rejected, archived: User-confirmed (owner's word, Step 4).
+- Publisher example render and text-only fallback: not confirmed in Step 4.
+- Wrong-size logo on Preview: not confirmed.
+Details: PHASE4-STEP4-CREATIVE-WORKFLOW-VERIFICATION-REPORT.md.
+
+- 2026-11-07 (Step 4): Flag OFF asset URL 404, publisher example render and text-only fallback, wrong-size logo on Preview: now User-confirmed (word only). Row "Flag OFF: image URL ... NOT VERIFIED" above is kept as history.
