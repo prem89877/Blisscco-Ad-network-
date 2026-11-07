@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { startTransition, useActionState, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_ACTION_TIMEOUT_MS, createActionGuard, type GuardState } from "./guard";
 
@@ -46,5 +46,19 @@ export function useGuardedAction<S extends GuardState>(
     },
     [guard],
   );
-  return { state, formAction, pending, onSubmit };
+  // Forms jahan galti par bhari hui cheezein (file, select, text) khali nahi honi chahiye.
+  // React 19 `<form action={fn}>` ke baad poora form reset kar deta hai; file inputs wapas bhare nahi ja sakte.
+  // Yahan hum khud FormData bana ke action chalate hain (reset nahi hota). Lock pehle jaisa: tryBegin().
+  const onSubmitKeepFields = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!guard.tryBegin()) return;
+      const formData = new FormData(event.currentTarget);
+      startTransition(() => {
+        formAction(formData);
+      });
+    },
+    [guard, formAction],
+  );
+  return { state, formAction, pending, onSubmit, onSubmitKeepFields };
 }

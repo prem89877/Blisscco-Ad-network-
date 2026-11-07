@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { submitCreative } from "@/app/dashboard/advertiser/creatives/actions";
 import Notice from "@/components/auth/Notice";
-import SubmitButton from "@/components/auth/SubmitButton";
+import Button from "@/components/ui/Button";
+import Spinner from "@/components/ui/Spinner";
 import { ASSET_LIMITS, checkImageMeta, type AssetKind } from "@/lib/campaigns/creative-assets";
 import {
   BRAND_MAX,
@@ -38,7 +39,7 @@ function Err({ id, text }: { id: string; text?: string }) {
 
 /** Advertiser ka "Submit an ad" form. Server hi asli jaanch karta hai; yahan ki jaanch sirf jaldi feedback ke liye. */
 export default function CreativeSubmissionForm({ campaigns, editing = null }: Props) {
-  const { state, formAction, onSubmit } = useGuardedAction(submitCreative, initialSubmissionState, {
+  const { state, formAction, pending, onSubmitKeepFields } = useGuardedAction(submitCreative, initialSubmissionState, {
     timeoutMs: UPLOAD_TIMEOUT_MS,
     errorState: (prev, message, formData) => ({ ...prev, status: "error" as const, message, values: readSubmissionValues(formData) }),
   });
@@ -58,7 +59,7 @@ export default function CreativeSubmissionForm({ campaigns, editing = null }: Pr
   const imageError = (k: AssetKind) => fileErrors[k] ?? e[k];
 
   return (
-    <form action={formAction} onSubmit={onSubmit} noValidate encType="multipart/form-data" className="max-w-xl space-y-5">
+    <form action={formAction} onSubmit={onSubmitKeepFields} noValidate encType="multipart/form-data" className="max-w-xl space-y-5">
       {editing && <input type="hidden" name="creativeId" value={editing.creativeId} />}
 
       <div>
@@ -146,7 +147,7 @@ export default function CreativeSubmissionForm({ campaigns, editing = null }: Pr
           className={`${input} ${imageError("banner") ? "border-red-400" : "border-line"} file:mr-3 file:rounded file:border-0 file:bg-aqua/15 file:px-3 file:py-1 file:text-aqua`}
         />
         <p id="sc-banner-hint" className="mt-1.5 text-xs text-mist/60">
-          PNG, JPG or WebP, up to {ASSET_LIMITS.banner.maxBytes / (1024 * 1024)} MB. If the form shows an error, choose your images again.
+          PNG, JPG or WebP, up to {ASSET_LIMITS.banner.maxBytes / (1024 * 1024)} MB. If the form shows an error, your images and other answers stay filled in.
         </p>
         <Err id="sc-banner-err" text={imageError("banner")} />
       </div>
@@ -247,7 +248,23 @@ export default function CreativeSubmissionForm({ campaigns, editing = null }: Pr
       </div>
 
       {state.status === "error" && state.message && <Notice tone="error">{state.message}</Notice>}
-      <SubmitButton pendingText="Uploading and submitting…">{editing ? "Save and resubmit for review" : "Submit for review"}</SubmitButton>
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending}
+        className="w-full disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? (
+          <>
+            <Spinner size="sm" className="mr-2" />
+            Uploading and submitting…
+          </>
+        ) : editing ? (
+          "Save and resubmit for review"
+        ) : (
+          "Submit for review"
+        )}
+      </Button>
       <p className="text-xs text-mist/55">Your ad goes to our team for review first. It is never shown until it is approved.</p>
     </form>
   );

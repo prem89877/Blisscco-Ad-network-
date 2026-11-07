@@ -231,3 +231,19 @@ describe("phase 4 step 3 | only approved creatives are eligible; delivery contra
     assert.doesNotMatch(sql, /brand_name|logo_path|banner_path|keywords/);
   });
 });
+
+describe("phase 4 step 4 | creative form keeps files and answers after an error", () => {
+  it("hook offers a submit that builds FormData itself (no React form reset) and still takes the double-tap lock", () => {
+    const hook = code(read("lib/actions/use-guarded-action.ts"));
+    assert.match(hook, /onSubmitKeepFields/);
+    assert.match(hook, /new FormData\(event\.currentTarget\)/);
+    assert.match(hook, /startTransition/);
+    assert.match(hook, /tryBegin\(\)/);
+  });
+  it("creative form uses it and its button follows the hook's pending state", () => {
+    const src = code(read("components/campaigns/CreativeSubmissionForm.tsx"));
+    assert.match(src, /onSubmit=\{onSubmitKeepFields\}/);
+    assert.match(src, /disabled=\{pending\}/);
+    assert.doesNotMatch(src, /choose your images again/i);
+  });
+});
