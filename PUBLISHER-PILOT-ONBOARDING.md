@@ -41,7 +41,7 @@ BLISSCCO_PUBLISHER_API_KEY=paste-your-key-from-the-publisher-page
 - Keep the key only in `BLISSCCO_PUBLISHER_API_KEY` on your server, in a secret manager or environment file.
 - Do not give either variable a public prefix such as `NEXT_PUBLIC_`, `VITE_` or `REACT_APP_`.
 - Do not put the key in browser code, a mobile app, git, logs, tickets, screenshots or chat.
-- Call the API server to server only. Your frontend talks to your own backend, which returns only the five public ad fields.
+- Call the API server to server only. Your frontend talks to your own backend, which returns only the public ad fields (the five fields; plus `brand_name`, `logo_url` and `image_url` only if rich ad delivery is switched on for you, see section 12).
 - Use a separate named key per server or environment, so one can be revoked alone.
 - A lost key cannot be shown again. Create a new one and revoke the old one.
 - If a key may have leaked, revoke it first, then create a replacement.
@@ -67,7 +67,7 @@ Only these three routes exist for publishers.
 
 ### Match response
 
-- Ad found: 200 with `fill: true`, `sponsored: true` and `ad` holding the five public fields. The response carries `X-Blisscco-Api-Version: 1` and `Cache-Control: no-store`.
+- Ad found: 200 with `fill: true`, `sponsored: true` and `ad` holding the five public fields (plus the optional rich fields when switched on, see section 12). The response carries `X-Blisscco-Api-Version: 1` and `Cache-Control: no-store`.
 - No ad: 200 with `{"fill":false}`. This is normal and never carries a reason. Sensitive and unsupported topics also end this way.
 - Temporary failure: 503 with `fill: false` and `error: unavailable`. This is different from a no-fill, which is a 200.
 - A `tracking` object (`token`, `expires_at`, `events`, and `click_ref` when one could be signed) appears only if you sent `X-Blisscco-Tracking: 1` and tracking is switched on at Blisscco. A missing `tracking` object is normal: show the ad and report nothing.
@@ -100,7 +100,7 @@ All boxes start empty. Nothing here is confirmed by this document.
 
 ### Rendering the sponsored item
 
-- [ ] Show only the five public fields: `id`, `headline`, `body`, `cta_text`, `destination_url`.
+- [ ] Show only the public fields: `id`, `headline`, `body`, `cta_text`, `destination_url` and, only if present (rich delivery, off by default, section 12), `brand_name`, `logo_url`, `image_url`. Show no other field.
 - [ ] Render text fields as plain text, never as HTML.
 - [ ] The call-to-action links to the Blisscco click URL only. With no click reference, show the ad without a link.
 - [ ] The impression is reported only after the labelled ad is on screen.
@@ -201,3 +201,6 @@ All boxes start empty. Nothing here is confirmed by this document.
 ## 11. Pilot observation records
 
 The observation list, the places each item can be seen and the record format (date, environment, method, actual result, source) are in `MVP-PILOT-SAFETY-CHECKLIST.md`, section 11. The publisher's part is to report API errors, timeouts, fills, no-fills and integration errors with a date and a status code. A value that was not measured is reported as not measured. This document fills in no number.
+
+## 12. Phase 4 Step 5 correction (2026-11-07): optional rich fields
+Phase 4 Step 3B added three optional fields inside `ad`: `brand_name`, `logo_url` and `image_url`. They appear only when Blisscco has switched on rich ad delivery (server flag `RICH_AD_DELIVERY_ENABLED`, off by default) and the advertiser supplied them. With the flag off, or without rich data, `ad` holds exactly the five public fields. The two image URLs point at Blisscco's asset route on the same host; use them only as `<img>` sources and drop the image if it fails to load (show text only). Sections 1 to 11 above were written before Step 3B; the three lines changed on 2026-11-07 point here. See `examples/publisher-nextjs/README.md` and guide section 4e. No code, route or contract was changed.
