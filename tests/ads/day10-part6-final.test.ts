@@ -101,6 +101,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
     assert.deepEqual(importers.map((f) => f.split(path.sep).join("/")), [
       "lib/ads/candidate-loader.ts",
       "lib/ads/click-db.ts", // Day 12 prompt 5 part 3: click redirect ka DB pul (2 rpc, server-only)
+      "lib/ads/emergency-stop-db.ts", // Phase 5 Step 4: emergency stop flag ka read-only padhna (1 rpc), server-only
       "lib/ads/impression-db.ts",
       "lib/ads/match.ts",
       "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only

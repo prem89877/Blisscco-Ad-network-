@@ -2,6 +2,8 @@ import { NextResponse, after } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
 import { buildAdResponse, buildRichFields, type MatchResponseBody } from "@/lib/ads/contract";
 import { assetBaseFromRequest } from "@/lib/ads/rich-assets";
+import { isEmergencyStopEnforced, type StopState } from "@/lib/ads/emergency-stop";
+import { readAdServingState } from "@/lib/ads/emergency-stop-db";
 import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
 import { outcomeFromResponse, reportMatchMetric, type Defer, type MatchOutcome, type MetricSink } from "@/lib/ads/pilot-monitoring";
 import { pilotMetricSink, serveMatchForPublisher } from "@/lib/ads/service";
@@ -26,6 +28,11 @@ export type MatchHandlerOptions = {
   metricSink?: MetricSink | null;
   /** Tests ke liye: metric kab/kaise chale. Default: response ke BAAD (Next `after`), warna fire-and-forget. */
   defer?: Defer;
+  /**
+   * Phase 5 Step 4: emergency stop. Default: env EMERGENCY_STOP_ENFORCED = "1" ho toh database ka flag padhta hai, warna kuch nahi (database ko bulaya bhi nahi jaata).
+   * null = band. Tests apna reader de sakte hain. "stopped" => {fill:false} (koi serve/charge nahi); "error" => 503 (fail closed).
+   */
+  stopCheck?: (() => Promise<StopState>) | null;
 };
 
 /** Ek request ka outcome (har raaste par set hota hai); handleMatchPost ise ek hi baar record karta hai. */
@@ -178,6 +185,14 @@ async function processMatch(request: Request, options: MatchHandlerOptions, trac
     ...(idem.value === undefined ? {} : { idempotencyKey: idem.value }),
     ...(tracking.value ? { trackingRequested: true } : {}),
   };
+
+  // 2d. Emergency stop (Phase 5 Step 4): sirf enforced mode me. Naya serve nahi hota, charge nahi hota; publisher ko saaf no-fill. Padh na paye => 503 (fail closed).
+  const stopCheck = options.stopCheck === undefined ? (isEmergencyStopEnforced(process.env) ? readAdServingState : null) : options.stopCheck;
+  if (stopCheck) {
+    const state = await stopCheck();
+    if (state === "stopped") return json({ fill: false }, 200);
+    if (state === "error") return json({ fill: false, error: "unavailable" }, 503);
+  }
 
   // 3. Service: authorize + rate limit + category match + selection + serve record (+ optional, default-off provider fallback)
   const result = await serveMatchForPublisher(hashApiKey(key), matchRequest);

@@ -15,8 +15,8 @@ Evidence timestamps (phone clock, 7 Nov 2026, time zone not stated): advertiser 
 3. **Publisher ledger reconciliation:** ledger arithmetic consistent (0 + 5 + 0 = 5). Earnings per serve not recorded: `ledger_enabled = false`, `publisher_share_bps` null (Seen). Advertiser spend (exact at 0.002 per serve) cannot be reconciled with publisher earnings while recording is off. No payout, no billing.
 4. **Latency:** server side average 790 ms, slowest 2,413 ms (62 requests, 7 days), above the owner limits of 400 and 1200 ms. Owner decision: record as above limit, not investigated in Step 2, measure again before the 1 Dec 2026 pilot start. P95 not available. Client side (Termux, n = 5 match): average 1360 ms, slowest 2269 ms.
 5. **Previously completed tests intentionally skipped:** duplicate click and impression, invalid token, 401, 400, 415, 413, no-fill on unmatched topics, key create, show-once and revoke, signup and approval, creative and rich-delivery checks, CI performance tests.
-6. **CI checks awaiting owner results:** `CI` (type check, `npm test`, ESLint, build) and `DB integration` (TEST database). Results not yet supplied.
-7. **Pending operational evidence:** status of the key ending `cc54` (no screenshot); CI results; Gates A to D and other Step 1 manual items (unchanged).
+6. **CI checks:** owner reports the CI check passed (success, 2026-11-07, **Owner-stated**, no screenshot or run link seen by Claude). The owner then stated separately that `DB integration` also passed. Both workflows are therefore recorded as success, **Owner-stated**: `CI` (type check, `npm test`, ESLint, build) and `DB integration` (TEST database). Claude did not run or repeat any CI test.
+7. **Pending operational evidence:** status of the key ending `cc54` (no screenshot); Gates A to D and other Step 1 manual items (unchanged).
 8. **Errors and unresolved discrepancies:** latency above limits (accepted as recorded, owner decision A); request count is an owner estimate; no ledger earnings because recording is off; 5.0000 USD adjustment and 2.0000 USD payout hold are owner-made test data (below).
 9. **Exact files modified:** `PHASE5-STEP2-PILOT-EVIDENCE-REPORT.md` only (new).
 10. **Ready for final review:** ready for the owner's review of the evidence; **not ready for sign-off** until the open items above are closed.
@@ -45,7 +45,8 @@ Status words: **VERIFIED** (Seen evidence, this pass), **VERIFIED EARLIER, SKIPP
 | Latency | Client-side Termux timings (7 requests) | MEASURED (not comparable with the server limits) |
 | Keys | Pass key revoked | VERIFIED status (Seen) and OWNER-STATED date 7 Nov 2026 |
 | Keys | All keys used for testing only, revoked after (Owner-stated) | OWNER-STATED; fourth key (ends `cc54`) status not visible: PENDING |
-| CI | `ci.yml`, `integration.yml` results | AWAITING CI (owner) |
+| CI | `ci.yml` (`CI`) result | OWNER-STATED success (word only) |
+| CI | `integration.yml` (`DB integration`) result | OWNER-STATED success (word only) |
 | Gates A to D, Step 1 open items | Publisher-dependent and manual checks | PENDING OWNER CONFIRMATION, unchanged |
 
 ## 1. Controlled request usage (limit 30)
@@ -160,18 +161,18 @@ Owner-stated: all keys were used for testing only and revoked after testing.
 
 ## 9. Owner confirmations still required
 
-1. CI results for `CI` and `DB integration` (owner will supply).
+1. Optional: run links or screenshots for the `CI` and `DB integration` successes (currently word only).
 2. Status of the key ending `cc54` after revoke. No screenshot is available yet.
 3. Re-measure server-side latency before the 1 Dec 2026 pilot start (owner decision).
 4. Everything from Step 1 still open: failed-window definition, final sign-off, Vercel Sensitive check, exposure search, Revive and `SUPABASE_SERVICE_ROLE_KEY`, Gates A to D.
 
-## 10. CI checks awaited from the owner
+## 10. CI checks
 
-Workflow `CI` (`ci.yml`): type check, `npm test`, ESLint, production build. Workflow `DB integration` (`integration.yml`, TEST database only). Results not supplied. Not run by Claude and not requested in Termux.
+Owner-stated (2026-11-07): both workflows passed (success). Word only; Claude saw no run link or screenshot. `CI` (`ci.yml`: type check, `npm test`, ESLint, production build): success. `DB integration` (`integration.yml`, TEST database only): success. Claude did not run these checks and did not ask for them in Termux. No CI check is awaited any more.
 
 ## 11. Ready for final review?
 
-**Evidence is ready for the owner's review. Not ready for sign-off.** Evidence collection is complete as far as the current configuration allows, and no further Termux tests are needed. Open: CI results, key `cc54` status, latency re-measurement before 1 Dec 2026, and the Step 1 open items. Publisher earnings per serve cannot be shown while ledger recording is off; turning it on is outside this step.
+**Evidence is ready for the owner's review. Not ready for sign-off.** Evidence collection is complete as far as the current configuration allows, and no further Termux tests are needed. Open: key `cc54` status, latency re-measurement before 1 Dec 2026, and the Step 1 open items. Publisher earnings per serve cannot be shown while ledger recording is off; turning it on is outside this step.
 
 ## 12. Files modified
 

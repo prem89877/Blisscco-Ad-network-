@@ -4,6 +4,8 @@ import Panel from "@/components/dashboard/Panel";
 import AdminDecisionButton from "@/components/admin/AdminDecisionButton";
 import PayoutRequestsPanel from "@/components/admin/PayoutRequestsPanel";
 import PilotMonitoringPanel from "@/components/dashboard/PilotMonitoringPanel";
+import EmergencyStopPanel from "@/components/admin/EmergencyStopPanel";
+import { isEmergencyStopEnforced, parseAdminSafetyState, type AdminSafetyState } from "@/lib/ads/emergency-stop";
 import { isPilotMetricsEnabled, loadPilotMonitoring } from "@/lib/ads/pilot-monitoring";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -116,6 +118,18 @@ async function loadAdminData() {
   return { failed: failed || approvedFailed, advertisers, publishers, creatives: creativeRows, campaigns: campaignRows, assetUrls, creativeCategories };
 }
 
+// Phase 5 Step 4: emergency stop ki state (admin-only database function). Load fail / shape galat => null (page button nahi dikhata).
+async function loadSafetyState(): Promise<AdminSafetyState | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_admin_safety_state");
+    if (error) return null;
+    return parseAdminSafetyState(data);
+  } catch {
+    return null;
+  }
+}
+
 function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: Account[] }) {
   // Pending sabse upar
   const sorted = [...rows].sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending"));
@@ -151,7 +165,11 @@ function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: A
 export default async function AdminPage() {
   const account = await requireRole(["admin"]);
   // Phase 3 Step 4: monitoring load review-list ke saath ek hi round me (naya sequential database call nahi). Admin-only: role admin na ho toh client banta hi nahi.
-  const [data, monitoring] = await Promise.all([loadAdminData(), loadPilotMonitoring(account.role, () => createClient())]);
+  const [data, monitoring, safety] = await Promise.all([
+    loadAdminData(),
+    loadPilotMonitoring(account.role, () => createClient()),
+    loadSafetyState(),
+  ]);
   const today = utcToday();
   const pendingAccounts =
     data.advertisers.filter((a) => a.status === "pending").length + data.publishers.filter((a) => a.status === "pending").length;
@@ -173,6 +191,8 @@ export default async function AdminPage() {
       </p>
 
       <div className="space-y-6">
+        <EmergencyStopPanel state={safety} enforced={isEmergencyStopEnforced(process.env)} />
+
         <PilotMonitoringPanel result={monitoring} recordingEnabled={isPilotMetricsEnabled(process.env)} />
 
         <Panel title="Ads waiting for review" note="Web addresses are shown as plain text on purpose. Do not open links you do not trust.">

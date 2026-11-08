@@ -175,6 +175,7 @@ describe("part3: service-role key and publisher API keys stay server-side", () =
     "lib/ads/click-db.ts", // Day 12 prompt 5 part 3
     "lib/ledger/ledger-db.ts", // Day 13 part 2
     "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only
+    "lib/ads/emergency-stop-db.ts", // Phase 5 Step 4: emergency stop flag ka read-only padhna (1 rpc), server-only
     "lib/ads/rich-assets-db.ts", // Phase 4 Step 3B: read-only rich asset lookup + private bucket download, server-only
     "lib/auth/oauth-role.ts", // Google signup role set karna: server-only, sirf do role rpc
   ]);
