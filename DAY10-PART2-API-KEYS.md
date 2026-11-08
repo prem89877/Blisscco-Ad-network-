@@ -47,3 +47,4 @@ Compile + `npm test` (offline, nakli Supabase): **1386 pass, 0 fail** (Part 1 ke
 
 - Hash scheme (SHA-256) aur key format, taaki maujooda keys na toote.
 - Rotate me purani key apne aap revoke nahi hoti (downtime se bachne ke liye). Ye tumhari marzi ke hisaab se badla ja sakta hai.
+
