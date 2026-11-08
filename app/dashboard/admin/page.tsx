@@ -165,11 +165,9 @@ function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: A
 export default async function AdminPage() {
   const account = await requireRole(["admin"]);
   // Phase 3 Step 4: monitoring load review-list ke saath ek hi round me (naya sequential database call nahi). Admin-only: role admin na ho toh client banta hi nahi.
-  const [data, monitoring, safety] = await Promise.all([
-    loadAdminData(),
-    loadPilotMonitoring(account.role, () => createClient()),
-    loadSafetyState(),
-  ]);
+  const safetyPromise = loadSafetyState(); // Phase 5 Step 4: saath hi shuru hota hai (kabhi throw nahi karta)
+  const [data, monitoring] = await Promise.all([loadAdminData(), loadPilotMonitoring(account.role, () => createClient())]);
+  const safety = await safetyPromise;
   const today = utcToday();
   const pendingAccounts =
     data.advertisers.filter((a) => a.status === "pending").length + data.publishers.filter((a) => a.status === "pending").length;

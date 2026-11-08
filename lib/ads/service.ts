@@ -10,6 +10,8 @@ import { providerFallbackFromEnv, publicAdFromFallbackFill } from "./fallback-pr
 import type { MatchSuccessResponse } from "./contract";
 import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
+import { isEmergencyStopEnforced, type StopState } from "./emergency-stop";
+import { readAdServingState } from "./emergency-stop-db";
 import { isPilotMetricsEnabled, type MetricSink } from "./pilot-monitoring";
 import { recordRequestMetric } from "./pilot-metrics-db";
 import { selectAd } from "./selection";
@@ -132,3 +134,9 @@ export const pilotMetricSink: MetricSink = (outcome, latencyMs) => {
   if (!isPilotMetricsEnabled(process.env)) return;
   return recordRequestMetric(outcome, latencyMs);
 };
+
+// Phase 5 Step 4: emergency stop ka production reader (match-handler isi ko bulata hai). Env EMERGENCY_STOP_ENFORCED har request par padhta hai;
+// exact "1" na ho toh null (switch padha hi nahi jaata, database ko bulaya bhi nahi jaata). Sirf padhta hai; serve / billing se koi lena-dena nahi.
+export function defaultStopCheck(): (() => Promise<StopState>) | null {
+  return isEmergencyStopEnforced(process.env) ? readAdServingState : null;
+}
