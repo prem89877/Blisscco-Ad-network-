@@ -5,6 +5,7 @@ import path from "node:path";
 import { handleMatchPost } from "@/lib/ads/match-handler";
 import { createIpGuard } from "@/lib/ads/ip-guard";
 import {
+  describeStopEnv,
   isEmergencyStopEnforced,
   parseAdminSafetyState,
   parseStopState,
@@ -52,6 +53,16 @@ describe("phase 5 step 4: emergency stop flag helpers", () => {
     assert.equal(isEmergencyStopEnforced({}), false);
     for (const v of ["", "0", "true", "yes", " 1", "1 "]) assert.equal(isEmergencyStopEnforced({ EMERGENCY_STOP_ENFORCED: v }), false, v);
     assert.equal(isEmergencyStopEnforced({ EMERGENCY_STOP_ENFORCED: "1" }), true);
+  });
+
+  it("describeStopEnv reports presence and length, never the value", () => {
+    const d = describeStopEnv({ EMERGENCY_STOP_ENFORCED: "1", VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_SHA: "953bb3d1c751", VERCEL_URL: "x.vercel.app" });
+    assert.deepEqual(d, { present: true, length: 1, equalsOne: true, similarKeys: ['"EMERGENCY_STOP_ENFORCED"'], vercelEnv: "preview", commit: "953bb3d", deployment: "x.vercel.app" });
+    const missing = describeStopEnv({ "EMERGENCY_STOP_ENFORCED ": "1" });
+    assert.equal(missing.present, false);
+    assert.deepEqual(missing.similarKeys, ['"EMERGENCY_STOP_ENFORCED "']);
+    assert.equal(describeStopEnv({ EMERGENCY_STOP_ENFORCED: "secret-value" }).equalsOne, false);
+    assert.ok(!JSON.stringify(describeStopEnv({ EMERGENCY_STOP_ENFORCED: "secret-value" })).includes("secret-value"));
   });
 
   it("parseStopState: only one row with a real boolean is trusted", () => {

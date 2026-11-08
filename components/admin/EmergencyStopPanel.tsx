@@ -2,7 +2,7 @@
 
 import { setAdServingStopped } from "@/app/dashboard/admin/safety-actions";
 import { useGuardedAction } from "@/lib/actions/use-guarded-action";
-import { STOP_REASON_MAX, type AdminSafetyState } from "@/lib/ads/emergency-stop";
+import { STOP_REASON_MAX, type AdminSafetyState, type StopEnvDiagnostic } from "@/lib/ads/emergency-stop";
 import { initialRunState } from "@/lib/campaigns/types";
 import Panel from "@/components/dashboard/Panel";
 import Spinner from "@/components/ui/Spinner";
@@ -15,10 +15,12 @@ type Props = {
   state: AdminSafetyState | null;
   /** Server env EMERGENCY_STOP_ENFORCED = "1" hai ya nahi. Nahi hai toh button flag badalta hai par match endpoint use padhta nahi. */
   enforced: boolean;
+  /** Sirf tab dikhta hai jab enforced nahi: server ne variable dekha ya nahi (value nahi, sirf lambai). */
+  diagnostic?: StopEnvDiagnostic;
 };
 
 /** Admin ka emergency stop: sab ad serving rokna / dobara chalu karna. Reason zaroori. Resume sirf is button se (apne aap kabhi nahi). */
-export default function EmergencyStopPanel({ state, enforced }: Props) {
+export default function EmergencyStopPanel({ state, enforced, diagnostic }: Props) {
   const { state: result, formAction, pending, onSubmit } = useGuardedAction(setAdServingStopped, initialRunState);
 
   return (
@@ -36,6 +38,11 @@ export default function EmergencyStopPanel({ state, enforced }: Props) {
           {!enforced && (
             <p role="status" className="mt-2 text-sm text-amber-300">
               Warning: EMERGENCY_STOP_ENFORCED is not set to 1 on this server, so the ad endpoint does not read this switch yet.
+            </p>
+          )}
+          {!enforced && diagnostic && (
+            <p className="mt-1 break-words text-xs text-mist/60">
+              Check: variable {diagnostic.present ? "present" : "NOT present"}, length {diagnostic.length}, equals 1: {diagnostic.equalsOne ? "yes" : "no"}; similar names: {diagnostic.similarKeys.length ? diagnostic.similarKeys.join(", ") : "none"}; environment {diagnostic.vercelEnv}; commit {diagnostic.commit}; deployment {diagnostic.deployment}
             </p>
           )}
 

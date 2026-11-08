@@ -60,3 +60,30 @@ export function parseAdminSafetyState(data: unknown): AdminSafetyState | null {
     recent,
   };
 }
+
+/** Sirf jaanch ke liye (koi secret nahi): server ko EMERGENCY_STOP_ENFORCED mila ya nahi, aur ye kaun sa deployment hai. Value kabhi nahi, sirf lambai aur "1 ke barabar hai ya nahi". */
+export type StopEnvDiagnostic = {
+  present: boolean;
+  length: number;
+  equalsOne: boolean;
+  similarKeys: string[];
+  vercelEnv: string;
+  commit: string;
+  deployment: string;
+};
+
+export function describeStopEnv(env: Record<string, string | undefined>): StopEnvDiagnostic {
+  const raw = env[EMERGENCY_STOP_ENV_FLAG];
+  return {
+    present: raw !== undefined,
+    length: raw === undefined ? 0 : raw.length,
+    equalsOne: raw === "1",
+    similarKeys: Object.keys(env)
+      .filter((k) => k.toUpperCase().includes("EMERGENCY"))
+      .slice(0, 5)
+      .map((k) => JSON.stringify(k)),
+    vercelEnv: env.VERCEL_ENV ?? "unset",
+    commit: (env.VERCEL_GIT_COMMIT_SHA ?? "unset").slice(0, 7),
+    deployment: env.VERCEL_URL ?? "unset",
+  };
+}

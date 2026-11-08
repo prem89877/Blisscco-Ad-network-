@@ -5,7 +5,7 @@ import AdminDecisionButton from "@/components/admin/AdminDecisionButton";
 import PayoutRequestsPanel from "@/components/admin/PayoutRequestsPanel";
 import PilotMonitoringPanel from "@/components/dashboard/PilotMonitoringPanel";
 import EmergencyStopPanel from "@/components/admin/EmergencyStopPanel";
-import { isEmergencyStopEnforced, parseAdminSafetyState, type AdminSafetyState } from "@/lib/ads/emergency-stop";
+import { describeStopEnv, isEmergencyStopEnforced, parseAdminSafetyState, type AdminSafetyState } from "@/lib/ads/emergency-stop";
 import { isPilotMetricsEnabled, loadPilotMonitoring } from "@/lib/ads/pilot-monitoring";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -189,7 +189,7 @@ export default async function AdminPage() {
       </p>
 
       <div className="space-y-6">
-        <EmergencyStopPanel state={safety} enforced={isEmergencyStopEnforced(process.env)} />
+        <EmergencyStopPanel state={safety} enforced={isEmergencyStopEnforced(process.env)} diagnostic={describeStopEnv(process.env)} />
 
         <PilotMonitoringPanel result={monitoring} recordingEnabled={isPilotMetricsEnabled(process.env)} />
 
