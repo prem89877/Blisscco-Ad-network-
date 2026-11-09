@@ -258,6 +258,14 @@ Files changed in this build: see the list in the delivery message (new SQL file,
 
 CI results awaited from the owner for this change: `CI` (type check, `npm test`, ESLint, build). `DB integration` is not affected (no existing SQL changed).
 
+**Owner-confirmed on TEST/Preview (2026-11-08, Owner-stated with screenshots and REST responses; Production untouched):**
+
+- Panel visible on the Admin page; state loads ("Ad serving is running" / "STOPPED"); Stop saved the reason and showed an audit row (screenshots).
+- With `EMERGENCY_STOP_ENFORCED=1` active (the warning disappeared only after a fresh git-triggered Preview build; a Vercel "Redeploy" had kept the old environment snapshot, and the variable was first saved for Production too, then limited to Preview only), a TEST match request answered `{"fill":false}` while STOPPED and a normal ad (`fill:true`) after Resume.
+- Extra change: a read-only "Check:" line under the warning (variable present, length, equals 1, deployment, commit; never the value). Files: `lib/ads/emergency-stop.ts`, `app/dashboard/admin/page.tsx`, `components/admin/EmergencyStopPanel.tsx`, `tests/ads/phase5-step4-emergency-stop.test.ts`.
+
+Still **PENDING OWNER CONFIRMATION:** SQL footer checks 1 to 4 on the TEST database; the audit list showing both Stopped and Resumed rows; a non-admin call of `admin_set_ad_serving_stopped` answering 42501; CI result for the diagnostic change; the five design choices above; and a Production decision (SQL not applied there, `EMERGENCY_STOP_ENFORCED` must stay off for Production until then).
+
 ## 10. Overall operational reliability status
 
 **Adequate for a supervised, controlled TEST pilot with manual checks on the owner's dates. Not adequate for unattended or real traffic.** Monitoring is manual and has no alerts; there is no stop-all switch, no spike detection, no per-publisher or per-campaign error view; backup and recovery are undocumented and unverified; server latency is above the owner limits. The incident runbook now exists but has never been exercised. **The Production database has no backup (Free plan, Seen): nothing stored there can be restored, which must be solved before any real data or real money.**

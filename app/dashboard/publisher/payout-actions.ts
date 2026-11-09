@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/ledger/decimal";
 import {
   REQUEST_SUCCESS,
   amountErrorMessage,
+  limitHintMessage,
   parsePayoutAmount,
   parseRequestOutcome,
   requestOutcomeMessage,
@@ -41,6 +42,9 @@ export async function requestPayout(_prev: RunStateResult, formData: FormData): 
   });
   if (error) {
     console.error("[payouts] request failed", { code: error.code ?? null }); // amount / id kabhi log nahi
+    // Phase 5 Step 5: database ke limits trigger (min / max / mahine me ek) ka saaf message. Anjaan error => purana general message.
+    const limitMessage = limitHintMessage((error as { hint?: unknown }).hint);
+    if (limitMessage) return { status: "error", message: limitMessage };
     return { status: "error", message: "We could not send your request right now. Please try again." };
   }
 

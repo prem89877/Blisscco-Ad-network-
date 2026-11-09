@@ -3,6 +3,7 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import AdminDecisionButton from "@/components/admin/AdminDecisionButton";
 import PayoutRequestsPanel from "@/components/admin/PayoutRequestsPanel";
+import PayoutSettlementsPanel from "@/components/admin/PayoutSettlementsPanel";
 import PilotMonitoringPanel from "@/components/dashboard/PilotMonitoringPanel";
 import EmergencyStopPanel from "@/components/admin/EmergencyStopPanel";
 import { describeStopEnv, isEmergencyStopEnforced, parseAdminSafetyState, type AdminSafetyState } from "@/lib/ads/emergency-stop";
@@ -269,6 +270,8 @@ export default async function AdminPage() {
         </Panel>
 
         <PayoutRequestsPanel />
+
+        <PayoutSettlementsPanel />
       </div>
     </>
   );

@@ -109,6 +109,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
       "lib/ads/serve-db.ts",
       "lib/auth/oauth-role.ts", // Google signup role set karna: server-only, sirf do role rpc (mark_role_choice_pending, set_initial_account_role)
       "lib/ledger/ledger-db.ts", // Day 13 part 2: ledger ka server-only service (admin reversal / adjustment rpc)
+      "lib/payments/payments-db.ts", // Phase 5 Step 5: verified payment event lagana (1 rpc), server-only; provider approve hone tak webhook route 503 deta hai
       "lib/publisher/keys-db.ts",
     ]);
   });

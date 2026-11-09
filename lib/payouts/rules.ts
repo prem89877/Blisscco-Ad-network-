@@ -178,3 +178,81 @@ export function parsePayoutReason(raw: string): ReasonCheck {
   if (value.length > PAYOUT_REASON_MAX) return { ok: false, message: `Use at most ${PAYOUT_REASON_MAX} characters for the reason.` };
   return { ok: true, value };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 5 Step 5: settlement (bahar ka anjaam) + limits. SQL: phase5-step5-1-commercial-payments.sql. Purane niyam upar jaise ke taise.
+// ---------------------------------------------------------------------------
+
+export const SETTLEMENT_STATUSES = ["failed", "completed", "reversed"] as const;
+export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
+
+export function isSettlementStatus(v: unknown): v is SettlementStatus {
+  return typeof v === "string" && (SETTLEMENT_STATUSES as readonly string[]).includes(v);
+}
+
+/** SQL payout_settlements: external_reference ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{5,99}$'. Bank / card / UPI detail yahan nahi: sirf bahar ke transfer ka reference. */
+export const EXTERNAL_REFERENCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{5,99}$/;
+export const PAYOUT_REFERENCE_PATTERN = /^BPO-[0-9A-F]{16}$/;
+
+export type ExternalReferenceCheck = { ok: true; value: string } | { ok: false; message: string };
+
+export function parseExternalReference(raw: string): ExternalReferenceCheck {
+  const value = (typeof raw === "string" ? raw : "").trim();
+  if (value.length === 0) return { ok: false, message: "Enter the payment reference of the transfer you sent (for example the transfer id)." };
+  if (!EXTERNAL_REFERENCE_PATTERN.test(value)) {
+    return { ok: false, message: "Use 6 to 100 letters, numbers or . _ : / - for the reference. Do not enter bank, card or UPI details." };
+  }
+  return { ok: true, value };
+}
+
+/** Database trigger ke hint (error.hint) -> publisher ko saaf message. Maujooda request_my_payout ko nahi badla: trigger error deta hai, ye use samjhata hai. */
+export const LIMIT_HINT_MESSAGES: Readonly<Record<string, string>> = {
+  payout_below_minimum: "That is below the minimum payout amount. Request a larger amount.",
+  payout_above_maximum: "That is above the maximum amount for one payout. Request a smaller amount.",
+  payout_monthly_limit: "Only one payout can be requested per month. Please try again next month.",
+};
+
+export function limitHintMessage(hint: unknown): string | null {
+  if (typeof hint !== "string") return null;
+  return Object.prototype.hasOwnProperty.call(LIMIT_HINT_MESSAGES, hint) ? LIMIT_HINT_MESSAGES[hint] : null;
+}
+
+export const SETTLEMENT_OUTCOMES = ["paid", "recorded", "reversed", "forbidden", "invalid", "not_found", "invalid_transition", "payouts_disabled", "reference_in_use", "not_eligible", "insufficient", "ledger_rejected"] as const;
+export type SettlementOutcome = (typeof SETTLEMENT_OUTCOMES)[number];
+
+export const SETTLEMENT_SUCCESS = new Set<SettlementOutcome>(["paid", "recorded", "reversed"]);
+
+export const SETTLEMENT_OUTCOME_MESSAGES: Record<SettlementOutcome, string> = {
+  paid: "Recorded as paid with your payment reference. Blisscco did not send any money.",
+  recorded: "Failure recorded. The request stays approved: try again or reject it to release the balance.",
+  reversed: "Payout reversed. The amount is available to the publisher again (a ledger adjustment was added).",
+  forbidden: "Only an admin can do this.",
+  invalid: "That was not understood. Check the reference or reason and try again.",
+  not_found: "That payout request no longer exists. Refresh the page.",
+  invalid_transition: "This request is not in the right state for that action. Refresh the page.",
+  payouts_disabled: "Payouts are switched off (payout_settings.payouts_enabled is false). Nothing was recorded.",
+  reference_in_use: "That payment reference was already used for another payout.",
+  not_eligible: "The publisher's account is not active, so this cannot be paid. Reject it instead.",
+  insufficient: "The publisher's ledger balance no longer covers this request. Reject it instead.",
+  ledger_rejected: "The ledger refused the adjustment, so nothing was changed.",
+};
+
+export function parseSettlementOutcome(data: unknown): SettlementOutcome | null {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+  const o = (data as Record<string, unknown>).outcome;
+  return typeof o === "string" && (SETTLEMENT_OUTCOMES as readonly string[]).includes(o) ? (o as SettlementOutcome) : null;
+}
+
+export const SETTLEMENT_ACTIONS = ["complete", "fail", "reverse"] as const;
+export type SettlementAction = (typeof SETTLEMENT_ACTIONS)[number];
+
+export function isSettlementAction(v: unknown): v is SettlementAction {
+  return typeof v === "string" && (SETTLEMENT_ACTIONS as readonly string[]).includes(v);
+}
+
+/** Admin ko is request par kaun si settlement actions dikhani hain (UI hint; asli rok database). */
+export function settlementActionsFor(status: PayoutStatus, settlement: SettlementStatus | null): SettlementAction[] {
+  if (status === "approved") return ["complete", "fail"];
+  if (status === "paid" && settlement === "completed") return ["reverse"];
+  return [];
+}
