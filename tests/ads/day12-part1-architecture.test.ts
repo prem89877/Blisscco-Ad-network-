@@ -104,6 +104,7 @@ describe("Day 12 part 1: nothing the report calls missing has appeared", () => {
     const apiRoutes = walk("app/api", [".ts"]).map((f) => f.replace(/\\/g, "/")).sort();
     assert.deepEqual(apiRoutes, [
       "app/api/ads/match/route.ts",
+      "app/api/diag/route.ts", // Diagnostics: browser ki slow-button / error-screen report ko Vercel logs me likhta hai (tests/diagnostics usse bandhta hai). Ad / tracking route nahi.
       "app/api/payments/webhook/route.ts", // Phase 5 Step 5 (commercial payments webhook; tests/payments/phase5-step5-payments.test.ts usse bandhta hai)
       "app/api/revive-json-preview/route.ts", // Day 24 Part 2: alag flag se band GET prototype (tests/ads/day24-part2 usse bandhta hai)
       "app/api/supabase-health/route.ts",

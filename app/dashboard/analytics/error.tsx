@@ -1,11 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
+import { sendDiagReport } from "@/lib/actions/guard";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/auth/Notice";
 
 // Analytics page par koi bhi anjaani dikkat: safe message + kaam karta "Try again".
 // Error ka koi bhi hissa (text, digest, stack) kabhi render nahi hota, taaki database ya SQL detail leak na ho. `error` prop jaanbujhkar use nahi hota.
 export default function AnalyticsError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // Diagnostics: sirf "analytics error screen aayi" + path + time. Error ka koi hissa yahan nahi chhua jata (upar ka niyam).
+  useEffect(() => {
+    sendDiagReport("error_boundary", { boundary: "analytics" });
+  }, []);
+
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Analytics</h1>

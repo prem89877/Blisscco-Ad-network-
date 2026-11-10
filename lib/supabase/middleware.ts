@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseEnv, requireSupabaseEnv } from "./env";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { diagLog, isDiagVerbose, logIfSlow } from "@/lib/diagnostics/log";
 
 // Production me config chhoot jaye toh protected pages band (fail closed) ho jaate hain. Wajah Vercel logs me ek baar (har instance) dikhe,
 // sirf variable ke NAAM (value kabhi nahi), taaki "login error=config" ka sabab turant mile.
@@ -73,11 +74,27 @@ export async function updateSession(request: NextRequest) {
   // ye revoke hua session expiry tak valid maan sakta hai, isliye asli, revoke-aware check har page / action me getUser() (lib/auth/session.ts) karta hai.
   // /login, /signup: getUser() (network) hi. Warna revoked session par /dashboard -> /login -> /dashboard ka loop ban jata
   // (dashboard use bahar bhejta, middleware use wapas andar). Ye pages kam khulte hain, isliye yahan extra network call ka farq nahi padta.
+  const authStartedAt = Date.now();
   let user: unknown = null;
   if (isAuthPage) {
     user = (await supabase.auth.getUser()).data.user;
   } else {
     user = (await supabase.auth.getClaims()).data?.claims ?? null;
+  }
+
+  // Diagnostics: session check dheema (3s+) ho toh Vercel logs me "[diag] event=request_slow label=middleware_session_check".
+  // DIAG_VERBOSE=1 par har /dashboard request ki ek line: rsc / prefetch / conditional (if-none-match = 304 ka sambhaw) dikhta hai.
+  const authMs = logIfSlow("middleware_session_check", authStartedAt, { path: pathname });
+  if (isDiagVerbose() && (isProtected || isAuthPage)) {
+    diagLog("request_trace", {
+      path: pathname,
+      method: request.method,
+      authMs,
+      loggedIn: Boolean(user),
+      rsc: request.headers.get("rsc") === "1",
+      prefetch: Boolean(request.headers.get("next-router-prefetch")),
+      conditional: Boolean(request.headers.get("if-none-match") || request.headers.get("if-modified-since")),
+    });
   }
 
   const redirectWithCookies = (to: URL) => {

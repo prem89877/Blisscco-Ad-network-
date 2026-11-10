@@ -24,21 +24,21 @@ If a check fails: copy the failing step's log lines and send them. Do not mark i
 Before you start: Part 1 SQL (`phase6-step3-1-advertiser-country.sql`) and Step 2 SQL are applied on TEST (see `supabase/MIGRATION-ORDER.md`). You need four logins: an **admin**, a **new advertiser**, a **new publisher**, and an **existing advertiser and publisher with no country**.
 
 ### B1. Login country screen
-- [ ] New advertiser and new publisher: after login, `/auth/choose-country` appears before the dashboard.
-- [ ] Choose a country: dashboard opens. Advertiser row has `country_code`; publisher shows "Waiting for verification".
-- [ ] "Do it later": dashboard opens, no loop while browsing; log out and in again: screen returns.
-- [ ] Existing account without country: screen appears; with a country: straight to dashboard.
-- [ ] Google login (new user): role choice first, then country screen.
-- [ ] Deep link `/dashboard/publisher` does not show the screen.
+- [✓] New advertiser and new publisher: after login, `/auth/choose-country` appears before the dashboard.
+- [✓] Choose a country: dashboard opens. Advertiser row has `country_code`; publisher shows "Waiting for verification".
+- [✓] "Do it later": dashboard opens, no loop while browsing; log out and in again: screen returns.
+- [✓] Existing account without country: screen appears; with a country: straight to dashboard.
+- [✓] Google login (new user): role choice first, then country screen.
+- [✓] Deep link `/dashboard/publisher` does not show the screen.
 
 ### B2. Advertiser country (Part 1)
-- [ ] New advertiser signup with a country saves it; signup without a country still works.
-- [ ] Existing advertiser: My campaigns > "Business country" panel saves a country; existing campaigns unchanged.
-- [ ] Tampered form value (for example `UK`) is rejected.
-- [ ] Pricing / billing screens look the same (USD).
+- [✓] New advertiser signup with a country saves it; signup without a country still works.
+- [✓] Existing advertiser: My campaigns > "Business country" panel saves a country; existing campaigns unchanged.
+- [✓] Tampered form value (for example `UK`) is rejected.
+- [✓] Pricing / billing screens look the same (USD).
 
 ### B3. Publisher onboarding (Part 2)
-- [ ] New publisher with a country: publisher page shows country and "Waiting for verification".
+- [✓] New publisher with a country: publisher page shows country and "Waiting for verification".
 - [ ] Admin verifies it: publisher page shows "Verified".
 - [ ] Admin rejects another: "Not accepted"; "Submit a different country" works and goes back to pending.
 - [ ] Existing publisher without a country: country panel appears; keys, earnings, payouts unchanged.

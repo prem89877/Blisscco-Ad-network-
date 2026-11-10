@@ -5,6 +5,7 @@ import MobileNav from "@/components/dashboard/MobileNav";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { getCurrentAccount, requireUser } from "@/lib/auth/session";
 import { navForRole } from "@/lib/dashboard-nav";
+import { logIfSlow } from "@/lib/diagnostics/log";
 
 export const metadata: Metadata = {
   title: "Dashboard | Blisscco",
@@ -19,7 +20,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Speed: user ka asli check aur profile query ek saath (dono React cache() se page ke saath bhi share hote hain).
+  const authStartedAt = Date.now();
   const [user, account] = await Promise.all([requireUser(), getCurrentAccount()]);
+  // Diagnostics: user check + profile query dheema ho (3s+) toh Vercel logs me "[diag] event=request_slow label=dashboard_layout_auth".
+  logIfSlow("dashboard_layout_auth", authStartedAt);
   if (account?.roleChoicePending) redirect("/auth/choose-role");
   const items = navForRole(account?.role ?? null);
 

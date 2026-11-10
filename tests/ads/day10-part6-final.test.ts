@@ -148,7 +148,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
 describe("Day 10 part 6: API surface and docs match the code", () => {
   it("only the two match routes, the impression route and the click route exist under app/api (plus the health check) and all export only POST", () => {
     const routes = walk("app/api", [".ts"]).map((f) => f.split(path.sep).join("/")).sort();
-    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/payments/webhook/route.ts", "app/api/revive-json-preview/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/asset/[id]/route.ts", "app/api/v1/ads/click/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
+    assert.deepEqual(routes, ["app/api/ads/match/route.ts", "app/api/diag/route.ts", "app/api/payments/webhook/route.ts", "app/api/revive-json-preview/route.ts", "app/api/supabase-health/route.ts", "app/api/v1/ads/asset/[id]/route.ts", "app/api/v1/ads/click/route.ts", "app/api/v1/ads/impression/route.ts", "app/api/v1/ads/match/route.ts"]);
     for (const mod of [legacyRoute, v1Route, impressionRoute]) {
       assert.deepEqual(Object.keys(mod).filter((k) => /^[A-Z]+$/.test(k)), ["POST"]);
     }

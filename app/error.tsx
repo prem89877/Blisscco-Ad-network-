@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { sendDiagReport } from "@/lib/actions/guard";
 
 // Koi bhi anjaani dikkat: user ko saaf message + dobara koshish. Technical detail kabhi nahi dikhti.
-export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // Diagnostics: error screen aate hi Vercel logs me "[diag] event=error_boundary" (digest ke saath, jo server ke asli error log se milta hai). User ko kuch nahi dikhta.
+  useEffect(() => {
+    sendDiagReport("error_boundary", { boundary: "app", digest: error.digest, errName: error.name });
+  }, [error]);
+
   return (
     <main id="main" className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-start justify-center px-6 py-16">
       <h1 className="font-display text-3xl font-semibold">Something went wrong</h1>
