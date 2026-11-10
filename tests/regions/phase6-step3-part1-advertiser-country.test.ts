@@ -292,9 +292,10 @@ describe("migration (static checks; never run anywhere)", () => {
     assert.match(sql, /kisi database par chalayi NAHI gayi/);
   });
 
-  it("is listed in MIGRATION-ORDER as TEST-first and not run, after row 43", () => {
+  it("is listed in MIGRATION-ORDER as TEST-first and not applied on Production, after row 43", () => {
     const order = read("supabase/MIGRATION-ORDER.md");
-    assert.match(order, /\| 44 \| phase6-step3-1 .*TEST first, NOT RUN anywhere/);
+    assert.match(order, /\| 44 \| phase6-step3-1 .*TEST first/);
+    assert.match(order, /\| 44 \| phase6-step3-1 .*NOT applied on Production/);
     assert.ok(order.indexOf("| 44 |") > order.indexOf("| 43 |"));
     assert.ok(order.indexOf("| 44 |") < order.indexOf("| end |"));
   });

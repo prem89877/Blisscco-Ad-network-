@@ -3,7 +3,13 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import Button from "@/components/ui/Button";
 import { requireAccount } from "@/lib/auth/session";
-import { getMyAdvertiser, listMyCampaigns } from "@/lib/campaigns/queries";
+import { listMyCampaigns, loadMyAdvertiser } from "@/lib/campaigns/queries";
+import { loadMyAdvertiserCountry } from "@/lib/advertiser/country-queries";
+import { loadMyPublisherCountry } from "@/lib/publisher/country-queries";
+import { AdvertiserSetupForm, PublisherSetupForm } from "@/components/dashboard/AccountSetupForm";
+import AdvertiserCountryForm from "@/components/dashboard/AdvertiserCountryForm";
+import PublisherCountryForm from "@/components/dashboard/PublisherCountryForm";
+import { countryOptions } from "@/lib/regions/publisher-country";
 import { loadMyPublisher } from "@/lib/publisher/queries";
 import Notice from "@/components/auth/Notice";
 import { listPublisherKeys } from "@/lib/publisher/keys-db";
@@ -51,7 +57,10 @@ export default async function OverviewPage() {
   const account = await requireAccount();
 
   if (account.role === "advertiser") {
-    const adv = await getMyAdvertiser();
+    const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();
+    // Phase 6 Step 3 Part 2: naya advertiser login karte hi country chun sakta hai; purana (country bina) bhi yahin chun leta hai.
+    // Load fail => koi form nahi (galat "setup" form na dikhe). Country load fail => null => prompt nahi.
+    const advCountry = adv && adv.status !== "suspended" ? await loadMyAdvertiserCountry() : null;
     // Steps asli data se: campaign hai? review me gaya? live hai? (load fail ho toh "not done" hi dikhta hai, galat tick nahi)
     const list = adv ? await listMyCampaigns(adv.id) : null;
     const statuses = list && !list.failed ? list.campaigns.map((c) => c.status) : [];
@@ -75,6 +84,20 @@ export default async function OverviewPage() {
             <Button href="/dashboard/advertiser/campaigns">{adv ? "Go to my campaigns" : "Set up my business"}</Button>
           </div>
         </Panel>
+        {!adv && !advertiserFailed && (
+          <div className="mt-6">
+            <Panel title="Set up your business" note="Add your business name and choose your country. It takes a minute.">
+              <AdvertiserSetupForm countryOptions={countryOptions()} />
+            </Panel>
+          </div>
+        )}
+        {advCountry !== null && advCountry.countryCode === null && (
+          <div className="mt-6">
+            <Panel title="Choose your country" note="Your business country. It does not change your prices or billing.">
+              <AdvertiserCountryForm options={countryOptions()} currentCode={null} submitLabel="Save country" />
+            </Panel>
+          </div>
+        )}
       </>
     );
   }
@@ -91,6 +114,9 @@ export default async function OverviewPage() {
       );
     }
     const keys = pub && pub.status === "active" ? await listPublisherKeys(pub.id) : null;
+    // Phase 6 Step 3 Part 2: country ka wahi Step 2 workflow (pending -> admin verified / rejected). Load fail => null => prompt nahi.
+    const pubCountry = pub && pub.status !== "suspended" ? await loadMyPublisherCountry() : null;
+    const needsCountry = pubCountry !== null && (pubCountry.status === null || pubCountry.status === "rejected");
     const hasKey = keys !== null && keys.length > 0;
     return (
       <>
@@ -108,6 +134,27 @@ export default async function OverviewPage() {
             <Button href="/dashboard/publisher">{pub ? "Go to publisher page" : "Set up my platform"}</Button>
           </div>
         </Panel>
+        {!pub && (
+          <div className="mt-6">
+            <Panel title="Set up your platform" note="Add your platform details and choose your country. Our team verifies the country.">
+              <PublisherSetupForm countryOptions={countryOptions()} />
+            </Panel>
+          </div>
+        )}
+        {needsCountry && (
+          <div className="mt-6">
+            <Panel
+              title={pubCountry?.status === "rejected" ? "Your country was not accepted" : "Choose your country"}
+              note="Our team verifies your country. Only a verified country is used for regional ads."
+            >
+              <PublisherCountryForm
+                options={countryOptions()}
+                currentCode={pubCountry?.countryCode ?? null}
+                submitLabel={pubCountry?.status === "rejected" ? "Submit a different country" : "Submit country"}
+              />
+            </Panel>
+          </div>
+        )}
       </>
     );
   }

@@ -1,0 +1,12 @@
+Blisscco Phase 6 Step 3 Part 2: exact new and modified files. Project root par extract karo.
+(Part 2 me koi nayi SQL nahi hai.)
+
+NEW:
+  PHASE6-STEP3-PART2-PUBLISHER-ONBOARDING-REPORT.md
+  tests/regions/phase6-step3-part2-publisher-onboarding.test.ts
+
+MODIFIED:
+  app/dashboard/page.tsx
+  app/dashboard/publisher/page.tsx
+  supabase/MIGRATION-ORDER.md
+  tests/regions/phase6-step3-part1-advertiser-country.test.ts

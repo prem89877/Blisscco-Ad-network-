@@ -159,6 +159,12 @@ export default async function PublisherPage({ searchParams }: Props) {
                 </span>
               </p>
             )}
+            {country?.status === "pending" && (
+              <p className="mb-4 text-xs text-mist/60">Our team is checking your country. Until it is verified you may receive no regional ads. You can still change it below.</p>
+            )}
+            {country?.status === "rejected" && (
+              <p className="mb-4 text-sm text-amber-300">Your country was not accepted. Choose the correct country and submit it again for verification.</p>
+            )}
             <PublisherCountryForm
               options={countryOptions()}
               currentCode={country?.countryCode ?? null}
