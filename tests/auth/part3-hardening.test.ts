@@ -176,6 +176,7 @@ describe("part3: service-role key and publisher API keys stay server-side", () =
     "lib/ledger/ledger-db.ts", // Day 13 part 2
     "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only
     "lib/ads/emergency-stop-db.ts", // Phase 5 Step 4: emergency stop flag ka read-only padhna (1 rpc), server-only
+    "lib/ads/publisher-country-db.ts", // Phase 6 Step 2 Part 1: publisher country state ka read-only padhna (1 rpc, sirf VERIFIED country), server-only
     "lib/payments/payments-db.ts", // Phase 5 Step 5: verified payment event lagana (1 rpc), server-only; provider approve hone tak webhook route 503 deta hai
     "lib/ads/rich-assets-db.ts", // Phase 4 Step 3B: read-only rich asset lookup + private bucket download, server-only
     "lib/auth/oauth-role.ts", // Google signup role set karna: server-only, sirf do role rpc

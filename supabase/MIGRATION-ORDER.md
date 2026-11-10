@@ -36,6 +36,7 @@ Koi SQL kisi database par chalayi nahi gayi. Order file-headers + asli object de
 | 39 | phase4-step3c-1 (creative image limits: bucket `creative-assets` file_size_limit 2 MB -> 4 MB; logo 2 MB / banner 4 MB; **TEST first**) | phase4-step3-1 | check in the file footer | - |
 | 40 | phase5-step4-1 (emergency stop of all ad serving: `platform_safety_state`, append-only `safety_audit_log`, admin switch + read functions; **TEST first**; needs env `EMERGENCY_STOP_ENFORCED=1` to be read by the ad endpoint) | 3-5 | checks 1-5 in the file footer | - |
 | 41 | phase5-step5-1 (commercial payments, provider-neutral: advertiser_payments + webhook idempotency + audit; payout limits min 20 / max 500 / monthly, settlement with unique references; **TEST first, NOT RUN anywhere**) | 3-1, 3-2, 3-3, 13-1, 13-4, 13-9, 13-12, 13-15 | checks V1-V10 in the file footer | - |
+| 42 | phase6-step2-1 (publisher country verification: 5 `country_*` columns on `publishers`, guard trigger, `submit_publisher_country`, `admin_review_publisher_country`, service_role-only `get_publisher_country_state`; additive only; **TEST first, NOT RUN anywhere**; needs env `REGIONAL_ELIGIBILITY_ENFORCED=1` to be read by the ad endpoint) | 3-2, 3-5, 10-1 | checks V1-V7 in the file footer | - |
 | end | - | - | day-13-16 (data consistency) | - |
 
 TEST-only extra: `day-5-10-test-data-cleanup.sql` (commit karke TEST rows delete karta hai).

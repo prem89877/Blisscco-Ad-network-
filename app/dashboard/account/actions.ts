@@ -12,6 +12,7 @@ import {
   type PublisherFields,
   type SetupState,
 } from "@/lib/accounts/validation";
+import { parseCountrySubmission } from "@/lib/regions/publisher-country";
 
 // Naye user ka business/platform ka record banana. profile_id HAMESHA login se aata hai (form se kabhi nahi).
 // Naya record "pending" se shuru hota hai: admin approve kare tab hi kaam chalta hai.
@@ -54,11 +55,16 @@ export async function setupPublisher(_prev: SetupState<PublisherFields>, formDat
     name: text(formData, "name", 400),
     websiteUrl: text(formData, "websiteUrl", 2100),
     category: text(formData, "category", 100),
+    country: text(formData, "country", 16),
   };
 
-  const parsed = parsePublisherSetup(values);
-  if (!parsed.ok) {
-    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: parsed.errors, values };
+  const parsed = parsePublisherSetup({ name: values.name, websiteUrl: values.websiteUrl, category: values.category });
+  // Phase 6 Step 2 Part 1: country optional hai; di ho toh officially assigned ISO 3166-1 alpha-2 code hi chalega (central region module se).
+  const countryInput = values.country.trim();
+  const country = countryInput.length > 0 ? parseCountrySubmission(countryInput) : null;
+  if (!parsed.ok || (country !== null && !country.ok)) {
+    const fieldErrors = { ...(parsed.ok ? {} : parsed.errors), ...(country !== null && !country.ok ? { country: country.message } : {}) };
+    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors, values };
   }
 
   const supabase = await createClient();
@@ -79,6 +85,13 @@ export async function setupPublisher(_prev: SetupState<PublisherFields>, formDat
     console.error("[account] publisher setup failed", { code: error.code ?? null });
     const failure = mapPublisherSetupError(error);
     return { status: "error", message: failure.message, fieldErrors: failure.fieldErrors, values };
+  }
+
+  // Phase 6 Step 2 Part 1: country (optional) alag, database function se jaati hai: hamesha "pending" (publisher khud verify nahi kar sakta).
+  // Insert me country columns nahi jaate (unka GRANT nahi hai). Country save na ho toh account ban chuka hai: publisher page par dobara bhej sakta hai.
+  if (country !== null && country.ok) {
+    const { error: countryError } = await supabase.rpc("submit_publisher_country", { p_country_code: country.countryCode });
+    if (countryError) console.error("[account] publisher country submit failed", { code: countryError.code ?? null, hint: countryError.hint ?? null });
   }
 
   revalidatePath("/dashboard", "layout");

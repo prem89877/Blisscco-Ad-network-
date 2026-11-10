@@ -81,7 +81,9 @@ export function parseAdvertiserSetup(input: { companyName: string; websiteUrl: s
 }
 
 /* ---------------- Publisher ---------------- */
-export type PublisherFields = "name" | "websiteUrl" | "category";
+// "country" sirf form ke field-error ka naam hai. Country ki jaanch app/dashboard/account/actions.ts me hoti hai (central region module se);
+// yahan jaan-boojh kar nahi: Day 27 test is file ka module graph (preview route) exact set me bandha hai.
+export type PublisherFields = "name" | "websiteUrl" | "category" | "country";
 export type ParsedPublisher = { name: string; websiteUrl: string | null; category: string | null };
 export type PublisherParse =
   | { ok: true; value: ParsedPublisher }

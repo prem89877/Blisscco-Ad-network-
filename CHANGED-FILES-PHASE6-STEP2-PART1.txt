@@ -1,0 +1,35 @@
+Blisscco Phase 6 Step 2 Part 1: exact new and modified files.
+Is zip ko apni project folder ke upar extract karo (project root me). Is txt file ko repo me rakhna zaroori nahi.
+
+NEW:
+  PHASE6-STEP2-PART1-PUBLISHER-COUNTRY-REPORT.md
+  supabase/sql/phase6-step2-1-publisher-country-verification.sql   (TEST par pehle; kisi database par chalayi NAHI gayi)
+  lib/regions/publisher-country.ts
+  lib/ads/regional-eligibility.ts
+  lib/ads/publisher-country-db.ts
+  lib/publisher/country-queries.ts
+  app/dashboard/publisher/country-actions.ts
+  app/dashboard/admin/country-actions.ts
+  components/dashboard/PublisherCountryForm.tsx
+  components/admin/PublisherCountryPanel.tsx
+  components/admin/PublisherCountryReviewButton.tsx
+  tests/regions/country-stubs.ts
+  tests/regions/phase6-step2-part1-actions.test.ts
+  tests/regions/phase6-step2-part1-country-logic.test.ts
+  tests/regions/phase6-step2-part1-serve-gate.test.ts
+  tests/regions/phase6-step2-part1-sql.test.ts
+
+MODIFIED:
+  lib/ads/serve.ts
+  lib/ads/service.ts
+  lib/accounts/validation.ts            (sirf ek type: PublisherFields me "country")
+  app/dashboard/account/actions.ts
+  app/dashboard/publisher/page.tsx
+  app/dashboard/admin/page.tsx
+  components/dashboard/AccountSetupForm.tsx
+  .env.example                          (sirf commented REGIONAL_ELIGIBILITY_ENFORCED)
+  supabase/MIGRATION-ORDER.md           (row 42)
+  tests/ads/day10-part6-final.test.ts   (allowlist me publisher-country-db.ts)
+  tests/auth/part3-hardening.test.ts    (allowlist me publisher-country-db.ts)
+
+NOT changed: lib/regions/country-region.ts, pricing / payments / ledger / payouts, auth / role code, kisi purani SQL file.

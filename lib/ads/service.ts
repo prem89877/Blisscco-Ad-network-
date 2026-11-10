@@ -12,6 +12,8 @@ import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { isEmergencyStopEnforced, type StopState } from "./emergency-stop";
 import { readAdServingState } from "./emergency-stop-db";
+import { checkPublisherRegionalEligibility } from "./publisher-country-db";
+import { isRegionalEligibilityEnforced } from "./regional-eligibility";
 import { isPilotMetricsEnabled, type MetricSink } from "./pilot-monitoring";
 import { recordRequestMetric } from "./pilot-metrics-db";
 import { selectAd } from "./selection";
@@ -64,6 +66,9 @@ const productionDeps: ServeDeps = {
     }),
   record: recordServe,
   lookupReplay: findIdempotentServe,
+  // Phase 6 Step 2 Part 1: env REGIONAL_ELIGIBILITY_ENFORCED har request par padhta hai; exact "1" na ho toh gate hi nahi (purana behaviour).
+  checkRegionalEligibility: (publisherId) =>
+    isRegionalEligibilityEnforced(process.env) ? checkPublisherRegionalEligibility(publisherId) : Promise.resolve("eligible"),
   issueTracking: (input) => {
     const config = trackingConfig();
     if (!config) return null;

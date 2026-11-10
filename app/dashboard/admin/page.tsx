@@ -6,6 +6,7 @@ import PayoutRequestsPanel from "@/components/admin/PayoutRequestsPanel";
 import PayoutSettlementsPanel from "@/components/admin/PayoutSettlementsPanel";
 import PilotMonitoringPanel from "@/components/dashboard/PilotMonitoringPanel";
 import EmergencyStopPanel from "@/components/admin/EmergencyStopPanel";
+import PublisherCountryPanel from "@/components/admin/PublisherCountryPanel";
 import { describeStopEnv, isEmergencyStopEnforced, parseAdminSafetyState, type AdminSafetyState } from "@/lib/ads/emergency-stop";
 import { isPilotMetricsEnabled, loadPilotMonitoring } from "@/lib/ads/pilot-monitoring";
 import { requireRole } from "@/lib/auth/session";
@@ -268,6 +269,8 @@ export default async function AdminPage() {
         <Panel title="Publishers" note="Latest 30. A publisher's API key works only while the account is active.">
           <AccountList kind="publisher" rows={data.publishers} />
         </Panel>
+
+        <PublisherCountryPanel />
 
         <PayoutRequestsPanel />
 

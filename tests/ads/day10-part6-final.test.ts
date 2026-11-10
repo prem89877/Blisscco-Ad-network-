@@ -105,6 +105,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
       "lib/ads/impression-db.ts",
       "lib/ads/match.ts",
       "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only
+      "lib/ads/publisher-country-db.ts", // Phase 6 Step 2 Part 1: publisher country state ka read-only padhna (1 rpc, sirf VERIFIED country), server-only
       "lib/ads/rich-assets-db.ts", // Phase 4 Step 3B: read-only rich asset lookup (1 rpc) + private bucket download, server-only
       "lib/ads/serve-db.ts",
       "lib/auth/oauth-role.ts", // Google signup role set karna: server-only, sirf do role rpc (mark_role_choice_pending, set_initial_account_role)

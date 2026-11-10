@@ -6,6 +6,7 @@ import SubmitButton from "@/components/auth/SubmitButton";
 import Notice from "@/components/auth/Notice";
 import { setupAdvertiser, setupPublisher } from "@/app/dashboard/account/actions";
 import { CATEGORY_OPTIONS } from "@/lib/campaigns/constants";
+import type { CountryOption } from "@/lib/regions/publisher-country";
 import { COMPANY_MAX, NAME_MAX, URL_MAX, type AdvertiserFields, type PublisherFields, type SetupState } from "@/lib/accounts/validation";
 
 function formText(fd: FormData, key: string): string {
@@ -50,16 +51,17 @@ export function AdvertiserSetupForm() {
 }
 
 /** Publisher ka pehla step: chatbot / platform ka naam, website, category. */
-export function PublisherSetupForm() {
+export function PublisherSetupForm({ countryOptions }: { countryOptions: CountryOption[] }) {
   const { state, formAction, onSubmit } = useGuardedAction(setupPublisher, idlePublisher, {
     errorState: (prev, message, fd) => ({
       ...prev,
       status: "error" as const,
       message,
-      values: { name: formText(fd, "name"), websiteUrl: formText(fd, "websiteUrl"), category: formText(fd, "category") },
+      values: { name: formText(fd, "name"), websiteUrl: formText(fd, "websiteUrl"), category: formText(fd, "category"), country: formText(fd, "country") },
     }),
   });
   const categoryError = state.fieldErrors?.category;
+  const countryError = state.fieldErrors?.country;
   return (
     <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-xl space-y-5">
       <Field
@@ -103,6 +105,34 @@ export function PublisherSetupForm() {
         {categoryError && (
           <p id="pub-category-error" className="mt-1.5 text-sm text-red-300">
             {categoryError}
+          </p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="pub-country" className="mb-1.5 block text-sm font-medium text-mist">
+          Country (optional)
+        </label>
+        <select
+          id="pub-country"
+          name="country"
+          defaultValue={state.values?.country ?? ""}
+          aria-invalid={countryError ? true : undefined}
+          aria-describedby={countryError ? "pub-country-error" : "pub-country-hint"}
+          className="min-h-11 w-full rounded-lg border border-line bg-ink px-3.5 py-2 text-base text-mist"
+        >
+          <option value="">Choose later</option>
+          {countryOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p id="pub-country-hint" className="mt-1.5 text-xs text-mist/60">
+          Our team verifies your country. Until then it is not used for regional ads.
+        </p>
+        {countryError && (
+          <p id="pub-country-error" className="mt-1.5 text-sm text-red-300">
+            {countryError}
           </p>
         )}
       </div>

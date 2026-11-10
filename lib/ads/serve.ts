@@ -57,6 +57,11 @@ export type ServeDeps = {
    * null / throw / dep na ho => ad bina rich fields ke (text-only), jaisa pehle tha.
    */
   loadRich?: (creativeId: string) => Promise<RichAdFields | null>;
+  /**
+   * Optional (Phase 6 Step 2 Part 1): regional eligibility gate. Dep na ho => purana behaviour (koi check nahi).
+   * "ineligible" (country verified nahi / invalid) => no-fill; "error" ya throw => unavailable (fail closed). Authorize ke BAAD, kisi selection / serve / charge se PEHLE.
+   */
+  checkRegionalEligibility?: (publisherId: string) => Promise<"eligible" | "ineligible" | "error">;
 };
 
 export type ServeResult =
@@ -114,6 +119,13 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
     if (auth.outcome === "unauthorized") return { kind: "unauthorized" };
     if (auth.outcome === "rate_limited") return { kind: "rate_limited" };
     if (auth.outcome !== "ok") return { kind: "unavailable" };
+
+    // 1a. Regional eligibility (sirf jab dep di ho): verified country ke bina koi ad nahi. Retry-replay se bhi pehle (fail closed).
+    if (deps.checkRegionalEligibility) {
+      const gate = await deps.checkRegionalEligibility(auth.publisher.id);
+      if (gate === "ineligible") return { kind: "no_fill" };
+      if (gate !== "eligible") return { kind: "unavailable" };
+    }
 
     // 1b. Retry check: publisher ne `Idempotency-Key` bheji ho aur wo pehle charge ho chuki ho => wahi ad, DOBARA charge nahi.
     //     Ye selection se pehle hota hai, taaki pehli request se budget khatam ho gaya ho tab bhi retry ko wahi ad mile.

@@ -5,10 +5,13 @@ import Panel from "@/components/dashboard/Panel";
 import IntegrationSteps from "@/components/dashboard/IntegrationSteps";
 import PublisherKeyManager from "@/components/dashboard/PublisherKeyManager";
 import { PublisherSetupForm } from "@/components/dashboard/AccountSetupForm";
+import PublisherCountryForm from "@/components/dashboard/PublisherCountryForm";
 import Notice from "@/components/auth/Notice";
 import Button from "@/components/ui/Button";
 import { requireRole } from "@/lib/auth/session";
 import { loadMyPublisher } from "@/lib/publisher/queries";
+import { loadMyPublisherCountry } from "@/lib/publisher/country-queries";
+import { COUNTRY_STATUS_LABELS, countryDisplayName, countryOptions } from "@/lib/regions/publisher-country";
 import { categoryLabel } from "@/lib/campaigns/constants";
 import { listPublisherKeys } from "@/lib/publisher/keys-db";
 import { buildSetupSteps, type SetupState } from "@/lib/publisher/setup-guidance";
@@ -38,7 +41,7 @@ type Props = { searchParams: Promise<{ setup?: string }> };
 
 export default async function PublisherPage({ searchParams }: Props) {
   // Role check aur publisher ki query SAATH me (role galat ho toh redirect pehle hi ho jata hai).
-  const [, { publisher: pub, failed }] = await Promise.all([requireRole(["publisher"]), loadMyPublisher()]);
+  const [, { publisher: pub, failed }, country] = await Promise.all([requireRole(["publisher"]), loadMyPublisher(), loadMyPublisherCountry()]);
   const sp = await searchParams;
   // Database dikkat ko "publisher nahi hai" (Set up your platform form) na samjho: error boundary (Try again).
   if (failed) throw new Error("Publisher could not be loaded");
@@ -96,7 +99,7 @@ export default async function PublisherPage({ searchParams }: Props) {
 
         {!pub && (
           <Panel title="Set up your platform" note="One quick step before you can get an API key.">
-            <PublisherSetupForm />
+            <PublisherSetupForm countryOptions={countryOptions()} />
           </Panel>
         )}
 
@@ -132,6 +135,38 @@ export default async function PublisherPage({ searchParams }: Props) {
                 <dd className="mt-0.5 text-mist">{pub.category ? categoryLabel(pub.category) : "Not sure / mixed"}</dd>
               </div>
             </dl>
+          </Panel>
+        )}
+
+        {pub && pub.status !== "suspended" && (
+          <Panel
+            title="Country"
+            note="Your country is verified by our team. Only a verified country is used for regional ads. Until then you may receive no regional ads."
+          >
+            {country === null ? (
+              <p className="mb-4 text-sm text-amber-300">Your country status could not be loaded. You can still submit it below.</p>
+            ) : country.status === null || country.countryCode === null ? (
+              <p className="mb-4 text-sm text-mist/80">No country submitted yet.</p>
+            ) : (
+              <p className="mb-4 text-sm text-mist/80">
+                {countryDisplayName(country.countryCode)}{" "}
+                <span
+                  className={`ml-1 inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                    country.status === "verified" ? "bg-aqua/15 text-aqua" : country.status === "pending" ? "bg-amber-400/15 text-amber-300" : "bg-red-500/15 text-red-300"
+                  }`}
+                >
+                  {COUNTRY_STATUS_LABELS[country.status]}
+                </span>
+              </p>
+            )}
+            <PublisherCountryForm
+              options={countryOptions()}
+              currentCode={country?.countryCode ?? null}
+              submitLabel={country?.status === "rejected" ? "Submit a different country" : country?.countryCode ? "Change country" : "Submit country"}
+            />
+            {country?.status === "verified" && (
+              <p className="mt-3 text-xs text-mist/60">Changing a verified country sends it back for verification, and regional ads stop until it is verified again.</p>
+            )}
           </Panel>
         )}
 
