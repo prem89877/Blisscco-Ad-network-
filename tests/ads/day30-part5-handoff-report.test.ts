@@ -292,7 +292,7 @@ describe("day 30 part 5: nothing else was changed", () => {
 
   it("the repository still has exactly one .sh script, and ci.yml does not mention the report", () => {
     const sh = readdirSync(path.join(ROOT, "scripts")).filter((f) => f.endsWith(".sh"));
-    assert.deepEqual(sh, ["day28-verify.sh"]);
+    assert.deepEqual(sh, ["backup-production-db.sh", "day28-verify.sh"]); // backup-production-db.sh: pilot limits + backup task, ci.yml me syntax check
     assert.doesNotMatch(read(".github/workflows/ci.yml"), /DAY30-MVP-HANDOFF-REPORT/);
   });
 });

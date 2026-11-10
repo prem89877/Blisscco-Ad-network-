@@ -59,8 +59,8 @@ describe("day 9 part 2: budget rules (valid, invalid, boundary)", () => {
 
   it("valid budgets pass", () => {
     assert.deepEqual(ok("500", "50").errors, {});
-    assert.deepEqual(ok("2500.50", "").errors, {});
-    assert.equal(ok("2500.50", "").totalCents, 250050);
+    assert.deepEqual(ok("999.50", "").errors, {});
+    assert.equal(ok("999.50", "").totalCents, 99950);
     assert.equal(ok("500", "").dailyCents, null, "daily is optional");
   });
   it("total must be a positive number", () => {
@@ -76,9 +76,11 @@ describe("day 9 part 2: budget rules (valid, invalid, boundary)", () => {
     assert.equal(ok("0.99").errors.totalBudget, BUDGET_MESSAGES.totalMin);
     assert.equal(ok("0.01").errors.totalBudget, BUDGET_MESSAGES.totalMin);
   });
-  it("boundary: maximum total", () => {
-    assert.equal(ok(MAX_BUDGET.toFixed(2)).errors.totalBudget, undefined);
-    assert.equal(ok("10000000").errors.totalBudget, undefined);
+  it("boundary: maximum total (database/app max 10,000,000; pilot limit 1,000 per campaign)", () => {
+    assert.equal(ok("1000").errors.totalBudget, undefined);
+    assert.equal(ok("1000.00").errors.totalBudget, undefined);
+    assert.equal(ok("1000.01").errors.totalBudget, BUDGET_MESSAGES.totalPilotMax);
+    assert.equal(ok(MAX_BUDGET.toFixed(2)).errors.totalBudget, BUDGET_MESSAGES.totalPilotMax, "10,000,000 fits the database but not the pilot");
     assert.equal(ok("10000000.01").errors.totalBudget, BUDGET_MESSAGES.totalMax);
     assert.equal(ok("99999999999").errors.totalBudget, BUDGET_MESSAGES.totalMax);
     assert.equal(ok("9".repeat(400)).errors.totalBudget, BUDGET_MESSAGES.totalMax);
@@ -207,11 +209,11 @@ describe("day 9 part 2: updateCampaign budget flow (owner)", () => {
   });
 
   it("VALID: owner changes budgets -> saved, exact numbers, filtered by own advertiser", async () => {
-    const r = await run(form({ totalBudget: "1,250.50", dailyBudget: "100.25" }));
+    const r = await run(form({ totalBudget: "750.50", dailyBudget: "100.25" }));
     assert.match(r.redirect ?? "", /updated=1/);
     assert.equal(updates().length, 1);
     const u = updates()[0];
-    assert.equal(u.payload.total_budget, 1250.5);
+    assert.equal(u.payload.total_budget, 750.5);
     assert.equal(u.payload.daily_budget, 100.25);
     assert.ok(u.filters.some(([c, v]) => c === "advertiser_id" && v === "adv-A"));
     assert.ok(u.filters.some(([c, v]) => c === "id" && v === CAMP_ID));
@@ -244,10 +246,10 @@ describe("day 9 part 2: updateCampaign budget flow (owner)", () => {
     }
     assert.equal(updates().length, 0, "no invalid value ever reached the database");
   });
-  it("BOUNDARY: total exactly 10,000,000.00 with daily equal to total is saved", async () => {
-    const r = await run(form({ totalBudget: "10000000.00", dailyBudget: "10000000.00" }));
+  it("BOUNDARY: total exactly 1,000.00 (pilot limit) with daily equal to total is saved", async () => {
+    const r = await run(form({ totalBudget: "1000.00", dailyBudget: "1000.00" }));
     assert.match(r.redirect ?? "", /updated=1/);
-    assert.equal(updates()[0].payload.total_budget, 10000000);
+    assert.equal(updates()[0].payload.total_budget, 1000);
   });
   it("BOUNDARY: total below the money already spent is blocked, equal to spend is allowed", async () => {
     fake.campaigns = [campaign({ status: "active", totalBudget: 100, dailyBudget: null })];

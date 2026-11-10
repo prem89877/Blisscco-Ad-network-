@@ -15,3 +15,7 @@ npm-debug.log*
 supabase/.temp
 supabase/.branches
 coverage
+# Production DB backups (real user/payment data): never commit
+backups/
+*.dump
+*.dump.sha256

@@ -20,6 +20,7 @@ import {
   readCreativeValues,
   type CreativeFormState,
 } from "@/lib/campaigns/creative-validation";
+import { pilotTotalProblem } from "@/lib/campaigns/pilot-guard";
 import { REVIEW_ACTIONS, SUBMIT_BLOCK_MESSAGES, checkSubmitCampaign, isReviewAction } from "@/lib/campaigns/review";
 import type { RunStateResult } from "@/lib/campaigns/types";
 
@@ -219,6 +220,12 @@ export async function changeCampaignReviewState(_prev: RunStateResult, formData:
   if (action === "submit") {
     const check = checkSubmitCampaign(current, reviewable, utcToday());
     if (!check.ok) return { status: "error", message: SUBMIT_BLOCK_MESSAGES[check.reason] };
+  }
+
+  // Rejected campaign wapas draft me aaye toh wo dobara advertiser ke pilot total ($2,000) me ginta jayega: pehle jaancho.
+  if (action === "reopen") {
+    const pilotProblem = await pilotTotalProblem(adv.id, current.totalBudget, current.id);
+    if (pilotProblem) return { status: "error", message: pilotProblem };
   }
 
   const supabase = await createClient();

@@ -5,6 +5,7 @@ import { isUuid } from "./constants";
 import { EMPTY_FILTERS, escapeLike, type CampaignFilters } from "./filters";
 import { toCampaign, type Campaign } from "./types";
 import { toCreative, type Creative } from "./creative-validation";
+import { sumCountedBudgetCents } from "./pilot-limits";
 import { toAdvertiser, type AdvertiserResult, type MyAdvertiser } from "./advertiser";
 
 // Sirf server par chalta hai (next/headers). Har query me advertiser_id ka filter EXPLICIT hai:
@@ -96,6 +97,24 @@ export async function loadMyCampaign(advertiserId: string, campaignId: string): 
     return campaign ? { campaign, failed: false } : { campaign: null, failed: true };
   } catch {
     return { campaign: null, failed: true };
+  }
+}
+
+/**
+ * Pilot limit ke liye: is advertiser ke (ginti me aane wale) campaigns ka total budget, cents me.
+ * excludeCampaignId = jis campaign ko edit kar rahe hain (uska purana total ginti me nahi aana chahiye).
+ * null = padh nahi paya ya row ka shape galat (caller block karta hai; chupchap pass nahi karta).
+ */
+export async function getCommittedBudgetCents(advertiserId: string, excludeCampaignId?: string): Promise<number | null> {
+  try {
+    const supabase = await createClient();
+    let query = supabase.from("campaigns").select("id, status, total_budget").eq("advertiser_id", advertiserId);
+    if (excludeCampaignId) query = query.neq("id", excludeCampaignId);
+    const { data, error } = await query.limit(1000);
+    if (error || !data) return null;
+    return sumCountedBudgetCents(data);
+  } catch {
+    return null;
   }
 }
 

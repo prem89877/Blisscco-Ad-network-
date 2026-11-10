@@ -1,5 +1,6 @@
 import type { EventStatus } from "./status";
 import { createCashfreeAdapter } from "./cashfree";
+import { createRazorpayAdapter } from "./razorpay";
 
 // Phase 5 Step 5: payment provider ka SANDHI (interface). Koi concrete provider nahi: owner ne abhi koi provider approve nahi kiya
 // (PENDING OWNER DECISION). Jab tak PAYMENT_PROVIDER env set na ho aur uska adapter na likha jaye, getPaymentProvider() null deta hai
@@ -45,7 +46,9 @@ export function isValidProviderName(v: unknown): v is string {
  */
 const REGISTRY: Readonly<Record<string, (env: Record<string, string | undefined>) => PaymentProviderAdapter | null>> = {
   // Owner ka faisla (2026-11-09): advertiser payments ke liye Cashfree. Sirf SANDBOX: createCashfreeAdapter production env par null deta hai.
-  cashfree: createCashfreeAdapter,
+  cashfree: createCashfreeAdapter, // 2026-11-09: Cashfree ne International Payment Gateway activate nahi kiya (BLOCKED). Code purani jaankari ke liye rakha hai.
+  // Owner ka naya faisla (2026-11-09): Razorpay. Sirf TEST mode (key rzp_test_...). Approval PENDING OWNER CONFIRMATION.
+  razorpay: createRazorpayAdapter,
 };
 
 export function getPaymentProvider(env: Record<string, string | undefined> = process.env): PaymentProviderAdapter | null {

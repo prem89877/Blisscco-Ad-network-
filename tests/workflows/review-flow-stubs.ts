@@ -51,7 +51,10 @@ export const fake = {
   roleCalls: [] as string[][],
   /** Sirf admin session: false => admin_* rpc 42501 deta hai (private.is_admin()). */
   isAdmin: true,
+  /** Pilot limit: baaki campaigns ka total padh na paye toh true (fail-closed test). */
+  committedFails: false,
   reset() {
+    this.committedFails = false;
     this.me = { id: "adv-A", status: "active" };
     this.profileStatus = "active";
     this.roleFails = false;
@@ -269,6 +272,14 @@ const stubs: Record<string, unknown> = {
     async loadMyCampaign(advertiserId: string, campaignId: string) {
       const c = fake.campaigns.find((x) => x.id === campaignId && x.advertiserId === advertiserId);
       return { campaign: c ?? null, failed: false };
+    },
+    // Pilot limit: asli query jaisa (sirf is advertiser ke, ginti me aane wale statuses, excludeCampaignId ke bina).
+    async getCommittedBudgetCents(advertiserId: string, excludeCampaignId?: string) {
+      if (fake.committedFails) return null;
+      const counted = ["draft", "pending_review", "active", "paused", "completed"];
+      return fake.campaigns
+        .filter((c) => c.advertiserId === advertiserId && c.id !== excludeCampaignId && counted.includes(c.status))
+        .reduce((sum, c) => sum + Math.round(c.totalBudget * 100), 0);
     },
     async getCampaignSpend() {
       return { spentTotal: fake.spent, spentToday: 0, servesTotal: 0 };

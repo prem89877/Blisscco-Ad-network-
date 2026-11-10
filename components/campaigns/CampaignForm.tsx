@@ -6,7 +6,7 @@ import Notice from "@/components/auth/Notice";
 import SubmitButton from "@/components/auth/SubmitButton";
 import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { readFormValues } from "@/lib/campaigns/validation";
-import { CATEGORY_OPTIONS, DESC_MAX, MAX_BUDGET, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
+import { CATEGORY_OPTIONS, DESC_MAX, MIN_DAILY_BUDGET, PILOT_MAX_ADVERTISER_TOTAL, PILOT_MAX_CAMPAIGN_BUDGET, MIN_TOTAL_BUDGET, NAME_MAX, categoryLabel } from "@/lib/campaigns/constants";
 import { checkBudgets, type BudgetField } from "@/lib/campaigns/budget-rules";
 import { BELOW_SPEND_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
 import { dollarsToCents } from "@/lib/campaigns/money";
@@ -208,7 +208,7 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
       </FieldShell>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <FieldShell id="totalBudget" label="Total budget (USD)" error={err("totalBudget")} hint={`At least $${MIN_TOTAL_BUDGET.toFixed(2)} and at most $${MAX_BUDGET.toLocaleString("en-US")}.00. For example 2500 or 2500.50.${
+        <FieldShell id="totalBudget" label="Total budget (USD)" error={err("totalBudget")} hint={`At least $${MIN_TOTAL_BUDGET.toFixed(2)} and at most $${PILOT_MAX_CAMPAIGN_BUDGET.toLocaleString("en-US")}.00 per campaign (pilot limit; all your campaigns together up to $${PILOT_MAX_ADVERTISER_TOTAL.toLocaleString("en-US")}.00). For example 250 or 250.50.${
             mode === "edit" && typeof spentTotal === "number" && spentTotal > 0 ? ` Already spent: $${spentTotal.toFixed(4)}, so the total cannot go lower.` : ""
           }`}>
           {(d, invalid) => (

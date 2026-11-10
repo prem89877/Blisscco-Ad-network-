@@ -277,9 +277,10 @@ describe("phase 5 step 5 | provider not configured: everything fails closed", ()
     assert.equal(res.status, 503);
     assert.deepEqual(await res.json(), { error: "not_configured" });
   });
-  it("only Cashfree (the owner's choice) is named in payment code; no other provider, no live URL, no key format", () => {
+  it("only Cashfree and Razorpay (the owner's choices) are named in payment code; no other provider, no live URL, no key format", () => {
     const files = [...walk("lib/payments", (f) => f.endsWith(".ts")), "app/api/payments/webhook/route.ts", "supabase/sql/phase5-step5-1-commercial-payments.sql"];
-    const banned = /stripe|razorpay|paypal|paddle|lemon\s?squeezy|dodo|payu|payoneer|wise\.com|api\.cashfree|sk_live|sk_test|rzp_|whsec_/i;
+    // Step 6: owner ne Razorpay chuna (Cashfree ne mana kiya); razorpay.ts ke apne checks tests/payments/phase5-step6-razorpay.test.ts me hain.
+    const banned = /stripe|paypal|paddle|lemon\s?squeezy|dodo|payu|payoneer|wise\.com|api\.cashfree|sk_live|sk_test|whsec_/i;
     for (const f of files) {
       const code = read(f).replace(/\/\/[^\n]*/g, "").replace(/--[^\n]*/g, "");
       assert.equal(banned.test(code), false, f);

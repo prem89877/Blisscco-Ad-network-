@@ -71,6 +71,16 @@ export const DESC_MAX = 1000;
 // numeric(12,2) ki sima ~10 billion; app me practical limit.
 export const MAX_BUDGET = 10_000_000;
 
+// PILOT LIMITS (owner decision, 2026-11-07): ab code me enforce hote hain (pehle sirf approver ke process se chalte the).
+//  - ek campaign ka total budget <= PILOT_MAX_CAMPAIGN_BUDGET (USD)
+//  - ek advertiser ke saare campaigns ka total budget milakar <= PILOT_MAX_ADVERTISER_TOTAL (USD)
+// MAX_BUDGET (10,000,000) database CHECK se mel khata hai, usse mat badlo; pilot limit badalni ho toh sirf yahi do number badlo.
+export const PILOT_MAX_CAMPAIGN_BUDGET = 1000;
+export const PILOT_MAX_ADVERTISER_TOTAL = 2000;
+// Advertiser total me kin statuses ke campaigns ginte hain. rejected aur archived nahi ginte (wo live nahi ja sakte);
+// rejected wapas draft me aaye toh reopen/edit par total dobara jaancha jata hai.
+export const PILOT_COUNTED_STATUSES = ["draft", "pending_review", "active", "paused", "completed"] as const;
+
 // Day 9 Part 1: bahut chhota budget kabhi serve nahi hota (ek serve ki keemat CPM/1000 = $0.002 default),
 // par campaign "Active" dikhta rehta hai. Isliye minimum. Badalna ho toh sirf yahi do number badlo.
 export const MIN_TOTAL_BUDGET = 1;

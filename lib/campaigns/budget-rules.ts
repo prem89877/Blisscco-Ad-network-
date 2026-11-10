@@ -1,4 +1,4 @@
-import { MAX_BUDGET, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET } from "./constants";
+import { MAX_BUDGET, MIN_DAILY_BUDGET, MIN_TOTAL_BUDGET, PILOT_MAX_CAMPAIGN_BUDGET } from "./constants";
 import { centsToDollars, dollarsToCents, formatCents, parseMoneyCents } from "./money";
 
 // Budget ke niyam ek jagah (koi database/env nahi). Server (validation.ts) aur browser form (CampaignForm) DONO yahi use karte hain,
@@ -20,6 +20,7 @@ export type BudgetCheck = {
 };
 
 const MAX_CENTS = MAX_BUDGET * 100;
+const PILOT_MAX_CAMPAIGN_CENTS = Math.round(PILOT_MAX_CAMPAIGN_BUDGET * 100);
 const MIN_TOTAL_CENTS = Math.round(MIN_TOTAL_BUDGET * 100);
 const MIN_DAILY_CENTS = Math.round(MIN_DAILY_BUDGET * 100);
 
@@ -28,6 +29,7 @@ export const BUDGET_MESSAGES = {
   totalFormat: "Enter a number like 2500 or 2500.50. No symbols, spaces or minus sign, and at most 2 decimals.",
   totalPositive: "Total budget must be more than 0.",
   totalMax: `Total budget can be at most ${formatCents(MAX_CENTS)}.`,
+  totalPilotMax: `During the pilot, one campaign can have a total budget of at most ${formatCents(PILOT_MAX_CAMPAIGN_CENTS)}.`,
   totalMin: `Total budget must be at least ${formatCents(MIN_TOTAL_CENTS)}.`,
   dailyFormat: "Enter a number like 100 or 100.50 (at most 2 decimals), or leave it empty.",
   dailyPositive: "Daily budget must be more than 0, or leave it empty.",
@@ -52,6 +54,8 @@ export function checkBudgets(totalRaw: string, dailyRaw: string, existing?: Budg
       t.reason === "empty" ? BUDGET_MESSAGES.totalEmpty : t.reason === "too_large" ? BUDGET_MESSAGES.totalMax : BUDGET_MESSAGES.totalFormat;
   } else if (t.cents <= 0) errors.totalBudget = BUDGET_MESSAGES.totalPositive;
   else if (t.cents > MAX_CENTS) errors.totalBudget = BUDGET_MESSAGES.totalMax;
+  // Pilot limit: badli hui value par hi (purana bada campaign sirf naam badalne par na atke; wo naye total par hi rukta hai).
+  else if (t.cents > PILOT_MAX_CAMPAIGN_CENTS && t.cents !== oldTotal) errors.totalBudget = BUDGET_MESSAGES.totalPilotMax;
   else if (t.cents < MIN_TOTAL_CENTS && t.cents !== oldTotal) errors.totalBudget = BUDGET_MESSAGES.totalMin;
   else totalCents = t.cents;
 

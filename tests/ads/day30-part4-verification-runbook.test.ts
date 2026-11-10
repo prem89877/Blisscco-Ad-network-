@@ -155,7 +155,7 @@ describe("day 30 part 4: the existing script and guide are referenced, not repla
 
   it("the repository still has exactly one .sh script, so none was added by this part", () => {
     const sh = readdirSync(path.join(ROOT, "scripts")).filter((f) => f.endsWith(".sh"));
-    assert.deepEqual(sh, ["day28-verify.sh"]);
+    assert.deepEqual(sh, ["backup-production-db.sh", "day28-verify.sh"]); // backup-production-db.sh: pilot limits + backup task, ci.yml me syntax check
     assert.match(section("9. Limits and what was not changed"), /No `\.sh` script was added, so `\.github\/workflows\/ci\.yml` is unchanged/);
     assert.doesNotMatch(read(".github/workflows/ci.yml"), /MVP-VERIFICATION-RUNBOOK/);
   });

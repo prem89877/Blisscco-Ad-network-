@@ -16,3 +16,14 @@ Order: `MIGRATION-ORDER.md`. Koi SQL abhi tak kisi DB par chali nahi: har "PASS"
 - Low-traffic mein chalao (12-1 mein ad_serve_log par lock/index).
 - Migrations ke baad: ledger **band** rehta hai (`ledger_enabled=false`), `publisher_share_bps` NULL, CPM aur serve-based billing unchanged. Inhe is runbook mein chhuna nahi hai.
 - Aakhir mein day-13-16 (data consistency): PASS.
+
+
+---
+
+## Addendum (2026-11-09, Phase 5 Step 6)
+Upar ke niyam badle nahi. Jodna hai:
+- Production par kuch bhi chalane se pehle: backup lo aur ek baar test-restore karo (Production abhi Free plan par hai, koi backup nahi, Seen 2026-11-08).
+- Pehle Production ka read-only inventory (`day-8-1-readonly-verify.sql`, `day-7-2-verify.sql`) likho, phir sirf wahi numbers chalao jo kam hain.
+- `phase5-step4-1` ke footer checks TEST par poore hone ke baad hi; `phase5-step5-1` (payments) pehli Production release me nahi.
+- 22 TEST-only files kabhi Production par nahi.
+Poori checklist: `PRODUCTION-DEPLOYMENT-SAFETY-PLAN.md`. Status: `PHASE5-PRODUCTION-READINESS-REPORT.md`.

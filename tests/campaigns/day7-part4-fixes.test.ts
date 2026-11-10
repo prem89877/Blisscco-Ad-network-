@@ -23,7 +23,7 @@ describe("day 7 part 4 fixes", () => {
       const r = parseCampaignForm({ ...base, totalBudget: bad }, { todayUtc: TODAY });
       assert.equal(r.ok, false, bad);
     }
-    for (const good of ["2,500", "1,234,567.50", "2500"]) {
+    for (const good of ["1,000", "1,000.00", "999.50", "1000"]) {
       assert.equal(parseCampaignForm({ ...base, totalBudget: good }, { todayUtc: TODAY }).ok, true, good);
     }
   });

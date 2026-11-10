@@ -36,6 +36,10 @@ jobs:
 
       # Neeche ke checks `!cancelled()` se chalte hain: ek fail hone par bhi baaki chalte hain,
       # taaki saari asli failures ek hi run me dikhein. Job phir bhi fail rehta hai.
+      # Shell script (scripts/backup-production-db.sh): sirf syntax check, script chalti nahi (database/secret ki zaroorat nahi).
+      - name: Shell script syntax (bash -n)
+        run: bash -n scripts/backup-production-db.sh
+
       - name: Type check (npm run lint = tsc --noEmit)
         run: npm run lint
 

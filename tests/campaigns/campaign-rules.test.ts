@@ -12,7 +12,7 @@ const good: FormValues = {
   name: "Diwali sale",
   description: "",
   category: "lifestyle",
-  totalBudget: "1,500.50",
+  totalBudget: "500.50",
   dailyBudget: "100",
   startDate: TODAY,
   endDate: "2026-11-30",
@@ -24,7 +24,7 @@ describe("campaigns: form validation", () => {
     const r = parseCampaignForm(good, opts);
     assert.ok(r.ok);
     if (r.ok) {
-      assert.equal(r.value.totalBudget, 1500.5);
+      assert.equal(r.value.totalBudget, 500.5);
       assert.equal(r.value.dailyBudget, 100);
       assert.equal(r.value.description, null);
     }
@@ -41,6 +41,8 @@ describe("campaigns: form validation", () => {
       [{ totalBudget: "0" }, "totalBudget"],
       [{ totalBudget: "10000001" }, "totalBudget"],
       [{ dailyBudget: "2000" }, "dailyBudget"],
+      [{ totalBudget: "1000.01" }, "totalBudget"], // pilot limit: 1,000 per campaign
+      [{ totalBudget: "5000" }, "totalBudget"],
       [{ dailyBudget: "abc" }, "dailyBudget"],
     ];
     for (const [over, field] of cases) {

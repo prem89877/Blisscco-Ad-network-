@@ -8,6 +8,7 @@ import { getCampaignSpend, getCreativeSummary, loadMyAdvertiser, loadMyCampaign 
 import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isCategory, isUuid } from "@/lib/campaigns/constants";
 import { parseCampaignForm, readFormValues, utcToday } from "@/lib/campaigns/validation";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
+import { pilotTotalProblem } from "@/lib/campaigns/pilot-guard";
 import { BELOW_SPEND_MESSAGE, SPEND_UNKNOWN_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
 import { PAUSE_BLOCK_MESSAGE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import type { CampaignFormState, RunStateResult } from "@/lib/campaigns/types";
@@ -43,6 +44,12 @@ export async function createCampaign(_prev: CampaignFormState, formData: FormDat
     return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: parsed.errors, values };
   }
   const v = parsed.value;
+
+  // Pilot limit: is advertiser ke saare campaigns ka total budget (naye ko milakar) $2,000 se zyada nahi.
+  const pilotProblem = await pilotTotalProblem(adv.id, v.totalBudget);
+  if (pilotProblem) {
+    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: { totalBudget: pilotProblem }, values };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -119,6 +126,14 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
     return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: parsed.errors, values };
   }
   const v = parsed.value;
+
+  // Pilot limit: total badla ho (ya rejected campaign dobara ginti me aane wala ho) toh advertiser ka total $2,000 ke andar rahe.
+  if (v.totalBudget !== current.totalBudget || current.status === "rejected") {
+    const pilotProblem = await pilotTotalProblem(adv.id, v.totalBudget, current.id);
+    if (pilotProblem) {
+      return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: { totalBudget: pilotProblem }, values };
+    }
+  }
 
   // Total budget ab tak ke kharch se neeche nahi ja sakta (warna campaign chupchap khatam ho jata hai par "Active" dikhta hai).
   // Active/paused me kharch na padh paye toh edit rokte hain (fail-closed). Draft/rejected me kharch 0 hota hai: padh na paye toh aage badhte hain.

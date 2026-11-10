@@ -33,8 +33,11 @@ export const fake = {
   creatives: { total: 1, approved: 1 } as { total: number; approved: number } | null,
   /** Database update/insert par ye error laut aaye (trigger/CHECK jaisa). */
   dbError: null as { code: string; hint?: string } | null,
+  /** Pilot limit: baaki campaigns ka total padh na paye toh true (fail-closed test). */
+  committedFails: false,
   calls: [] as DbCall[],
   reset() {
+    this.committedFails = false;
     this.me = { id: "adv-A", status: "active" };
     this.roleFails = false;
     this.campaigns = [];
@@ -104,6 +107,14 @@ const stubs: Record<string, unknown> = {
     async loadMyCampaign(advertiserId: string, campaignId: string) {
       const c = fake.campaigns.find((x) => x.id === campaignId && x.advertiserId === advertiserId);
       return { campaign: c ?? null, failed: false };
+    },
+    // Asli query jaisa: sirf is advertiser ke, excludeCampaignId ke bina, ginti me aane wale statuses.
+    async getCommittedBudgetCents(advertiserId: string, excludeCampaignId?: string) {
+      if (fake.committedFails) return null;
+      const counted = ["draft", "pending_review", "active", "paused", "completed"];
+      return fake.campaigns
+        .filter((c) => c.advertiserId === advertiserId && c.id !== excludeCampaignId && counted.includes(c.status))
+        .reduce((sum, c) => sum + Math.round(c.totalBudget * 100), 0);
     },
     async getCampaignSpend() {
       return fake.spend;

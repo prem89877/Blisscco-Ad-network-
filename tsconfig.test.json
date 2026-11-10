@@ -34,6 +34,7 @@
     "lib/campaigns/budget.ts",
     "lib/campaigns/budget-rules.ts",
     "lib/campaigns/money.ts",
+    "lib/campaigns/pilot-limits.ts",
     "lib/campaigns/errors.ts",
     "lib/campaigns/advertiser.ts",
     "lib/accounts/validation.ts",
