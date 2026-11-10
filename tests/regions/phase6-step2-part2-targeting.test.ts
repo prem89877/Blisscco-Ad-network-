@@ -511,9 +511,10 @@ describe("Part 2: SQL migration (static checks; never run anywhere)", () => {
     assert.ok(!/load_ad_candidates|record_ad_serve|authorize_publisher_key|ledger|payout|cpm/i.test(code));
   });
 
-  it("MIGRATION-ORDER lists it as TEST-first and not run", () => {
+  it("MIGRATION-ORDER lists it as TEST-first and not applied on Production", () => {
     const order = read("supabase/MIGRATION-ORDER.md");
-    assert.match(order, /\| 43 \| phase6-step2-2 .*TEST first, NOT RUN anywhere/);
+    assert.match(order, /\| 43 \| phase6-step2-2 .*TEST first/);
+    assert.match(order, /\| 43 \| phase6-step2-2 .*NOT applied on Production/);
   });
 });
 
