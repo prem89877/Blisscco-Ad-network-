@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import Button from "@/components/ui/Button";
@@ -10,6 +12,8 @@ import { AdvertiserSetupForm, PublisherSetupForm } from "@/components/dashboard/
 import AdvertiserCountryForm from "@/components/dashboard/AdvertiserCountryForm";
 import PublisherCountryForm from "@/components/dashboard/PublisherCountryForm";
 import { countryOptions } from "@/lib/regions/publisher-country";
+import { loadCountryPromptMode } from "@/lib/regions/country-prompt-queries";
+import { COUNTRY_PROMPT_COOKIE, countryPromptMarker, isCountryPromptSkipped } from "@/lib/regions/country-prompt";
 import { loadMyPublisher } from "@/lib/publisher/queries";
 import Notice from "@/components/auth/Notice";
 import { listPublisherKeys } from "@/lib/publisher/keys-db";
@@ -53,8 +57,16 @@ async function pendingCount(table: "advertisers" | "publishers" | "ad_creatives"
   }
 }
 
-export default async function OverviewPage() {
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ later?: string }> }) {
   const account = await requireAccount();
+
+  // Login ke baad dashboard khulne se pehle country (advertiser / publisher jinhone nahi chuni). "Do it later" is login ke liye yaad rehta hai
+  // (cookie ya ?later=1); naya login => dobara poochta hai. Load fail / suspended / admin => kabhi redirect nahi.
+  if (account.role === "advertiser" || account.role === "publisher") {
+    const later = (await searchParams).later === "1";
+    const skipped = later || isCountryPromptSkipped((await cookies()).get(COUNTRY_PROMPT_COOKIE)?.value, countryPromptMarker(account.user));
+    if (!skipped && (await loadCountryPromptMode(account.role)) !== null) redirect("/auth/choose-country");
+  }
 
   if (account.role === "advertiser") {
     const { advertiser: adv, failed: advertiserFailed } = await loadMyAdvertiser();

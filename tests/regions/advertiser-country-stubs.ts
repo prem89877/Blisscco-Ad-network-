@@ -16,7 +16,12 @@ export const advFake = {
   /** update ... select("id") me kitni rows wapas aayen (0 = advertiser row nahi mili). */
   updateRows: 1,
   revalidated: [] as { path: string; type?: string }[],
+  /** Login wale user ki pehchaan (requireUser) aur "Later" cookie ke set calls. */
+  user: { id: "user-adv-1", last_sign_in_at: "2026-11-10T06:00:00Z" } as { id: string; last_sign_in_at: string },
+  cookieSets: [] as { name: string; value: string; options: Record<string, unknown> }[],
   reset() {
+    this.user = { id: "user-adv-1", last_sign_in_at: "2026-11-10T06:00:00Z" };
+    this.cookieSets = [];
     this.role = "advertiser";
     this.userId = "user-adv-1";
     this.roleCalls = [];
@@ -40,7 +45,22 @@ const stubs: Record<string, unknown> = {
       advFake.revalidated.push({ path, type });
     },
   },
+  "next/headers": {
+    async cookies() {
+      return {
+        set(name: string, value: string, options: Record<string, unknown>) {
+          advFake.cookieSets.push({ name, value, options });
+        },
+        get() {
+          return undefined;
+        },
+      };
+    },
+  },
   "@/lib/auth/session": {
+    async requireUser() {
+      return advFake.user;
+    },
     async requireRole(allowed: string[]) {
       advFake.roleCalls.push(allowed);
       if (!allowed.includes(advFake.role)) throw new Error("REDIRECT:/dashboard");

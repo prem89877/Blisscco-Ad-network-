@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { mapAdvertiserCountryError, parseAdvertiserCountry } from "@/lib/regions/advertiser-country";
@@ -30,5 +31,7 @@ export async function updateAdvertiserCountry(_prev: RunStateResult, formData: F
   if (!data || data.length === 0) return { status: "error", message: "Please set up your business details first." };
 
   revalidatePath("/dashboard/advertiser/campaigns");
+  // Login ke baad wale country screen se aaye ho toh seedha dashboard (sirf is hidden flag par; baaki jagah pehle jaisa).
+  if (formData.get("continue") === "dashboard") redirect("/dashboard");
   return { status: "success", message: "Country saved." };
 }

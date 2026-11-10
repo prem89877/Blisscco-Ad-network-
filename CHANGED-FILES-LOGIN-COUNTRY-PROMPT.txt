@@ -1,0 +1,18 @@
+Blisscco: login country screen + Do it later. Project root par extract karo. (Koi nayi SQL nahi.)
+
+NEW:
+  PHASE6-STEP3-LOGIN-COUNTRY-PROMPT-REPORT.md
+  app/auth/choose-country/page.tsx
+  app/auth/choose-country/actions.ts
+  lib/regions/country-prompt.ts
+  lib/regions/country-prompt-queries.ts
+  tests/regions/phase6-step3-login-country-prompt.test.ts
+  tests/regions/phase6-step3-login-country-prompt-publisher.test.ts
+
+MODIFIED:
+  app/dashboard/page.tsx
+  app/dashboard/advertiser/country-actions.ts
+  app/dashboard/publisher/country-actions.ts
+  components/dashboard/AdvertiserCountryForm.tsx
+  components/dashboard/PublisherCountryForm.tsx
+  tests/regions/advertiser-country-stubs.ts

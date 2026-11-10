@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { mapCountryError, parseCountrySubmission } from "@/lib/regions/publisher-country";
@@ -25,5 +26,7 @@ export async function submitPublisherCountry(_prev: RunStateResult, formData: Fo
   }
 
   revalidatePath("/dashboard/publisher");
+  // Login ke baad wale country screen se aaye ho toh seedha dashboard (sirf is hidden flag par; baaki jagah pehle jaisa).
+  if (formData.get("continue") === "dashboard") redirect("/dashboard");
   return { status: "success", message: "Country saved. It will be used for regional ads after our team verifies it." };
 }

@@ -7,13 +7,14 @@ import { updateAdvertiserCountry } from "@/app/dashboard/advertiser/country-acti
 import type { CountryOption } from "@/lib/regions/publisher-country";
 import { initialRunState } from "@/lib/campaigns/types";
 
-type Props = { currentCode: string | null; submitLabel: string; /** Server page se aate hain (server aur browser ke Intl naam alag hon toh hydration mismatch na ho). */ options: CountryOption[] };
+type Props = { currentCode: string | null; submitLabel: string; /** Login ke baad wale screen par: save ke baad seedha dashboard. */ continueToDashboard?: boolean; /** Server page se aate hain (server aur browser ke Intl naam alag hon toh hydration mismatch na ho). */ options: CountryOption[] };
 
 /** Advertiser business country form (pehli baar / badalna). Purane advertisers yahin se country jod sakte hain. */
-export default function AdvertiserCountryForm({ currentCode, submitLabel, options }: Props) {
+export default function AdvertiserCountryForm({ currentCode, submitLabel, options, continueToDashboard = false }: Props) {
   const { state, formAction, onSubmit } = useGuardedAction(updateAdvertiserCountry, initialRunState);
   return (
     <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-xl space-y-4">
+      {continueToDashboard && <input type="hidden" name="continue" value="dashboard" />}
       <div>
         <label htmlFor="adv-country-update" className="mb-1.5 block text-sm font-medium text-mist">
           Business country
