@@ -72,7 +72,7 @@ describe("day 13 part 4 | balance limits and amounts", () => {
     assert.match(SQL, /constraint publisher_payout_amount_check check \(amount > 0\)/);
   });
   it("no minimum payout amount is invented anywhere", () => {
-    const code = stripComments(SQL) + read("lib/payouts/rules.ts").replace(/\/\/[^\n]*/g, "");
+    const code = stripComments(SQL) + read("lib/payouts/rules.ts").replace(/\/\/[^\n]*/g, "").replace(/payout_below_minimum:[^\n]*/g, ""); // Phase 5 Step 5: min payout ab owner-defined (payout_settings), sirf us error message ko chhoot
     assert.doesNotMatch(code, /(^|[^a-z])min(imum)?[_ ]?payout|payout[_ ]min(imum)?\b/i);
   });
 });
