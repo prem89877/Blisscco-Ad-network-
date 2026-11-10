@@ -4,6 +4,7 @@ import type { SelectionOutcome, SelectionRequest } from "./selection";
 import type { MatchedAd, MatchRequest, ServeReceipt } from "./types";
 import type { TrackingGrant } from "./tracking-token";
 import type { RichAdFields } from "./rich-assets";
+import { isRegionId, type RegionId } from "../regions/country-region";
 // NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
 // Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
 
@@ -62,6 +63,17 @@ export type ServeDeps = {
    * "ineligible" (country verified nahi / invalid) => no-fill; "error" ya throw => unavailable (fail closed). Authorize ke BAAD, kisi selection / serve / charge se PEHLE.
    */
   checkRegionalEligibility?: (publisherId: string) => Promise<"eligible" | "ineligible" | "error">;
+  /**
+   * Optional (Phase 6 Step 2 Part 2): publisher ka ADMIN-VERIFIED region (database ki verified country + central mapping; request se kabhi nahi).
+   *  - "not_enforced"  : regional gate band => purana behaviour (koi region filter nahi)
+   *  - "ineligible"    : country missing / invalid / pending / rejected => no-fill
+   *  - "ok" + region   : selection sirf is region ke liye eligible campaigns me se chunta hai
+   *  - "error" / throw / galat region => unavailable (fail closed)
+   * Authorize ke BAAD, retry-replay, selection, serve aur charge se PEHLE. Region har request par ek hi baar nikalta hai (category loop me dobara nahi).
+   */
+  resolvePublisherRegion?: (
+    publisherId: string,
+  ) => Promise<{ outcome: "ok"; region: RegionId } | { outcome: "not_enforced" } | { outcome: "ineligible" } | { outcome: "error" }>;
 };
 
 export type ServeResult =
@@ -127,6 +139,19 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
       if (gate !== "eligible") return { kind: "unavailable" };
     }
 
+    // 1a-2. Publisher ka verified region (Part 2): campaign targeting ke liye. Sirf server se; request ka koi field yahan nahi padha jaata.
+    let publisherRegion: RegionId | undefined;
+    if (deps.resolvePublisherRegion) {
+      const resolved = await deps.resolvePublisherRegion(auth.publisher.id);
+      if (resolved.outcome === "ineligible") return { kind: "no_fill" };
+      if (resolved.outcome === "ok") {
+        if (!isRegionId(resolved.region)) return { kind: "unavailable" };
+        publisherRegion = resolved.region;
+      } else if (resolved.outcome !== "not_enforced") {
+        return { kind: "unavailable" };
+      }
+    }
+
     // 1b. Retry check: publisher ne `Idempotency-Key` bheji ho aur wo pehle charge ho chuki ho => wahi ad, DOBARA charge nahi.
     //     Ye selection se pehle hota hai, taaki pehli request se budget khatam ho gaya ho tab bhi retry ko wahi ad mile.
     //     Lookup fail ho toh 503 (andaza nahi laga sakte ki charge hua ya nahi; dobara charge karne se behtar hai ruk jana).
@@ -171,6 +196,7 @@ export async function serveAd(keyHash: string, request: MatchRequest, deps: Serv
           publisher: auth.publisher,
           category,
           excludeCreativeIds: request.excludeAdIds,
+          ...(publisherRegion !== undefined ? { publisherRegion } : {}),
         },
         auth.unitCostUsd,
       );

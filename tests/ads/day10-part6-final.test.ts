@@ -99,6 +99,7 @@ describe("Day 10 part 6: secrets are not exposed", () => {
   it("only the expected server files import the admin client", () => {
     const importers = sourceFiles.filter((f) => /from "@\/lib\/supabase\/admin"/.test(read(f))).sort();
     assert.deepEqual(importers.map((f) => f.split(path.sep).join("/")), [
+      "lib/ads/campaign-regions-db.ts", // Phase 6 Step 2 Part 2: campaign target regions ka read-only padhna (1 rpc, sirf campaign ids), server-only
       "lib/ads/candidate-loader.ts",
       "lib/ads/click-db.ts", // Day 12 prompt 5 part 3: click redirect ka DB pul (2 rpc, server-only)
       "lib/ads/emergency-stop-db.ts", // Phase 5 Step 4: emergency stop flag ka read-only padhna (1 rpc), server-only

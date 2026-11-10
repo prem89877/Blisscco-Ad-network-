@@ -12,7 +12,8 @@ import { acceptImpression, type ImpressionResult } from "./impression";
 import { lookupServeForEvent, recordImpressionEvent } from "./impression-db";
 import { isEmergencyStopEnforced, type StopState } from "./emergency-stop";
 import { readAdServingState } from "./emergency-stop-db";
-import { checkPublisherRegionalEligibility } from "./publisher-country-db";
+import { resolvePublisherRegionFromDb } from "./publisher-country-db";
+import { loadCampaignTargetRegions } from "./campaign-regions-db";
 import { isRegionalEligibilityEnforced } from "./regional-eligibility";
 import { isPilotMetricsEnabled, type MetricSink } from "./pilot-monitoring";
 import { recordRequestMetric } from "./pilot-metrics-db";
@@ -63,12 +64,15 @@ const productionDeps: ServeDeps = {
       now: () => new Date(),
       unitCostUsd,
       spendTracking: "reliable",
+      loadCampaignRegions: loadCampaignTargetRegions,
     }),
   record: recordServe,
   lookupReplay: findIdempotentServe,
-  // Phase 6 Step 2 Part 1: env REGIONAL_ELIGIBILITY_ENFORCED har request par padhta hai; exact "1" na ho toh gate hi nahi (purana behaviour).
-  checkRegionalEligibility: (publisherId) =>
-    isRegionalEligibilityEnforced(process.env) ? checkPublisherRegionalEligibility(publisherId) : Promise.resolve("eligible"),
+  // Phase 6 Step 2 Part 1 + 2: env REGIONAL_ELIGIBILITY_ENFORCED har request par padhta hai; exact "1" na ho toh gate hi nahi (purana behaviour,
+  // database ko bulaya bhi nahi jaata). ON ho toh EK read-only rpc se verified country -> region: missing / invalid / pending / rejected => no-fill,
+  // warna selection sirf us region ke liye eligible campaigns me se chunta hai. (Part 1 ka checkRegionalEligibility isi ke andar samaya hua hai: wahi gate.)
+  resolvePublisherRegion: (publisherId) =>
+    isRegionalEligibilityEnforced(process.env) ? resolvePublisherRegionFromDb(publisherId) : Promise.resolve({ outcome: "not_enforced" as const }),
   issueTracking: (input) => {
     const config = trackingConfig();
     if (!config) return null;

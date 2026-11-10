@@ -6,6 +6,7 @@ import {
 } from "./category-matching";
 import type { CategorySlug } from "./taxonomy";
 import type { MatchedAd } from "./types";
+import { filterCandidatesByRegion, isRegionId, type CampaignRegionLoader, type CampaignTargetMap, type RegionId } from "./campaign-targeting";
 
 // Day 5: campaign eligibility + creative SELECTION layer (server-side).
 //
@@ -62,6 +63,11 @@ export type SelectionDeps = {
   unitCostUsd: number;
   /** Zaroori field (default nahi): har caller ko saaf batana padta hai ki kharch ka data kitna bharosemand hai. */
   spendTracking: SpendTracking;
+  /**
+   * Phase 6 Step 2 Part 2: campaign targeting ke regions ka read-only loader. Sirf tab zaroori jab request me publisherRegion ho
+   * (publisherRegion ho aur loader na ho => no-fill, fail closed).
+   */
+  loadCampaignRegions?: CampaignRegionLoader;
 };
 
 export type SelectionRequest = {
@@ -70,6 +76,12 @@ export type SelectionRequest = {
   category: unknown;
   /** Publisher ke pichhle dikhaye creative ids (optional). */
   excludeCreativeIds?: readonly string[];
+  /**
+   * Phase 6 Step 2 Part 2: publisher ka ADMIN-VERIFIED region (serve.ts isse database ki verified country + central mapping se nikalta hai;
+   * client / request body se kabhi nahi). Ho toh sirf wo campaigns bache jinka target is region se milta hai. Na ho => regional filter nahi
+   * (purana behaviour; sirf tab jab regional gate band hai).
+   */
+  publisherRegion?: RegionId;
 };
 
 /** Record reject hone par aage kitne agle candidates try ho sakte hain (serve.ts me total attempts = 1 + ye). */
@@ -168,6 +180,23 @@ export async function selectAd(request: SelectionRequest, deps: SelectionDeps): 
       return noFill("candidate_load_failed");
     }
     if (!Array.isArray(loaded)) return noFill("candidate_load_failed");
+
+    // Phase 6 Step 2 Part 2: regional campaign targeting. Category/active/budget/date ke saare niyam neeche matchCategorySignal me jas ke tas lagte hain;
+    // ye sirf extra filter hai. Region jaanch nahi pa'e ya load fail => koi ad nahi (fail closed), kabhi "sab eligible" nahi.
+    if (request.publisherRegion !== undefined) {
+      if (!isRegionId(request.publisherRegion)) return noFill("invalid_context");
+      if (!deps.loadCampaignRegions) return noFill("candidate_load_failed");
+      if (loaded.length > 0) {
+        let targets: CampaignTargetMap;
+        try {
+          targets = await deps.loadCampaignRegions(loaded.map((c) => c.campaignId));
+        } catch {
+          return noFill("candidate_load_failed");
+        }
+        if (!(targets instanceof Map)) return noFill("candidate_load_failed");
+        loaded = filterCandidatesByRegion(loaded, targets, request.publisherRegion);
+      }
+    }
 
     const result = matchCategorySignal(
       { publisher: request.publisher, category: request.category },

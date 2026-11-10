@@ -173,6 +173,7 @@ describe("part3: service-role key and publisher API keys stay server-side", () =
   const ADMIN_USERS = new Set([
     "lib/supabase/admin.ts", "lib/publisher/keys-db.ts", "lib/ads/candidate-loader.ts", "lib/ads/match.ts", "lib/ads/serve-db.ts", "lib/ads/impression-db.ts",
     "lib/ads/click-db.ts", // Day 12 prompt 5 part 3
+    "lib/ads/campaign-regions-db.ts", // Phase 6 Step 2 Part 2: campaign target regions ka read-only padhna (1 rpc, sirf campaign ids), server-only
     "lib/ledger/ledger-db.ts", // Day 13 part 2
     "lib/ads/pilot-metrics-db.ts", // Phase 3 Step 4: sirf aggregate request counter (outcome + latency), server-only
     "lib/ads/emergency-stop-db.ts", // Phase 5 Step 4: emergency stop flag ka read-only padhna (1 rpc), server-only

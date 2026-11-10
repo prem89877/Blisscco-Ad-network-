@@ -1,3 +1,4 @@
+import type { RegionId } from "@/lib/regions/country-region";
 import {
   NO_PUBLISHER_COUNTRY,
   isCountryVerificationStatus,
@@ -40,4 +41,16 @@ export type RegionalGateOutcome = "eligible" | "ineligible" | "error";
 export function regionalGateOutcome(state: PublisherCountry | null): RegionalGateOutcome {
   if (state === null) return "error";
   return publisherRegionalEligibility(state).eligible ? "eligible" : "ineligible";
+}
+
+export type PublisherRegionOutcome = { outcome: "ok"; region: RegionId } | { outcome: "ineligible" } | { outcome: "error" };
+
+/**
+ * Phase 6 Step 2 Part 2: padhi hui country state se publisher ka region. Wahi gate (publisherRegionalEligibility) jo Part 1 me hai:
+ * sirf VERIFIED + ISO-valid country ko region milta hai. null (padh nahi paye) => "error". Pending / rejected / missing / invalid => "ineligible".
+ */
+export function publisherRegionOutcome(state: PublisherCountry | null): PublisherRegionOutcome {
+  if (state === null) return { outcome: "error" };
+  const eligibility = publisherRegionalEligibility(state);
+  return eligibility.eligible ? { outcome: "ok", region: eligibility.region } : { outcome: "ineligible" };
 }
