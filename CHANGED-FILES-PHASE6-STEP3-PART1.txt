@@ -1,0 +1,19 @@
+Blisscco Phase 6 Step 3 Part 1: exact new and modified files.
+Is zip ko project root par extract karo.
+
+NEW:
+  PHASE6-STEP3-PART1-ADVERTISER-COUNTRY-REPORT.md
+  supabase/sql/phase6-step3-1-advertiser-country.sql   (TEST par pehle; kisi database par chalayi NAHI gayi)
+  lib/regions/advertiser-country.ts
+  lib/advertiser/country-queries.ts
+  app/dashboard/advertiser/country-actions.ts
+  components/dashboard/AdvertiserCountryForm.tsx
+  tests/regions/advertiser-country-stubs.ts
+  tests/regions/phase6-step3-part1-advertiser-country.test.ts
+
+MODIFIED:
+  app/dashboard/account/actions.ts
+  lib/accounts/validation.ts            (sirf type: AdvertiserFields me "country")
+  components/dashboard/AccountSetupForm.tsx
+  app/dashboard/advertiser/campaigns/page.tsx
+  supabase/MIGRATION-ORDER.md           (row 44)

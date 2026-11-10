@@ -56,7 +56,8 @@ export type SetupState<K extends string> = {
 };
 
 /* ---------------- Advertiser ---------------- */
-export type AdvertiserFields = "companyName" | "websiteUrl";
+// "country" sirf form ke field-error ka naam hai; country ki jaanch app/dashboard/account/actions.ts me central region module se hoti hai (yahan nahi).
+export type AdvertiserFields = "companyName" | "websiteUrl" | "country";
 export type ParsedAdvertiser = { companyName: string; websiteUrl: string | null };
 export type AdvertiserParse =
   | { ok: true; value: ParsedAdvertiser }

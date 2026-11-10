@@ -8,8 +8,12 @@ import DeliveryNote from "@/components/campaigns/DeliveryNote";
 import CampaignFilters from "@/components/campaigns/CampaignFilters";
 import Notice from "@/components/auth/Notice";
 import { AdvertiserSetupForm } from "@/components/dashboard/AccountSetupForm";
+import AdvertiserCountryForm from "@/components/dashboard/AdvertiserCountryForm";
 import { requireRole } from "@/lib/auth/session";
 import { listMyCampaigns, loadMyAdvertiser } from "@/lib/campaigns/queries";
+import { loadMyAdvertiserCountry } from "@/lib/advertiser/country-queries";
+import { countryDisplayName, countryOptions } from "@/lib/regions/publisher-country";
+import { REGION_LABELS } from "@/lib/regions/country-region";
 import { categoryLabel } from "@/lib/campaigns/constants";
 import { deliveryState } from "@/lib/campaigns/delivery";
 import { utcToday } from "@/lib/campaigns/validation";
@@ -96,7 +100,7 @@ export default async function CampaignsListPage({ searchParams }: Props) {
 
       {!adv && (
         <Panel title="Set up your business" note="One quick step before you can create campaigns.">
-          <AdvertiserSetupForm />
+          <AdvertiserSetupForm countryOptions={countryOptions()} />
         </Panel>
       )}
 
@@ -109,8 +113,34 @@ export default async function CampaignsListPage({ searchParams }: Props) {
         <Notice tone="error">Your advertiser account is suspended, so campaigns cannot be changed. Please contact support.</Notice>
       )}
 
+      {adv && adv.status !== "suspended" && <AdvertiserCountryPanel />}
+
       {adv && <CampaignList advertiserId={adv.id} canCreate={canCreate} filters={filters} />}
     </>
+  );
+}
+
+async function AdvertiserCountryPanel() {
+  // Naya column (SQL abhi apply na hui ho) campaigns page ko kabhi nahi todta: load fail => sirf chhota note, baaki page chalta hai.
+  const country = await loadMyAdvertiserCountry();
+  return (
+    <Panel title="Business country" note="Used to place your business in a region. It does not change your prices or billing.">
+      {country === null ? (
+        <p className="mb-4 text-sm text-amber-300">Your country could not be loaded. You can still choose it below.</p>
+      ) : country.countryCode === null ? (
+        <p className="mb-4 text-sm text-mist/80">No country chosen yet. Your existing campaigns are not affected.</p>
+      ) : (
+        <p className="mb-4 text-sm text-mist/80">
+          {countryDisplayName(country.countryCode)}
+          {country.region ? ` · ${REGION_LABELS[country.region]}` : ""}
+        </p>
+      )}
+      <AdvertiserCountryForm
+        options={countryOptions()}
+        currentCode={country?.countryCode ?? null}
+        submitLabel={country?.countryCode ? "Change country" : "Save country"}
+      />
+    </Panel>
   );
 }
 

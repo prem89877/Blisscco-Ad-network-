@@ -18,10 +18,11 @@ const idleAdvertiser: SetupState<AdvertiserFields> = { status: "idle" };
 const idlePublisher: SetupState<PublisherFields> = { status: "idle" };
 
 /** Advertiser ka pehla step: business ka naam (+ website). Save hone par admin ke approval ka intezaar. */
-export function AdvertiserSetupForm() {
+export function AdvertiserSetupForm({ countryOptions }: { countryOptions: CountryOption[] }) {
   const { state, formAction, onSubmit } = useGuardedAction(setupAdvertiser, idleAdvertiser, {
-    errorState: (prev, message, fd) => ({ ...prev, status: "error" as const, message, values: { companyName: formText(fd, "companyName"), websiteUrl: formText(fd, "websiteUrl") } }),
+    errorState: (prev, message, fd) => ({ ...prev, status: "error" as const, message, values: { companyName: formText(fd, "companyName"), websiteUrl: formText(fd, "websiteUrl"), country: formText(fd, "country") } }),
   });
+  const countryError = state.fieldErrors?.country;
   return (
     <form action={formAction} onSubmit={onSubmit} noValidate className="max-w-xl space-y-5">
       <Field
@@ -44,6 +45,31 @@ export function AdvertiserSetupForm() {
         hint="Start with https://"
         error={state.fieldErrors?.websiteUrl}
       />
+      <div>
+        <label htmlFor="adv-country" className="mb-1.5 block text-sm font-medium text-mist">
+          Business country (optional)
+        </label>
+        <select
+          id="adv-country"
+          name="country"
+          defaultValue={state.values?.country ?? ""}
+          aria-invalid={countryError ? true : undefined}
+          aria-describedby={countryError ? "adv-country-error" : undefined}
+          className="min-h-11 w-full rounded-lg border border-line bg-ink px-3.5 py-2 text-base text-mist"
+        >
+          <option value="">Choose later</option>
+          {countryOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {countryError && (
+          <p id="adv-country-error" className="mt-1.5 text-sm text-red-300">
+            {countryError}
+          </p>
+        )}
+      </div>
       {state.status === "error" && state.message && <Notice tone="error">{state.message}</Notice>}
       <SubmitButton pendingText="Saving…">Save and continue</SubmitButton>
     </form>

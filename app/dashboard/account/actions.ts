@@ -13,6 +13,7 @@ import {
   type SetupState,
 } from "@/lib/accounts/validation";
 import { parseCountrySubmission } from "@/lib/regions/publisher-country";
+import { parseAdvertiserCountry } from "@/lib/regions/advertiser-country";
 
 // Naye user ka business/platform ka record banana. profile_id HAMESHA login se aata hai (form se kabhi nahi).
 // Naya record "pending" se shuru hota hai: admin approve kare tab hi kaam chalta hai.
@@ -25,11 +26,20 @@ function text(fd: FormData, key: string, max: number): string {
 
 export async function setupAdvertiser(_prev: SetupState<AdvertiserFields>, formData: FormData): Promise<SetupState<AdvertiserFields>> {
   const account = await requireRole(["advertiser"]);
-  const values = { companyName: text(formData, "companyName", 400), websiteUrl: text(formData, "websiteUrl", 2100) };
+  // Phase 6 Step 3 Part 1: country optional hai. Form me na ho toh values / insert bilkul pehle jaise (country key tab hi aati hai jab bheji gayi).
+  const countryInput = text(formData, "country", 16).trim();
+  const values = {
+    companyName: text(formData, "companyName", 400),
+    websiteUrl: text(formData, "websiteUrl", 2100),
+    ...(countryInput.length > 0 ? { country: countryInput } : {}),
+  };
 
-  const parsed = parseAdvertiserSetup(values);
-  if (!parsed.ok) {
-    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: parsed.errors, values };
+  const parsed = parseAdvertiserSetup({ companyName: values.companyName, websiteUrl: values.websiteUrl });
+  // Di ho toh officially assigned ISO 3166-1 alpha-2 code hi chalega (central region module se). Galat code => error, koi silent region nahi.
+  const country = countryInput.length > 0 ? parseAdvertiserCountry(countryInput) : null;
+  if (!parsed.ok || (country !== null && !country.ok)) {
+    const fieldErrors = { ...(parsed.ok ? {} : parsed.errors), ...(country !== null && !country.ok ? { country: country.message } : {}) };
+    return { status: "error", message: "Please fix the highlighted fields.", fieldErrors, values };
   }
 
   const supabase = await createClient();
@@ -39,10 +49,17 @@ export async function setupAdvertiser(_prev: SetupState<AdvertiserFields>, formD
     website_url: parsed.value.websiteUrl,
   });
 
-  // 23505 = record pehle se hai (do baar click): wahi maan lo, error nahi.
+  // 23505 = record pehle se hai (do baar click): wahi maan lo, error nahi. Purani row / country nahi badalti.
   if (error && error.code !== "23505") {
     console.error("[account] advertiser setup failed", { code: error.code ?? null });
     return { status: "error", message: "We could not save your details. Please try again.", values };
+  }
+
+  // Country (optional) signup insert ke BAAD alag update se jaati hai: insert pehle jaisa rehta hai (naya column na ho tab bhi account banta hai).
+  // Country save na ho toh account ban chuka hai: campaigns page par dobara chun sakta hai.
+  if (!error && country !== null && country.ok) {
+    const { error: countryError } = await supabase.from("advertisers").update({ country_code: country.countryCode }).eq("profile_id", account.user.id);
+    if (countryError) console.error("[account] advertiser country save failed", { code: countryError.code ?? null });
   }
 
   revalidatePath("/dashboard", "layout");
