@@ -1,0 +1,18 @@
+Blisscco Phase 6 Step 3 Part 3: exact new and modified files. Project root par extract karo.
+(Part 3 me koi nayi SQL nahi hai. Production par kuch nahi chalaya gaya.)
+
+NEW:
+  PHASE6-STEP3-PART3-ADMIN-READINESS-REPORT.md
+  PHASE6-STEP3-MANUAL-AND-CI-GUIDE.md
+  lib/regions/admin-country-overview.ts
+  lib/regions/admin-country-queries.ts
+  components/admin/CountryOverviewPanel.tsx
+  tests/regions/admin-overview-stubs.ts
+  tests/regions/phase6-step3-part3-admin-overview.test.ts
+  tests/regions/phase6-step3-part3-publisher-admin-flow.test.ts
+  tests/regions/phase6-step3-part3-advertiser-international.test.ts
+
+MODIFIED:
+  app/dashboard/admin/page.tsx
+  PHASE6-STEP3-PART1-ADVERTISER-COUNTRY-REPORT.md   (sirf last line)
+  PHASE6-STEP3-PART2-PUBLISHER-ONBOARDING-REPORT.md (sirf status line)

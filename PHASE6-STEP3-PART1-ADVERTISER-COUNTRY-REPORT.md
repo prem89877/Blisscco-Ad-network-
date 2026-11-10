@@ -55,4 +55,4 @@ One additive nullable column: `advertisers.country_code text` + check `null or ^
 5. Confirm pricing / billing screens and an existing campaign flow are unchanged.
 6. Production: nothing applied; separate approval needed.
 
-Part 2 not started.
+Part 2 and Part 3 are done; see `PHASE6-STEP3-PART2-PUBLISHER-ONBOARDING-REPORT.md` and `PHASE6-STEP3-PART3-ADMIN-READINESS-REPORT.md`.

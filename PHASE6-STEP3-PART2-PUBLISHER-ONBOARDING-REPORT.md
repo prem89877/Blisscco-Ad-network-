@@ -1,6 +1,6 @@
 # Phase 6 Step 3 Part 2 - International Publisher Onboarding
 
-Status: code + tests done. **No new SQL** in this part. Production not accessed. Manual verification **NOT done**. Part 3 not started.
+Status: code + tests done. **No new SQL** in this part. Production not accessed. Manual verification **NOT done**. Part 3 is done: see `PHASE6-STEP3-PART3-ADMIN-READINESS-REPORT.md`.
 
 ## 1. Files
 

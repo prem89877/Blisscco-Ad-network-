@@ -7,6 +7,7 @@ import PayoutSettlementsPanel from "@/components/admin/PayoutSettlementsPanel";
 import PilotMonitoringPanel from "@/components/dashboard/PilotMonitoringPanel";
 import EmergencyStopPanel from "@/components/admin/EmergencyStopPanel";
 import PublisherCountryPanel from "@/components/admin/PublisherCountryPanel";
+import CountryOverviewPanel from "@/components/admin/CountryOverviewPanel";
 import { describeStopEnv, isEmergencyStopEnforced, parseAdminSafetyState, type AdminSafetyState } from "@/lib/ads/emergency-stop";
 import { isPilotMetricsEnabled, loadPilotMonitoring } from "@/lib/ads/pilot-monitoring";
 import { requireRole } from "@/lib/auth/session";
@@ -18,6 +19,8 @@ import { SUBMITTED_CREATIVE_COLUMNS, toSubmittedCreative, type SubmittedCreative
 import { utcToday } from "@/lib/campaigns/validation";
 import { CAMPAIGN_APPROVE_BLOCK_MESSAGES, campaignApproveBlock } from "@/lib/admin/decisions";
 import { formatDate } from "@/lib/format";
+import { loadAdminCountryOverview } from "@/lib/regions/admin-country-queries";
+import { describeAdvertiserCountry, describePublisherCountry } from "@/lib/regions/admin-country-overview";
 
 export const metadata: Metadata = { title: "Admin | Blisscco Dashboard" };
 export const dynamic = "force-dynamic";
@@ -132,7 +135,8 @@ async function loadSafetyState(): Promise<AdminSafetyState | null> {
   }
 }
 
-function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: Account[] }) {
+// countries: account id -> country line (Phase 6 Step 3 Part 3). null = country info load nahi hui; line dikhti hi nahi (baaki list wahi rehti hai).
+function AccountList({ kind, rows, countries }: { kind: "advertiser" | "publisher"; rows: Account[]; countries: Map<string, string> | null }) {
   // Pending sabse upar
   const sorted = [...rows].sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending"));
   if (sorted.length === 0) return <p className="text-sm text-mist/70">None yet.</p>;
@@ -147,6 +151,7 @@ function AccountList({ kind, rows }: { kind: "advertiser" | "publisher"; rows: A
                 {a.website ?? "No website"}
                 {a.extra ? ` · ${categoryLabel(a.extra)}` : ""} · Joined {formatDate(a.createdAt.slice(0, 10))}
               </p>
+              {countries && <p className="mt-1 break-words text-xs text-mist/60">Country: {countries.get(a.id) ?? "not available"}</p>}
               <p className={`mt-1 text-xs ${a.status === "active" ? "text-aqua" : a.status === "pending" ? "text-amber-300" : "text-red-300"}`}>
                 {a.status === "active" ? "Active" : a.status === "pending" ? "Waiting for approval" : "Suspended"}
               </p>
@@ -168,11 +173,16 @@ export default async function AdminPage() {
   const account = await requireRole(["admin"]);
   // Phase 3 Step 4: monitoring load review-list ke saath ek hi round me (naya sequential database call nahi). Admin-only: role admin na ho toh client banta hi nahi.
   const safetyPromise = loadSafetyState(); // Phase 5 Step 4: saath hi shuru hota hai (kabhi throw nahi karta)
+  const countryPromise = loadAdminCountryOverview(); // Phase 6 Step 3 Part 3: sirf padhta hai, requireRole(admin) ke BAAD, kabhi throw nahi karta; fail ho toh sirf country panel / lines par asar
   const [data, monitoring] = await Promise.all([loadAdminData(), loadPilotMonitoring(account.role, () => createClient())]);
   const safety = await safetyPromise;
+  const countryOverview = await countryPromise;
   const today = utcToday();
   const pendingAccounts =
     data.advertisers.filter((a) => a.status === "pending").length + data.publishers.filter((a) => a.status === "pending").length;
+  const pendingCountries = countryOverview.publishers ? countryOverview.publishers.filter((p) => p.awaitingReview).length : null;
+  const advertiserCountryLines = countryOverview.advertisers ? new Map(countryOverview.advertisers.map((a): [string, string] => [a.id, describeAdvertiserCountry(a)])) : null;
+  const publisherCountryLines = countryOverview.publishers ? new Map(countryOverview.publishers.map((p): [string, string] => [p.id, describePublisherCountry(p)])) : null;
 
   return (
     <>
@@ -187,7 +197,8 @@ export default async function AdminPage() {
         </p>
       )}
       <p className="mb-6 text-sm text-mist/70">
-        Waiting: {pendingAccounts} account(s), {data.creatives.length} ad(s), {data.campaigns.length} campaign(s).
+        Waiting: {pendingAccounts} account(s), {data.creatives.length} ad(s), {data.campaigns.length} campaign(s)
+        {pendingCountries === null ? "" : `, ${pendingCountries} publisher country review(s)`}.
       </p>
 
       <div className="space-y-6">
@@ -263,12 +274,14 @@ export default async function AdminPage() {
         </Panel>
 
         <Panel title="Advertisers" note="Latest 30. New accounts wait here until you approve them.">
-          <AccountList kind="advertiser" rows={data.advertisers} />
+          <AccountList kind="advertiser" rows={data.advertisers} countries={advertiserCountryLines} />
         </Panel>
 
         <Panel title="Publishers" note="Latest 30. A publisher's API key works only while the account is active.">
-          <AccountList kind="publisher" rows={data.publishers} />
+          <AccountList kind="publisher" rows={data.publishers} countries={publisherCountryLines} />
         </Panel>
+
+        <CountryOverviewPanel overview={countryOverview} />
 
         <PublisherCountryPanel />
 
