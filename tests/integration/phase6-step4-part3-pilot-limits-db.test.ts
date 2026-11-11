@@ -18,8 +18,10 @@ describe("phase 6 step 4 part 3: pilot limits DB guard on real TEST database", {
   const campaigns: string[] = [];
 
   before(async () => {
-    const mod = await import("pg");
-    const Pool = mod.Pool ?? (mod.default as unknown as { Pool: typeof mod.Pool }).Pool;
+    const moduleName = "pg"; // dynamic: `pg` sirf integration run me chahiye (types ki zaroorat nahi)
+    const mod = (await import(moduleName)) as { default?: { Pool: new (o: object) => PgPool }; Pool?: new (o: object) => PgPool };
+    const Pool = mod.Pool ?? mod.default?.Pool;
+    if (!Pool) throw new Error("`pg` is not installed (npm i -D pg)");
     pool = new Pool({ connectionString: guard.ok ? guard.url : "", max: 8 });
 
     await pool.query(

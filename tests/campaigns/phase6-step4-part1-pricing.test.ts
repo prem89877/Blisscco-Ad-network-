@@ -463,13 +463,14 @@ describe("phase 6 step 4 part 1: createCampaign with pricing", () => {
   });
 
   it("invalid pricing writes NOTHING and returns a field error with the typed values kept", async () => {
-    for (const bad of [
+    const badCases: Record<string, string>[] = [
       { pricingModel: "cpm", cpmRate: "0.01" },
       { pricingModel: "cpm", cpmRate: "" },
       { pricingModel: "cpc", cpcRate: "500" },
       { pricingModel: "cpc", cpcRate: "600", totalBudget: "1000" },
       { pricingModel: "bogus", cpmRate: "2" },
-    ]) {
+    ];
+    for (const bad of badCases) {
       fake.calls = [];
       const r = await create(bad);
       assert.equal(r.redirect, undefined, JSON.stringify(bad));
