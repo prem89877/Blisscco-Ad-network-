@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useGuardedAction } from "@/lib/actions/use-guarded-action";
 import { submitCreative } from "@/app/dashboard/advertiser/creatives/actions";
 import Notice from "@/components/auth/Notice";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
-import { ASSET_LIMITS, checkImageMeta, type AssetKind } from "@/lib/campaigns/creative-assets";
+import { ASSET_LIMITS, checkImageMeta, combinedUploadError, type AssetKind } from "@/lib/campaigns/creative-assets";
 import {
   BRAND_MAX,
   CTA_OPTIONS,
@@ -50,8 +50,24 @@ export default function CreativeSubmissionForm({ campaigns, editing = null }: Pr
   const [fileErrors, setFileErrors] = useState<Partial<Record<AssetKind, string>>>({});
   const selected = campaigns.find((c) => c.id === campaignId) ?? null;
 
+  // Logo + ad image ek hi request me jaate hain; Vercel ki 4.5 MB body limit paar hui toh "Failed to fetch" aata hai. Submit se pehle rokte hain.
+  const fileSizes = useRef<Record<AssetKind, number>>({ logo: 0, banner: 0 });
+  const [totalError, setTotalError] = useState<string | undefined>();
+  const checkTotal = () => combinedUploadError(fileSizes.current.logo + fileSizes.current.banner);
+  const onSubmitCapture = (ev: FormEvent<HTMLFormElement>) => {
+    const err = checkTotal();
+    setTotalError(err);
+    if (err) {
+      // Capture me rokte hain taaki onSubmit (guard + server action) chale hi nahi.
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+  };
+
   const onFile = (kind: AssetKind) => (ev: React.ChangeEvent<HTMLInputElement>) => {
     const file = ev.target.files?.[0];
+    fileSizes.current[kind] = file?.size ?? 0;
+    setTotalError(checkTotal());
     if (!file) return setFileErrors((p) => ({ ...p, [kind]: undefined }));
     const r = checkImageMeta(kind, { name: file.name, type: file.type, size: file.size });
     setFileErrors((p) => ({ ...p, [kind]: r.ok ? undefined : r.error }));
@@ -59,7 +75,7 @@ export default function CreativeSubmissionForm({ campaigns, editing = null }: Pr
   const imageError = (k: AssetKind) => fileErrors[k] ?? e[k];
 
   return (
-    <form action={formAction} onSubmit={onSubmitKeepFields} noValidate encType="multipart/form-data" className="max-w-xl space-y-5">
+    <form action={formAction} onSubmit={onSubmitKeepFields} onSubmitCapture={onSubmitCapture} noValidate encType="multipart/form-data" className="max-w-xl space-y-5">
       {editing && <input type="hidden" name="creativeId" value={editing.creativeId} />}
 
       <div>
@@ -247,6 +263,7 @@ export default function CreativeSubmissionForm({ campaigns, editing = null }: Pr
         <Err id="sc-keywords-err" text={e.keywords} />
       </div>
 
+      {totalError && <Notice tone="error">{totalError}</Notice>}
       {state.status === "error" && state.message && <Notice tone="error">{state.message}</Notice>}
       <Button
         type="submit"

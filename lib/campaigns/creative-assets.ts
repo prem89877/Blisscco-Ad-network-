@@ -6,25 +6,38 @@ export const ASSET_BUCKET = "creative-assets";
 export const LOGO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 export const BANNER_MAX_BYTES = 4 * 1024 * 1024; // 4 MB (bucket ki limit bhi yahi hai)
 
+// Vercel ek request ki body 4.5 MB tak hi leta hai (platform ki hard limit, next.config ke bodySizeLimit se alag). Logo + ad image ek hi
+// request me jate hain, isliye dono ka jod 4 MB se zyada ho toh Vercel 413 deta hai aur browser me sirf "Failed to fetch" dikhta hai.
+// 4 MB rakha hai taaki form ke baaki fields + multipart overhead ke liye jagah bache. Browser submit se PEHLE yahi jaanchta hai.
+export const MAX_COMBINED_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+/** Logo + ad image ka jod bahut bada ho toh saaf message, warna undefined. */
+export function combinedUploadError(totalBytes: number): string | undefined {
+  if (!Number.isFinite(totalBytes) || totalBytes <= MAX_COMBINED_UPLOAD_BYTES) return undefined;
+  const mb = (n: number) => (n / (1024 * 1024)).toFixed(1);
+  return `The logo and ad image together are ${mb(totalBytes)} MB. Together they must be ${mb(MAX_COMBINED_UPLOAD_BYTES)} MB or smaller. Please compress one of them and try again.`;
+}
+
 export type AssetKind = "logo" | "banner";
 export type ImageMime = "image/png" | "image/jpeg" | "image/webp";
 
-export const IMAGE_EXTENSIONS: Record<ImageMime, "png" | "jpg" | "webp"> = {
+export const IMAGE_EXTENSIONS: Record < ImageMime, "png" | "jpg" | "webp" > = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
 };
-const ALLOWED_FILE_EXTENSIONS = ["png", "jpg", "jpeg", "webp"] as const;
+const ALLOWED_FILE_EXTENSIONS = ["png", "jpg", "jpeg", "webp"] as
+const;
 
-export const ASSET_LIMITS: Record<AssetKind, { maxBytes: number; label: string }> = {
+export const ASSET_LIMITS: Record < AssetKind, { maxBytes: number;label: string } > = {
   logo: { maxBytes: LOGO_MAX_BYTES, label: "Logo" },
   banner: { maxBytes: BANNER_MAX_BYTES, label: "Ad image" },
 };
 
-export type ImageMeta = { name: string; type: string; size: number };
-export type ImageCheck =
-  | { ok: true; mime: ImageMime; ext: "png" | "jpg" | "webp" }
-  | { ok: false; error: string };
+export type ImageMeta = { name: string;type: string;size: number };
+export type ImageCheck = |
+  { ok: true;mime: ImageMime;ext: "png" | "jpg" | "webp" } |
+  { ok: false;error: string };
 
 function isImageMime(v: string): v is ImageMime {
   return Object.prototype.hasOwnProperty.call(IMAGE_EXTENSIONS, v);
@@ -52,7 +65,7 @@ export function sniffImageMime(head: Uint8Array): ImageMime | null {
 }
 
 /** Naam, type aur size ki jaanch (bytes ke bina). Browser aur server dono yahi use karte hain. */
-export function checkImageMeta(kind: AssetKind, meta: ImageMeta): { ok: true; mime: ImageMime } | { ok: false; error: string } {
+export function checkImageMeta(kind: AssetKind, meta: ImageMeta): { ok: true;mime: ImageMime } | { ok: false;error: string } {
   const { label, maxBytes } = ASSET_LIMITS[kind];
   if (!Number.isFinite(meta.size) || meta.size <= 0) return { ok: false, error: `Choose a ${label.toLowerCase()} image.` };
   if (meta.size > maxBytes) return { ok: false, error: `${label} must be ${Math.round(maxBytes / (1024 * 1024))} MB or smaller.` };
