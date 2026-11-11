@@ -43,9 +43,11 @@ begin
   insert into auth.users (id, email, raw_user_meta_data)
   values (v_test_pub_user, 'test-pub-fin@blisscco.test', '{"role":"publisher"}'::jsonb);
 
+  -- FIX: handle_new_user (day-4-1) already creates an 'active' advertiser row for role=advertiser.
   insert into public.advertisers (profile_id, company_name, status)
-  values (v_test_adv_user, 'Test Fin Advertiser', 'active')
-  returning id into v_test_adv_id;
+  select v_test_adv_user, 'Test Fin Advertiser', 'active'
+  where not exists (select 1 from public.advertisers where profile_id = v_test_adv_user);
+  select id into v_test_adv_id from public.advertisers where profile_id = v_test_adv_user;
 
   insert into public.publishers (profile_id, name, status)
   values (v_test_pub_user, 'Test Fin Publisher', 'active')
@@ -61,8 +63,9 @@ begin
     v_test_adv_id, 'Fin Test CPM', 'technology', 100.00, 50.00, current_date - 1, 'active', 'cpm', 2.0000
   ) returning id into v_cpm_camp_id;
 
-  insert into public.ad_creatives (campaign_id, headline, body, destination_url, status)
-  values (v_cpm_camp_id, 'Fin CPM Ad', 'Body', 'https://example.com/cpm', 'approved')
+  -- FIX: ad_creatives_approved_needs_review_check requires reviewed_at when status = 'approved'.
+  insert into public.ad_creatives (campaign_id, headline, body, destination_url, status, reviewed_at)
+  values (v_cpm_camp_id, 'Fin CPM Ad', 'Body', 'https://example.com/cpm', 'approved', now())
   returning id into v_cpm_creat_id;
 
   -- 3. Setup CPC campaign ($0.1234 CPC => $0.1234 per click)
@@ -72,8 +75,9 @@ begin
     v_test_adv_id, 'Fin Test CPC', 'technology', 100.00, 50.00, current_date - 1, 'active', 'cpc', 0.1234
   ) returning id into v_cpc_camp_id;
 
-  insert into public.ad_creatives (campaign_id, headline, body, destination_url, status)
-  values (v_cpc_camp_id, 'Fin CPC Ad', 'Body', 'https://example.com/cpc', 'approved')
+  -- FIX: ad_creatives_approved_needs_review_check requires reviewed_at when status = 'approved'.
+  insert into public.ad_creatives (campaign_id, headline, body, destination_url, status, reviewed_at)
+  values (v_cpc_camp_id, 'Fin CPC Ad', 'Body', 'https://example.com/cpc', 'approved', now())
   returning id into v_cpc_creat_id;
 
   -- 4. Enable ledger and set 90/10 split INSIDE this test transaction
