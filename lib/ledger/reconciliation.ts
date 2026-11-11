@@ -37,7 +37,7 @@ export type LedgerEntryForReconciliation = {
 };
 
 export type ServeReconciliation = {
-  serveRef: string;
+  eventRef: string;
   chargeUnits: bigint;
   publisherUnits: bigint;
   platformUnits: bigint;
@@ -62,7 +62,7 @@ function normalizeSourceRef(e: LedgerEntryForReconciliation): string | null {
 }
 
 /**
- * Groups ledger entries by serve_ref and reconciles:
+ * Groups ledger entries by their source reference and reconciles:
  * charge == publisher_earning + platform_revenue.
  * Reversals and adjustments are segregated and do NOT pollute the serve balance.
  */
@@ -72,13 +72,13 @@ export function reconcileServeEntries(
   const map = new Map<string, ServeReconciliation>();
 
   for (const entry of entries) {
-    const serveRef = normalizeSourceRef(entry);
-    if (!serveRef) continue;
+    const eventRef = normalizeSourceRef(entry);
+    if (!eventRef) continue;
 
-    let rec = map.get(serveRef);
+    let rec = map.get(eventRef);
     if (!rec) {
       rec = {
-        serveRef,
+        eventRef,
         chargeUnits: 0n,
         publisherUnits: 0n,
         platformUnits: 0n,
@@ -91,7 +91,7 @@ export function reconcileServeEntries(
         adjustmentsTotalUnits: 0n,
         balanced: false,
       };
-      map.set(serveRef, rec);
+      map.set(eventRef, rec);
     }
 
     const type = normalizeType(entry);
