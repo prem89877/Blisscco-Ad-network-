@@ -1,10 +1,11 @@
 import { MAX_UNITS } from "./decimal";
 
-// Publisher / platform ka batwara. KOI percentage yahan hardcode NAHI hai: project me business faisla abhi nahi hua.
-// Rule sirf tab chalta hai jab database ke ledger_settings.publisher_share_bps me value daali gayi ho (0..10000, basis points; 7000 = 70%).
+// Publisher / platform ka batwara.
+// Business approval: 90% Publisher / 10% Blisscco Platform (setting value 9000 bps in DB, set on TEST only).
+// The percentage is NEVER hardcoded in runtime code; it is read dynamically from ledger_settings.publisher_share_bps.
 // Khali (NULL) = batwara NA-DEFINED: sirf advertiser_charge likha jata hai, publisher_earning / platform_revenue kuch nahi.
 //
-// RULE (SQL private.ledger_record_serve ke saath bilkul same):
+// RULE (SQL private.ledger_record_event ke saath bilkul same):
 //   publisher_earning = TRUNCATE(charge x bps / 10000)  (4 decimal, neeche ki taraf)
 //   platform_revenue  = charge - publisher_earning       (bacha hua poora, isliye jodh hamesha charge ke barabar)
 //   Agar publisher_earning 0 nikle (bahut chhoti charge x chhota bps) toh uski entry nahi banti (ledger me amount 0 mana hai) aur platform ko poora charge.

@@ -1,5 +1,6 @@
 import { DESC_MAX, MAX_CAMPAIGN_DAYS, NAME_MAX, NAME_MIN, START_MAX_DAYS_AHEAD, isCategory } from "./constants";
 import { checkBudgets, toDbAmount } from "./budget-rules";
+import { checkPricing, type PricingExisting, type PricingModel } from "./pricing-rules";
 import type { CampaignFieldName, FormValues } from "./types";
 
 // Server-side validation (asli check yahi hai). Browser ki checking sirf suvidha ke liye.
@@ -12,6 +13,10 @@ export type ParsedCampaign = {
   dailyBudget: number | null;
   startDate: string;
   endDate: string | null;
+  /** Pricing: khali form => teeno null (platform default). Sirf chune hue model ka rate bharta hai. */
+  pricingModel: PricingModel | null;
+  cpmRateUsd: number | null;
+  cpcRateUsd: number | null;
 };
 
 export type ParseResult =
@@ -32,7 +37,9 @@ export type ParseOptions = {
     totalBudget?: number;
     dailyBudget?: number | null;
     endDate?: string | null;
-  };
+  } & PricingExisting;
+  /** true = pricing model chunna zaroori (default false: khali = platform default, purane callers jaisa). */
+  requirePricing?: boolean;
 };
 
 // eslint-disable-next-line no-control-regex
@@ -55,6 +62,9 @@ export function readFormValues(fd: FormData): FormValues {
     dailyBudget: readText(fd, "dailyBudget"),
     startDate: readText(fd, "startDate"),
     endDate: readText(fd, "endDate"),
+    pricingModel: readText(fd, "pricingModel", 10),
+    cpmRate: readText(fd, "cpmRate", 40),
+    cpcRate: readText(fd, "cpcRate", 40),
   };
 }
 
@@ -113,6 +123,15 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
   const total = budget.totalCents === null ? null : toDbAmount(budget.totalCents);
   const daily = budget.dailyCents === null ? null : toDbAmount(budget.dailyCents);
 
+  // Pricing (CPM / CPC): poori jaanch pricing-rules.ts me. Currency form se kabhi nahi aati: hamesha USD.
+  const pricing = checkPricing(values, {
+    totalCents: budget.totalCents,
+    dailyCents: budget.dailyCents,
+    existing: opts.existing,
+    requirePricing: opts.requirePricing,
+  });
+  Object.assign(errors, pricing.errors);
+
   const startDate = values.startDate.trim();
   if (startDate === "") errors.startDate = "Choose a start date.";
   else if (!isRealDate(startDate)) errors.startDate = "Choose a valid start date.";
@@ -138,6 +157,9 @@ export function parseCampaignForm(values: FormValues, opts: ParseOptions): Parse
     } else endDate = endRaw;
   }
 
-  if (Object.keys(errors).length > 0 || total === null) return { ok: false, errors };
-  return { ok: true, value: { name, description, category, totalBudget: total, dailyBudget: daily, startDate, endDate } };
+  if (Object.keys(errors).length > 0 || total === null || pricing.value === null) return { ok: false, errors };
+  return {
+    ok: true,
+    value: { name, description, category, totalBudget: total, dailyBudget: daily, startDate, endDate, ...pricing.value },
+  };
 }

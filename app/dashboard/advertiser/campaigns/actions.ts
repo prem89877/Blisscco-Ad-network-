@@ -9,6 +9,7 @@ import { CATEGORY_EDITABLE_STATUSES, EDIT_LOCKED_STATUSES, STATUS_LABELS, isCate
 import { parseCampaignForm, readFormValues, utcToday } from "@/lib/campaigns/validation";
 import { logDbError, mapDbError } from "@/lib/campaigns/errors";
 import { pilotTotalProblem } from "@/lib/campaigns/pilot-guard";
+import { samePricing } from "@/lib/campaigns/pricing-rules";
 import { BELOW_SPEND_MESSAGE, SPEND_UNKNOWN_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
 import { PAUSE_BLOCK_MESSAGE, RESUME_BLOCK_MESSAGES, canPause, checkResume } from "@/lib/campaigns/run-state";
 import type { CampaignFormState, RunStateResult } from "@/lib/campaigns/types";
@@ -63,12 +64,20 @@ export async function createCampaign(_prev: CampaignFormState, formData: FormDat
       daily_budget: v.dailyBudget,
       start_date: v.startDate,
       end_date: v.endDate,
+      // Pricing sirf tab bhejte hain jab chuni gayi ho: khali (platform default) campaign ka insert pehle jaisa hi rehta hai.
+      ...(v.pricingModel !== null
+        ? { pricing_model: v.pricingModel, cpm_rate_usd: v.cpmRateUsd, cpc_rate_usd: v.cpcRateUsd }
+        : {}),
     })
     .select("id")
     .single();
 
   if (error || !data) {
     logDbError("create", error);
+    // Database trigger (phase6-step4-part3): pilot limit ($1,000 / $2,000) direct ya parallel request se bhi paar nahi hoti.
+    if (error?.hint === "pilot_campaign_limit" || error?.hint === "pilot_advertiser_limit") {
+      return { status: "error", message: "Please fix the highlighted fields.", fieldErrors: { totalBudget: mapDbError(error) }, values };
+    }
     return { status: "error", message: mapDbError(error), values };
   }
 
@@ -120,6 +129,9 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
       totalBudget: current.totalBudget,
       dailyBudget: current.dailyBudget,
       endDate: current.endDate,
+      pricingModel: current.pricingModel,
+      cpmRateUsd: current.cpmRateUsd,
+      cpcRateUsd: current.cpcRateUsd,
     },
   });
   if (!parsed.ok) {
@@ -163,6 +175,15 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
     end_date: v.endDate,
   };
   if (!categoryLocked && (isCategory(v.category) || v.category === current.category)) patch.category = v.category;
+  // Pricing sirf badli ho tabhi bhejte hain (teeno columns saath: database shape CHECK ke liye). Purana campaign sirf naam badalne par
+  // pricing columns ko chhoota hi nahi.
+  const currentPricing = { pricingModel: current.pricingModel ?? null, cpmRateUsd: current.cpmRateUsd ?? null, cpcRateUsd: current.cpcRateUsd ?? null };
+  const nextPricing = { pricingModel: v.pricingModel, cpmRateUsd: v.cpmRateUsd, cpcRateUsd: v.cpcRateUsd };
+  if (!samePricing(currentPricing, nextPricing)) {
+    patch.pricing_model = nextPricing.pricingModel;
+    patch.cpm_rate_usd = nextPricing.cpmRateUsd;
+    patch.cpc_rate_usd = nextPricing.cpcRateUsd;
+  }
 
   const supabase = await createClient();
   // .eq("status") + .eq("updated_at"): agar read aur write ke beech campaign badal gaya toh 0 rows milengi
@@ -179,7 +200,7 @@ export async function updateCampaign(_prev: CampaignFormState, formData: FormDat
   if (error) {
     logDbError("update", error);
     // Database trigger (day-9-3): padhne aur likhne ke beech serve ho gaya toh bhi budget kharch se neeche nahi jata.
-    if (error.hint === "budget_below_spend") {
+    if (error.hint === "budget_below_spend" || error.hint === "pilot_campaign_limit" || error.hint === "pilot_advertiser_limit") {
       return {
         status: "error",
         message: "Please fix the highlighted fields.",

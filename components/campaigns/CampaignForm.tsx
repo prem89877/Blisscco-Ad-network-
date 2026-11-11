@@ -10,6 +10,18 @@ import { CATEGORY_OPTIONS, DESC_MAX, MIN_DAILY_BUDGET, PILOT_MAX_ADVERTISER_TOTA
 import { checkBudgets, type BudgetField } from "@/lib/campaigns/budget-rules";
 import { BELOW_SPEND_MESSAGE, isBelowSpend } from "@/lib/campaigns/budget";
 import { dollarsToCents } from "@/lib/campaigns/money";
+import {
+  CPC_MAX_UNITS,
+  CPC_MIN_UNITS,
+  CPM_MAX_UNITS,
+  CPM_MIN_UNITS,
+  PRICING_MODELS,
+  PRICING_MODEL_LABELS,
+  SUGGESTED_CPM_RATE,
+  checkPricing,
+  formatRateUnits,
+  type PricingFieldName,
+} from "@/lib/campaigns/pricing-rules";
 import { initialFormState, type Campaign, type CampaignFieldName, type CampaignFormState, type FormValues } from "@/lib/campaigns/types";
 
 type Props = {
@@ -27,6 +39,14 @@ type Props = {
 const inputBase =
   "min-h-11 w-full rounded-lg border bg-ink px-3.5 py-2 text-base text-mist placeholder:text-mist/40 disabled:cursor-not-allowed disabled:opacity-60";
 
+/** Database rate (numeric(10,4)) -> form text: kam se kam 2 decimal, bekaar trailing zero nahi (2.5 -> "2.50", 0.015 -> "0.015"). */
+function rateText(n: number | null | undefined): string {
+  if (typeof n !== "number" || !Number.isFinite(n)) return "";
+  let t = n.toFixed(4);
+  while (t.endsWith("0") && /\.\d{3,}$/.test(t)) t = t.slice(0, -1);
+  return t;
+}
+
 function defaultsFrom(campaign?: Campaign): FormValues {
   return {
     name: campaign?.name ?? "",
@@ -36,6 +56,10 @@ function defaultsFrom(campaign?: Campaign): FormValues {
     dailyBudget: campaign?.dailyBudget != null ? campaign.dailyBudget.toFixed(2) : "",
     startDate: campaign?.startDate ?? "",
     endDate: campaign?.endDate ?? "",
+    // Naya campaign: CPM pehle se chuna hua (suggested rate). Purana campaign: jo saved hai; legacy (pricing nahi) khali rehta hai.
+    pricingModel: campaign ? (campaign.pricingModel ?? "") : "cpm",
+    cpmRate: campaign ? rateText(campaign.cpmRateUsd) : SUGGESTED_CPM_RATE,
+    cpcRate: campaign ? rateText(campaign.cpcRateUsd) : "",
   };
 }
 
@@ -81,12 +105,46 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
   // Jis budget field ko user ne chhua/jaancha, uske liye browser ka naya result dikhta hai (server ka purana error nahi).
   const [checked, setChecked] = useState<Partial<Record<BudgetField, boolean>>>({});
   const v = state.values ?? defaultsFrom(campaign);
+  // Pricing: wahi tareeka (browser ki jaldi jaanch, pricing-rules.ts ke wahi niyam; asli check server + database).
+  const [pricingErrors, setPricingErrors] = useState<Partial<Record<PricingFieldName, string>>>({});
+  const [pricingChecked, setPricingChecked] = useState(false);
+  const [model, setModel] = useState<string>(v.pricingModel ?? "");
+  const isPricingField = (f: CampaignFieldName): f is PricingFieldName => f === "pricingModel" || f === "cpmRate" || f === "cpcRate";
   const err = (f: CampaignFieldName) =>
     f === "totalBudget" || f === "dailyBudget"
       ? checked[f]
         ? clientErrors[f]
         : state.fieldErrors?.[f]
-      : state.fieldErrors?.[f];
+      : isPricingField(f)
+        ? pricingChecked
+          ? pricingErrors[f]
+          : state.fieldErrors?.[f]
+        : state.fieldErrors?.[f];
+
+  function pricingProblems(form: HTMLFormElement): Partial<Record<PricingFieldName, string>> {
+    const fd = new FormData(form);
+    const text = (k: string) => (typeof fd.get(k) === "string" ? (fd.get(k) as string) : "");
+    const budget = checkBudgets(text("totalBudget"), text("dailyBudget"), { totalBudget: campaign?.totalBudget, dailyBudget: campaign?.dailyBudget });
+    return checkPricing(
+      { pricingModel: text("pricingModel"), cpmRate: text("cpmRate"), cpcRate: text("cpcRate") },
+      {
+        totalCents: budget.totalCents,
+        dailyCents: budget.dailyCents,
+        existing: campaign ? { pricingModel: campaign.pricingModel, cpmRateUsd: campaign.cpmRateUsd, cpcRateUsd: campaign.cpcRateUsd } : undefined,
+      },
+    ).errors;
+  }
+
+  function onPricingBlur(form: HTMLFormElement | null) {
+    if (!form) return;
+    const problems = pricingProblems(form);
+    // Khali rate par blur karte hi "Enter the CPM rate" nahi dikhana (submit par dikhega).
+    const rateField = model === "cpc" ? "cpcRate" : "cpmRate";
+    const input = form.elements.namedItem(rateField) as HTMLInputElement | null;
+    if (input && input.value.trim() === "") delete problems[rateField];
+    setPricingErrors(problems);
+    setPricingChecked(true);
+  }
 
   function budgetProblems(form: HTMLFormElement): Partial<Record<BudgetField, string>> {
     const fd = new FormData(form);
@@ -128,10 +186,13 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
       noValidate
       onSubmit={(e) => {
         const problems = budgetProblems(e.currentTarget);
+        const priceProblems = pricingProblems(e.currentTarget);
         setClientErrors(problems);
         setChecked({ totalBudget: true, dailyBudget: true });
-        // Galat budget par server ko bhejte hi nahi; preventDefault se form action nahi chalta.
-        if (Object.keys(problems).length > 0) {
+        setPricingErrors(priceProblems);
+        setPricingChecked(true);
+        // Galat budget / pricing par server ko bhejte hi nahi; preventDefault se form action nahi chalta.
+        if (Object.keys(problems).length > 0 || Object.keys(priceProblems).length > 0) {
           e.preventDefault();
           return;
         }
@@ -242,6 +303,89 @@ export default function CampaignForm({ mode, action, campaign, categoryLocked = 
           )}
         </FieldShell>
       </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FieldShell
+          id="pricingModel"
+          label="Pricing model"
+          error={err("pricingModel")}
+          hint={
+            mode === "edit" && !campaign?.pricingModel
+              ? "This campaign uses the platform's standard rate. Choose CPM or CPC to give it its own pricing."
+              : undefined
+          }
+        >
+          {(d, invalid) => (
+            <select
+              id="pricingModel"
+              name="pricingModel"
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setPricingChecked(false);
+              }}
+              aria-invalid={invalid || undefined}
+              aria-describedby={d}
+              className={`${inputBase} ${border("pricingModel")}`}
+            >
+              {mode === "edit" && !campaign?.pricingModel && <option value="">Platform default (current)</option>}
+              {PRICING_MODELS.map((m) => (
+                <option key={m} value={m}>
+                  {PRICING_MODEL_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          )}
+        </FieldShell>
+        {model === "cpm" && (
+          <FieldShell
+            id="cpmRate"
+            label="CPM rate (USD per 1,000 impressions)"
+            error={err("cpmRate")}
+            hint={`From ${formatRateUnits(CPM_MIN_UNITS)} to ${formatRateUnits(CPM_MAX_UNITS)}. For example 2.50 means $2.50 for every 1,000 impressions.`}
+          >
+            {(d, invalid) => (
+              <input
+                id="cpmRate"
+                name="cpmRate"
+                type="text"
+                inputMode="decimal"
+                defaultValue={v.cpmRate ?? ""}
+                onBlur={(e) => onPricingBlur(e.currentTarget.form)}
+                aria-invalid={invalid || undefined}
+                aria-describedby={d}
+                className={`${inputBase} ${border("cpmRate")}`}
+              />
+            )}
+          </FieldShell>
+        )}
+        {model === "cpc" && (
+          <FieldShell
+            id="cpcRate"
+            label="CPC rate (USD per click)"
+            error={err("cpcRate")}
+            hint={`From ${formatRateUnits(CPC_MIN_UNITS)} to ${formatRateUnits(CPC_MAX_UNITS)}, and not more than your budgets. For example 0.15 means $0.15 per click.`}
+          >
+            {(d, invalid) => (
+              <input
+                id="cpcRate"
+                name="cpcRate"
+                type="text"
+                inputMode="decimal"
+                defaultValue={v.cpcRate ?? ""}
+                onBlur={(e) => onPricingBlur(e.currentTarget.form)}
+                aria-invalid={invalid || undefined}
+                aria-describedby={d}
+                className={`${inputBase} ${border("cpcRate")}`}
+              />
+            )}
+          </FieldShell>
+        )}
+      </div>
+      <p className="text-xs text-mist/55">
+        Pricing is saved with your campaign and is in US dollars. During the pilot, ads are still delivered and charged at the platform&apos;s standard rate:
+        your CPM or CPC setting does not change delivery or charges yet.
+      </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <FieldShell id="startDate" label="Start date" error={err("startDate")}>

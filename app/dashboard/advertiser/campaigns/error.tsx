@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { sendDiagReport } from "@/lib/actions/guard";
+import { handleBoundaryError } from "@/lib/actions/guard";
 import Button from "@/components/ui/Button";
 import Notice from "@/components/auth/Notice";
 
 // Unexpected error par: raw message kabhi nahi dikhate (sirf safe reference code).
 export default function CampaignsError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    sendDiagReport("error_boundary", { boundary: "campaigns", digest: error.digest, errName: error.name });
+    handleBoundaryError(error, "campaigns");
   }, [error]);
 
   return (

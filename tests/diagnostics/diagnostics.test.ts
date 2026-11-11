@@ -158,7 +158,11 @@ describe("diagnostics | /api/diag route", () => {
 
 describe("diagnostics | wiring", () => {
   it("both error screens (dashboard + home) report to /api/diag and still show no raw error", () => {
-    for (const f of ["app/error.tsx", "app/dashboard/error.tsx", "app/global-error.tsx", "app/dashboard/advertiser/campaigns/error.tsx", "app/dashboard/advertiser/creatives/error.tsx", "app/dashboard/analytics/error.tsx"]) {
+    for (const f of ["app/error.tsx", "app/dashboard/error.tsx", "app/global-error.tsx", "app/dashboard/advertiser/campaigns/error.tsx", "app/dashboard/advertiser/creatives/error.tsx"]) {
+      assert.match(read(f), /handleBoundaryError\(error, "/, f);
+      assert.doesNotMatch(read(f), /error\.message|error\.stack/, f);
+    }
+    for (const f of ["app/dashboard/analytics/error.tsx"]) {
       assert.match(read(f), /sendDiagReport\("error_boundary"/, f);
       assert.doesNotMatch(read(f), /error\.message|error\.stack/, f);
     }

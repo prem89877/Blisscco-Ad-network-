@@ -1,0 +1,20 @@
+Blisscco Phase 6 Step 4 Part 1: exact new and modified files. Project root par extract karo.
+(SQL migration kisi database par chalayi NAHI gayi. Pehle denim (test) par, approval ke baad. Production par kuch nahi.)
+DEPLOY ORDER: migration pehle, phir code.
+
+NEW:
+  supabase/sql/phase6-step4-part1-campaign-pricing.sql
+  lib/campaigns/pricing-rules.ts
+  tests/campaigns/phase6-step4-part1-pricing.test.ts
+  PHASE6-STEP4-PART1-CAMPAIGN-PRICING-REPORT.md
+  CHANGED-FILES-PHASE6-STEP4-PART1.txt
+
+MODIFIED:
+  lib/campaigns/types.ts
+  lib/campaigns/validation.ts
+  lib/campaigns/queries.ts
+  app/dashboard/advertiser/campaigns/actions.ts
+  components/campaigns/CampaignForm.tsx
+  app/dashboard/advertiser/campaigns/new/page.tsx
+
+NOT CHANGED (checked): lib/ads/category-matching.ts, lib/ads/taxonomy.ts, lib/ads/selection.ts, app/dashboard/advertiser/campaigns/[id]/edit/page.tsx, all existing supabase/sql files.

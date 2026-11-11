@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { sendDiagReport } from "@/lib/actions/guard";
+import { handleBoundaryError } from "@/lib/actions/guard";
 
 // Poore app ka aakhri bachav (root layout hi toot jaye tab). Apna <html>/<body> chahiye, isliye simple inline style.
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    sendDiagReport("error_boundary", { boundary: "global", digest: error.digest, errName: error.name });
+    handleBoundaryError(error, "global");
   }, [error]);
 
   return (

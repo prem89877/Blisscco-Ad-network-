@@ -1,0 +1,10 @@
+Blisscco Phase 6 Step 5: exact new and modified files manifest.
+
+NEW:
+  PHASE6-STEP5-FINAL-PILOT-READINESS-REPORT.md
+  tests/ads/phase6-step5-report-contract.test.ts
+  CHANGED-FILES-PHASE6-STEP5.txt
+
+MODIFIED:
+  MVP-INCIDENT-AND-RECOVERY-RUNBOOK.md   (section 8 appended: TEST-only S1/S2/S3 rehearsal)
+  PRODUCTION-DB-BACKUP-RUNBOOK.md        (section 6 appended: recovery limitations)

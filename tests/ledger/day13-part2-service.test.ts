@@ -411,7 +411,7 @@ describe("day 13 part 2 | SQL migration (text checks; SQL not executed)", () => 
   });
 
   it("no existing (non Day 13) SQL file mentions the new ledger service objects", () => {
-    for (const f of readdirSync(SQL_DIR).filter((x) => !/^day-13-/.test(x) && !/^phase5-step5-1-/.test(x)) /* Phase 5 Step 5 */) {
+    for (const f of readdirSync(SQL_DIR).filter((x) => !/^day-13-/.test(x) && !/^phase5-step5-1-/.test(x) && !/^phase6-step4-part2-/.test(x) && !/^phase6-step4-part3-/.test(x)) /* Phase 5 Step 5 */) {
       assert.doesNotMatch(read(f), /ledger_settings|ledger_record_serve|ledger_reverse_entry|ledger_add_adjustment/, f);
     }
   });

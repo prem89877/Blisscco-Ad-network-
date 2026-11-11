@@ -15,6 +15,10 @@ const NOTICES: Record<string, { tone: "success" | "info" | "error"; text: string
     tone: "error",
     text: "That verification link is invalid or has expired. Try logging in; if your email is not verified, we can send a new link.",
   },
+  confirm_other_browser: {
+    tone: "error",
+    text: "This link must be opened in the same browser where you started signing up or logging in with Google. Please log in below. If your email is not verified yet, we can send a new link; open it in the same browser.",
+  },
   oauth_failed: { tone: "error", text: "Google sign-in could not be started. Please try again, or log in with email." },
   config: { tone: "error", text: "Sign-in is not set up on this site yet. Please try again later." },
 };

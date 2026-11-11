@@ -84,3 +84,37 @@ For every incident, write one record with: date and time (with time zone), who f
 - Migrations are re-runnable SQL files with a written order (`supabase/MIGRATION-ORDER.md`, `supabase/DEPLOYMENT-RUNBOOK.md`); no rollback scripts are in `supabase/sql/`.
 - A restore returns the database to an earlier time and loses later ledger, payout and event rows; those rows cannot be re-created by the append-only rules. Any restore is decided by the owner and the approver, never started during an incident without both.
 - Do not start a Production backup, restore or migration from this file.
+
+## 8. TEST-only incident rehearsal checklist (Phase 6 Step 5)
+
+Rehearsal rules: **TEST/Preview only. NEVER run on Production.**
+
+### Rehearsal S1: Suspected secret leak / budget breach
+- **Trigger scenario:** A mock alert indicates an exposed test key or a test campaign spend exceeding pilot limits.
+- **Action steps:**
+  1. Open Admin Dashboard > "Emergency stop" panel.
+  2. Enter reason: `"TEST rehearsal S1 stop"`. Click **"Stop all ad serving"**.
+  3. Verify with `curl` on TEST match endpoint: response must be HTTP 200 with `{"fill":false}`.
+  4. Revoke the test publisher key on the Publisher Dashboard. Verify with `curl`: next request returns HTTP 401.
+  5. Pause test campaigns on the Advertiser page.
+- **Evidence to capture:** Timestamp, admin audit row showing `"TEST rehearsal S1 stop"`, terminal output of 200 `{"fill":false}` and 401 `{"error":"unauthorized"}`.
+- **Resume authority:** Owner (Prem Talekar) written restart decision only. Click "Resume ad serving" with reason `"TEST rehearsal S1 concluded"`.
+
+### Rehearsal S2: High-priority operational failure (repeated 503 / wrong matching)
+- **Trigger scenario:** Ad endpoint simulated 503 or mismatch report on a specific campaign.
+- **Action steps:**
+  1. Pause ONLY the affected campaign in the Advertiser dashboard.
+  2. Verify other active campaigns still match and serve on TEST.
+  3. Verify the paused campaign returns no-fill when requested directly.
+  4. Keep ledger and payout operations untouched.
+- **Evidence to capture:** Campaign status `"Paused"` in DB/UI, match response showing no-fill for the paused campaign's category.
+- **Resume authority:** Admin approval after verifying root cause.
+
+### Rehearsal S3: Monitoring anomaly / minor warning
+- **Trigger scenario:** Isolated latency spike or single 400 bad request in TEST logs.
+- **Action steps:**
+  1. No pause. Record observation in private observation log.
+  2. Check Pilot Monitoring Panel for error count rollup.
+  3. If persistent across observation windows, escalate to S2.
+- **Evidence to capture:** Monitoring panel screenshot/log line.
+- **Resume authority:** Routine monitoring; no stop required.

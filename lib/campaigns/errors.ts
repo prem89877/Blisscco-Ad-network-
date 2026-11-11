@@ -1,5 +1,11 @@
+import { PILOT_MAX_ADVERTISER_TOTAL, PILOT_MAX_CAMPAIGN_BUDGET } from "./constants";
+import { formatCents } from "./money";
+
 // Database error ko friendly message me badalte hain. Raw message/details kabhi user ko nahi bhejte.
 type DbError = { code?: string | null; hint?: string | null } | null | undefined;
+
+const PILOT_CAMPAIGN_CENTS = Math.round(PILOT_MAX_CAMPAIGN_BUDGET * 100);
+const PILOT_ADVERTISER_CENTS = Math.round(PILOT_MAX_ADVERTISER_TOTAL * 100);
 
 const HINT_MESSAGES: Record<string, string> = {
   resume_needs_approved_creative: "This campaign cannot be resumed until it has at least one approved creative.",
@@ -7,6 +13,8 @@ const HINT_MESSAGES: Record<string, string> = {
   resume_budget_exhausted: "This campaign has no budget left. Raise the total budget before resuming.",
   campaign_limit_reached: "You have reached the limit of 50 campaigns. Archive an old campaign first.",
   budget_below_spend: "The total budget cannot be lower than what this campaign has already spent.",
+  pilot_campaign_limit: `During the pilot, one campaign can have a total budget of at most ${formatCents(PILOT_CAMPAIGN_CENTS)}.`,
+  pilot_advertiser_limit: `During the pilot, all your campaigns together can have at most ${formatCents(PILOT_ADVERTISER_CENTS)} in total budget.`,
 };
 
 export function mapDbError(error: DbError): string {

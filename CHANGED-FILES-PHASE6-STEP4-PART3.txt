@@ -1,0 +1,25 @@
+Blisscco Phase 6 Step 4 Part 3: exact new and modified files manifest.
+
+NEW:
+  supabase/sql/phase6-step4-part3-pilot-limits-guard.sql
+  supabase/sql/phase6-step4-part3-test-revenue-share-config.sql
+  supabase/sql/phase6-step4-part3-financial-reconciliation-verify.sql
+  supabase/sql/phase6-step4-part3-financial-tests.sql
+  lib/ledger/reconciliation.ts
+  tests/ledger/phase6-step4-part3-revenue-share.test.ts
+  tests/ledger/phase6-step4-part3-reconciliation.test.ts
+  tests/ads/phase6-step4-part3-event-reconciliation.test.ts
+  tests/campaigns/phase6-step4-part3-pilot-limits.test.ts
+  tests/integration/phase6-step4-part3-pilot-limits-db.test.ts
+  PHASE6-STEP4-PART3-FINANCIAL-READINESS-REPORT.md
+  CHANGED-FILES-PHASE6-STEP4-PART3.txt
+
+MODIFIED:
+  lib/ledger/revenue-share.ts
+  lib/campaigns/errors.ts
+  app/dashboard/advertiser/campaigns/actions.ts
+  supabase/MIGRATION-ORDER.md
+  tests/ads/day12-part1-architecture.test.ts
+  tests/ads/day13-part1-ledger.test.ts
+  tests/ledger/day13-part2-service.test.ts
+  tests/campaigns/phase6-step4-part1-pricing.test.ts

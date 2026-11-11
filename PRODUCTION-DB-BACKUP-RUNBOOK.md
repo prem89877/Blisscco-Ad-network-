@@ -37,3 +37,12 @@ Pehle checksum: `sha256sum -c backups/<file>.dump.sha256`. Restore ka rehearsal 
 
 - Har Production migration / deploy se **pehle**, aur pilot start (1 Dec 2026) se pehle ek baar.
 - Pilot ke dauran har hafte (manual), jab tak automatic schedule nahi lagta.
+
+## 6. Recovery limitations and pilot constraints (Phase 6 Step 5)
+
+Explicit system limitations:
+- **Free plan limitation:** Production Supabase project is on the Free tier, which provides zero automated daily project backups and NO point-in-time recovery (PITR).
+- **Restore practice:** A full database restore has NEVER been practised or verified on any scratch or test project.
+- **Append-only ledger risk:** A database restore rolls back state to a prior point in time. Any ledger entries, event billing records, budget reservations, or payout requests written after the backup timestamp are permanently lost and cannot be recreated automatically due to immutable sequence and idempotency constraints.
+- **No rollback migrations:** The `supabase/sql/` directory contains forward-only, re-runnable SQL migrations. There are no down-migration or rollback scripts. Rollback is strictly "fix forward" or manual reversal using adjustment ledger functions.
+- **Storage assets not in dump:** Creative assets (brand logos, banners) in the Supabase Storage bucket `creative-assets` are not captured in the PostgreSQL pg_dump dump file and require separate manual storage exports.

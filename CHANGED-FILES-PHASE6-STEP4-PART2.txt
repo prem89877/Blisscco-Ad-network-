@@ -1,0 +1,18 @@
+Blisscco Phase 6 Step 4 Part 2: exact new and modified files. Project root par extract karo.
+(SQL migration kisi database par chalayi NAHI gayi. Pehle denim (test) par, approval ke baad. Production par kuch nahi. Ledger band.)
+DEPLOY ORDER: phase6-step4-part1 migration, phir part2 migration, phir code.
+
+NEW:
+  supabase/sql/phase6-step4-part2-event-billing.sql
+  tests/ads/phase6-step4-part2-event-billing.test.ts
+  tests/ads/event-billing-model.ts
+  tests/ledger/phase6-step4-part2-event-ledger.test.ts
+  tests/integration/phase6-step4-part2-event-billing-db.test.ts
+  PHASE6-STEP4-PART2-EVENT-BILLING-REPORT.md
+  CHANGED-FILES-PHASE6-STEP4-PART2.txt
+
+MODIFIED (sirf allow-list ki ek line):
+  tests/ads/day12-part1-architecture.test.ts
+  tests/ads/day13-part1-ledger.test.ts
+  tests/ledger/day13-part2-service.test.ts
+  tests/campaigns/phase6-step4-part1-pricing.test.ts

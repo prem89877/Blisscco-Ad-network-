@@ -36,7 +36,7 @@ describe("day 13 part 1 | files and dependencies", () => {
     assert.match(text, /PEHLE TEST project/);
   });
   it("no existing migration was edited into a ledger writer (record_ad_serve / spend / budget files untouched by name)", () => {
-    for (const f of readdirSync(SQL_DIR).filter((x) => !/^day-13-/.test(x) && !/^phase5-step5-1-/.test(x)) /* Phase 5 Step 5 payments migration ledger/settlement likhta hai; tests/payments/phase5-step5-payments.test.ts usse bandhta hai */) {
+    for (const f of readdirSync(SQL_DIR).filter((x) => !/^day-13-/.test(x) && !/^phase5-step5-1-/.test(x) && !/^phase6-step4-part2-/.test(x) && !/^phase6-step4-part3-/.test(x)) /* Phase 5 Step 5 payments migration ledger/settlement likhta hai; tests/payments/phase5-step5-payments.test.ts usse bandhta hai */) {
       assert.doesNotMatch(read(f), /financial_ledger|ledger_append|ledger_reverse/, f);
     }
   });

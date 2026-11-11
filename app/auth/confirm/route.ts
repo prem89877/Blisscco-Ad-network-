@@ -8,7 +8,8 @@ import { OAUTH_INTENT_COOKIE, CHOOSE_ROLE_PATH, isFreshGoogleSignup, parseIntent
 import { handleNewGoogleUser } from "@/lib/auth/oauth-role";
 
 // Email verification link yahin aata hai (token_hash flow: link kisi bhi browser/app me khule toh chalta hai).
-// Purana ?code= (PKCE) link bhi sambhalta hai. Success => session cookie set + /dashboard.
+// Purana ?code= (PKCE) link bhi sambhalta hai (isme wahi browser chahiye jahan signup / Google login shuru hua tha: "pkce_code_verifier_not_found").
+// Success => session cookie set + /dashboard.
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const tokenHash = params.get("token_hash");
@@ -19,6 +20,8 @@ export async function GET(request: NextRequest) {
   if (!hasSupabaseEnv()) redirect("/login?error=config");
 
   let ok = false;
+  // Code verifier cookie (PKCE) is browser me nahi mili: link doosre browser / app me khula, ya cookie pehle hi use ho chuki.
+  let verifierMissing = false;
   try {
     const supabase = await createClient();
     if (tokenHash && (type === "email" || type === "signup")) {
@@ -29,6 +32,14 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       ok = !error;
       if (error) console.error("[auth] code exchange failed", { code: error.code, status: error.status });
+      if (error?.code === "pkce_code_verifier_not_found") {
+        verifierMissing = true;
+        // Sabse aam wajah: yehi link do baar khula (email scanner / prefetch / refresh / double tap). Pehli request session bana chuki aur verifier
+        // cookie hata chuki hoti hai. Agar is browser me ab asli (getUser se verify hua) session hai toh user ko error nahi, seedha andar bhejo.
+        // Naya session yahan kabhi nahi banta: sirf pehle se mojood, verified session maana jata hai.
+        const existing = await supabase.auth.getUser();
+        if (!existing.error && existing.data.user) ok = true;
+      }
       // Abhi-abhi bana Google user: account type user ki choice se (signup) ya use poochkar (login). Mojooda users ko nahi chhuta.
       if (!error && isFreshGoogleSignup(data.user)) {
         const jar = await cookies();
@@ -44,5 +55,5 @@ export async function GET(request: NextRequest) {
 
   // redirect() try/catch ke bahar (wo exception ke roop me kaam karta hai)
   if (ok) redirect(next);
-  redirect("/login?error=confirm_failed");
+  redirect(verifierMissing ? "/login?error=confirm_other_browser" : "/login?error=confirm_failed");
 }

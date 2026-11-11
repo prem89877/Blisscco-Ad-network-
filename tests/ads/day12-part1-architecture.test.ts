@@ -75,6 +75,10 @@ describe("Day 12 part 1: report states the facts the repo proves", () => {
       "supabase/sql/day-13-4-ledger-service.sql",
       // Phase 3 Step 4: admin-only monitoring summary ad_events ko sirf PADHTA hai (counts), kuch likhta nahi; day-12-12 jaisa read-only tareeka.
       "supabase/sql/phase3-step4-1-pilot-request-metrics.sql",
+      // Phase 6 Step 4 Part 2: event-based billing; impression/click writers ko settlement ke saath dobara define karti hai (ad_events ka structure nahi badla).
+      "supabase/sql/phase6-step4-part2-event-billing.sql",
+      // Phase 6 Step 4 Part 3: read-only reconciliation verify (sirf SELECT; ad_events / serve_ref ko padhta hai).
+      "supabase/sql/phase6-step4-part3-financial-reconciliation-verify.sql",
     ]);
     assert.equal(/record_ad_event/i.test(sqlText), false, "a record_ad_event writer slipped into supabase/sql");
   });

@@ -30,6 +30,10 @@ const LAUNCH_GUIDANCE: { title: string; text: string }[] = [
     text: `Total budget: at least $${MIN_TOTAL_BUDGET.toFixed(2)}. Daily budget is optional: at least $${MIN_DAILY_BUDGET.toFixed(2)} and not above the total. Ads stop when a budget is used up, and the total cannot be lowered below what is already spent.`,
   },
   {
+    title: "Pricing",
+    text: "Choose CPM (a price per 1,000 impressions) or CPC (a price per click), in US dollars. Your pricing is saved with the campaign. During the pilot, ads are still delivered and charged at the platform's standard rate, so this setting does not change delivery or charges yet.",
+  },
+  {
     title: "Status",
     text: "A new campaign is a draft and is not live. Send it for review once it has an ad. It can show ads only after our team approves it and at least one ad, and only while it is inside its dates and has budget left. Approval does not guarantee that ads are shown.",
   },

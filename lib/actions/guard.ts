@@ -21,7 +21,7 @@ export const FAILURE_MESSAGE =
 export const SLOW_ACTION_MS = 5_000;
 
 export type GuardDiagEvent = "action_slow" | "action_timeout" | "action_failed";
-export type GuardDiagDetails = { ms: number; outcome: "success" | "redirect" | "error" | "timeout" | "network"; errName?: string; errMsg?: string };
+export type GuardDiagDetails = { ms: number; outcome: "success" | "redirect" | "error" | "timeout" | "network" | "stale_deployment"; errName?: string; errMsg?: string };
 
 // Browser se /api/diag par ek chhoti report (server use "[diag]" line bana kar Vercel logs me likhta hai). Is file me koi import nahi (test niyam),
 // isliye report bhejne wala function yahin hai. Sirf event ka naam, path (bina query), ms, aur chhota error naam / msg jaata hai. Form ki koi value kabhi nahi.
@@ -42,6 +42,40 @@ export function sendDiagReport(event: string, fields: Record<string, string | nu
   } catch {
     // diagnostics se kabhi button ya page nahi tootna chahiye
   }
+}
+
+/* ---- Purana page, naya deploy ("Failed to find Server Action" / UnrecognizedActionError) ----
+ * Naya deploy hone par server actions ki id badal jaati hai. Browser me purana khula page (ya cached tab) purani id bhejta hai aur server
+ * "Failed to find Server Action ... older or newer deployment" deta hai. Database / data ka isse koi lena-dena nahi. Ilaaj: page naya load karna. */
+export const STALE_DEPLOYMENT_MESSAGE =
+  "We just updated the site, and this page is out of date. Please refresh the page and try again. Your request was not processed.";
+
+export function isStaleDeploymentError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const e = error as { name?: unknown; message?: unknown };
+  return e.name === "UnrecognizedActionError" || (typeof e.message === "string" && e.message.includes("Failed to find Server Action"));
+}
+
+/** Page ek baar apne aap naya load hota hai. Pichla load khud "reload" tha toh dobara nahi (loop nahi banta). Koi storage / cookie nahi. */
+export function reloadOnceForStaleDeployment(): void {
+  try {
+    if (typeof window === "undefined") return;
+    const nav = typeof performance !== "undefined" ? (performance.getEntriesByType("navigation")[0] as { type?: string } | undefined) : undefined;
+    if (nav?.type === "reload") return;
+    window.location.reload();
+  } catch {
+    // reload na ho paye toh error screen ka "Refresh page" button hai
+  }
+}
+
+/** Har error screen (error.tsx) yahi bulata hai: purana-deploy error => report + ek baar auto reload; baaki sab => sirf report (digest ke saath). */
+export function handleBoundaryError(error: { name?: string; message?: string; digest?: string }, boundary: string): void {
+  if (isStaleDeploymentError(error)) {
+    sendDiagReport("error_boundary", { boundary, outcome: "stale_deployment", errName: error.name });
+    reloadOnceForStaleDeployment();
+    return;
+  }
+  sendDiagReport("error_boundary", { boundary, digest: error.digest, errName: error.name });
 }
 
 export class ActionTimeoutError extends Error {
@@ -150,6 +184,11 @@ export function createActionGuard<S extends GuardState>(options: GuardOptions<S>
         safeReport("action_timeout", { ms, outcome: "timeout" });
         safeRefresh();
         return buildError(prev, TIMEOUT_MESSAGE, formData);
+      }
+      if (isStaleDeploymentError(error)) {
+        // Page purana hai: refresh (router) se kuch nahi badlta, user ko page naya kholna hai. Kaam server tak pahuncha hi nahi.
+        safeReport("action_failed", { ms, outcome: "stale_deployment", errName: "UnrecognizedActionError" });
+        return buildError(prev, STALE_DEPLOYMENT_MESSAGE, formData);
       }
       const e = error as { name?: unknown; message?: unknown } | null;
       safeReport("action_failed", {

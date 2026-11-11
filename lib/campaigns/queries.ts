@@ -12,7 +12,7 @@ import { toAdvertiser, type AdvertiserResult, type MyAdvertiser } from "./advert
 // RLS pehle se rokti hai, par admin ko sab campaigns dikhte hain, isliye defense in depth.
 
 const COLUMNS =
-  "id, advertiser_id, name, description, category, status, currency_code, total_budget, daily_budget, start_date, end_date, created_at, updated_at";
+  "id, advertiser_id, name, description, category, status, currency_code, total_budget, daily_budget, start_date, end_date, pricing_model, cpm_rate_usd, cpc_rate_usd, created_at, updated_at";
 
 export type { MyAdvertiser, AdvertiserResult } from "./advertiser";
 
