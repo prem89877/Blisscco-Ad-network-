@@ -33,3 +33,24 @@ Real Postgres behaviour (trigger, advisory lock, rollback), real concurrency, Pr
 
 ## 7. Confirmations
 Ledger OFF, no Production SQL, no backfill, no payouts/payments activation, no client-side financial math, no credentials exposed.
+
+---
+
+## UPDATE 2026-11-12 — results (supersedes "NOT RUN" in sections 3 and 4)
+Evidence labels used in these updates: **VERIFIED** = proof exists (pasted query output, GitHub Actions screenshot or log); **CONFIRMED BY USER** = owner statement, no independent artefact; **INFERRED** = follows logically from verified evidence; **OPEN** = not proven. Production was not touched; no Production SQL was run for any item below.
+
+| Item | Status | Evidence |
+|---|---|---|
+| `phase6-step4-part3-pilot-limits-guard.sql` applied on TEST | **VERIFIED** | Footer: trigger `campaigns_guard_pilot_limits` present and enabled (1); 0 EXECUTE grants on `private.guard_pilot_campaign_limits` |
+| Pilot-limits trigger behaviour ($1,000 per campaign, $2,000 per advertiser, 30 parallel inserts) | **VERIFIED (green)** | `phase6-step4-part3-pilot-limits-db.test.ts` inside DB integration run #17 (it had been cancelled in earlier runs by a test-setup error; fixed) |
+| Revenue-share config on TEST | **VERIFIED** | `financial-tests.sql` final check returned `publisher_share_bps = 9000`, `ledger_enabled = false` |
+| `phase6-step4-part3-test-revenue-share-config.sql` itself | **OPEN** | The 9000 bps value is proven, but running this specific file was not evidenced |
+| `phase6-step4-part3-financial-reconciliation-verify.sql` | **OPEN** | No output seen |
+| `phase6-step4-part3-financial-tests.sql` (rollback-only) | **VERIFIED executed; assertions PASS (INFERRED)** | Owner screenshot on Denim: the DO block finished and the post-rollback check returned `false / 9000 / pass: ledger remains off`. The DO block raises on any failed assertion, so a returned row means all assertions passed. The notice text was not visible |
+| Covered by that run | VERIFIED (inferred as above) | CPM serve writes no ledger row; impression bills $0.0020 as $0.0018 + $0.0002; duplicate impression does not bill again; CPC impression is free; CPC click bills $0.1234 as $0.1110 + $0.0124 |
+| Leftover test data after the run | **VERIFIED clean** | Read-only check: 0 `@blisscco.test` users, 0 `Fin Test` campaigns, 0 test advertisers/publishers; row counts 298 / 23 / 1 / 0 matched the baseline |
+| Leftover rows from failed integration runs | **VERIFIED and cleaned** | 2 stale `it6s4p3_*` users (advertiser rows only, no campaigns) were found and removed by the owner; re-check returned 0 |
+| `npm ci`, `npm run lint`, `npm test`, `npm run lint:eslint`, `npm run build` | **VERIFIED (green)** | GitHub Actions CI #124 (same five commands as `scripts/day28-verify.sh`; the script itself was not run separately) |
+| Orphan manual adjustment of 5.0000 in the ledger | **CONFIRMED BY USER** | Owner states it was a test entry |
+| Ledger | **VERIFIED OFF** | `ledger_enabled` false after the financial tests; `ledger_settings` count of enabled rows = 0 |
+| Production | **OPEN** | Not touched, not verified |

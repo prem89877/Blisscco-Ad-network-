@@ -48,3 +48,23 @@ Legacy: migration se pehle ki serves ki reservation nahi => unke events par doba
 6. `lib/ads/service.ts` / `serve.ts` ke kuch comments abhi bhi "serve par charge" likhte hain (sirf comments, outdated).
 7. 4 purane guard tests me sirf allow-list ki ek line judi (naya migration file naam) kyunki wo saari SQL files scan karte hain.
 8. `ad_serve_log.served_at` ko DB test backdate karta hai; agar us table par update-guard ho toh wo 2 tests denim par fail honge (tab batana).
+
+---
+
+## UPDATE 2026-11-12 — TEST database results (supersedes "NOT RUN" in section 6)
+Evidence labels used in these updates: **VERIFIED** = proof exists (pasted query output, GitHub Actions screenshot or log); **CONFIRMED BY USER** = owner statement, no independent artefact; **INFERRED** = follows logically from verified evidence; **OPEN** = not proven. Production was not touched; no Production SQL was run for any item below.
+
+| Item | Status | Evidence |
+|---|---|---|
+| Part 2 migration applied on TEST (Denim Hub Bsl) | **VERIFIED** | Footer query on Denim: RLS on `ad_budget_reservations` = true, 0 table grants to app roles, 4 functions present (the security-definer flag was not queried), 0 EXECUTE for PUBLIC/public/anon/authenticated (service_role EXECUTE not queried), ledger OFF (0 enabled) |
+| Footer checks 1, 2, 3, 4 (as count), 7 | **VERIFIED (PASS)** | Same output |
+| Footer checks 5 and 6 (no overspend queries) | **OPEN** | Not run as queries; the no-overspend behaviour itself is covered by the integration test below |
+| `tests/integration/phase6-step4-part2-event-billing-db.test.ts` | **VERIFIED (green)** | GitHub Actions "DB integration (TEST database only)" run #17, green. Pass counts were not visible in the screenshot: **counts NOT VERIFIED** |
+| Run history | note | Runs #14 to #16 failed for the reasons listed below; #17 passed after the fixes |
+
+What the failing runs taught (all fixed):
+- Tests assumed budgets below $0.01. `campaigns.total_budget` and `daily_budget` are `numeric(12,2)`, so the tests now use total/daily budgets of $0.01 or more and larger CPM rates.
+- The rollback test used an inflated spend row, which the day-9-5 spend guard refuses. It now forces the settlement failure with a temporary trigger inside the test transaction (rolled back, plus a safety-net drop).
+- Day 9 Part 5, Day 16 Part 2 and Day 18 Part 4 integration tests were written for charge-on-serve and the old response shape. Updated for hold-on-serve, charge-on-impression and the new `billed` field. `npm run test:integration` now runs files serially (`--test-concurrency=1`) because the pooler allows about 15 sessions.
+- **Finding (TEST database drift): the retry pieces of `day-12-5` were missing on Denim** (`ad_serve_requests.serve_id`, 4-arg `record_ad_serve`, `replay_serve` with `serve_ref`, `find_idempotent_serve`). A TEST-only script restored them without re-running the 3-arg `record_ad_serve`. Run #17 green is the evidence that retry works again (the retry tests had failed with `column q.serve_id does not exist`).
+- **OPEN:** whether Production has the same gap.

@@ -60,3 +60,16 @@ Migration: `supabase/sql/phase6-step4-part1-campaign-pricing.sql` (forward-only,
 
 - CPM 0.10-1000, CPC 0.01-100 limits.
 - Advertisers can set/edit their own pricing, also while active/paused (same as budgets). Safe now because rates are not used for charging yet; decide re-approval rules before Part 2 uses them.
+
+---
+
+## UPDATE 2026-11-12 — TEST database status (supersedes "NOT run on any database" above)
+Evidence labels used in these updates: **VERIFIED** = proof exists (pasted query output, GitHub Actions screenshot or log); **CONFIRMED BY USER** = owner statement, no independent artefact; **INFERRED** = follows logically from verified evidence; **OPEN** = not proven. Production was not touched; no Production SQL was run for any item below.
+
+| Item | Status | Evidence |
+|---|---|---|
+| Part 1 migration applied on TEST (Denim Hub Bsl) | **VERIFIED** | Owner's read-only footer query on Denim: 3 pricing columns present, 6 pricing constraints present, trigger `campaigns_guard_pricing` present, 0 `anon` grants on the pricing columns |
+| Footer checks V1, V2, V4, V5 | **VERIFIED (PASS)** | Same query output (3 / 6 / 1 / 0, as expected) |
+| Footer checks V3 (old rows have null pricing), V6 (`ad_platform_settings` unchanged) | **OPEN** | Not run |
+| Pricing behaviour through the DB (CPM and CPC charge amounts) | **VERIFIED executed; PASS INFERRED** | `financial-tests.sql` ran on Denim (see Part 3 update); DB integration workflow #17 green |
+| Production | untouched | **OPEN**: Production not verified |

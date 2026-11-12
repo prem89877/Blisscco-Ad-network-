@@ -316,3 +316,16 @@ The auditor confirms:
 5. **No real publisher API key was issued** or generated.
 6. **No destructive database operations** (DROP, TRUNCATE, DELETE) were recommended or executed.
 7. **No manual check was marked as passed** without independent verifiable evidence.
+
+---
+
+## Update 2026-11-12 — TEST database evidence added after this report
+This section adds evidence collected afterwards. It does not change the recommendation above; the open gates (G4, G5, G7, G8) are untouched.
+
+Evidence labels used in these updates: **VERIFIED** = proof exists (pasted query output, GitHub Actions screenshot or log); **CONFIRMED BY USER** = owner statement, no independent artefact; **INFERRED** = follows logically from verified evidence; **OPEN** = not proven. Production was not touched; no Production SQL was run for any item below.
+
+- Event-based billing, pilot limits and the 90/10 split: the SQL is **applied on TEST (Denim Hub Bsl)**. This replaces "SQL not run on DB" in the Event-based Billing row above. Footer checks (VERIFIED), `financial-tests.sql` (executed, assertions PASS inferred), and the DB integration workflow run #17 (green) are listed in `PHASE6-STEP4-PART1/2/3` reports.
+- CI run #124 is green (type check, tests, ESLint, build).
+- Ledger is OFF on TEST (VERIFIED). The test orphan adjustment of 5.0000 is CONFIRMED BY USER as test data.
+- New finding: TEST was missing the `day-12-5` retry pieces; restored with a TEST-only script (see Part 2 update). **Production status of this gap: OPEN.**
+- Still **OPEN**: Production read-only verification, DB password rotation after it was pasted in chat, decision on Denim being a shared project (finding P-1), pass counts of the final integration run, owner sign-off.

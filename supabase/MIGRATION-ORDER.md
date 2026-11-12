@@ -55,3 +55,8 @@ phir verify (13-5, 13-18, day-8-1 C3 ye regression pakadte hain).
 
 ## Verify gaps (repo mein read-only verify nahi hai)
 Day 4, Day 5 (5-11 ke STEP 2 ke alawa), Day 9, Day 10: sirf rollback tests ya day-8-1. Production par inka alag verify pending hai.
+
+## Note 2026-11-12: rerun hazards found on TEST
+- `day-9-7-lifecycle-guards.sql` also defines `private.replay_serve` (without `serve_ref`). Running it after `day-12-5` reverts retry replies to the old shape. After any rerun of 9-7, rerun the chain from 12-5 onward.
+- Never rerun `day-12-5` alone on a database that already has `phase6-step4-part2`: its 3-arg `record_ad_serve` would replace the reservation-based version. Rerun the chain from 12-5 through 13-4 and `phase6-step4-part2` instead.
+- TEST (Denim) was missing the `day-12-5` retry pieces and was repaired with a one-off, TEST-only script that is deliberately not kept in `supabase/sql`.
