@@ -4,7 +4,7 @@ Date: 2026-11-12 | Source: uploaded `blisscco-ad-network.zip` + Day 1 reports | 
 
 **Evidence labels:** **STATIC** = code/SQL read · **MODEL** = hand-written model/fake tests (NOT PostgreSQL) · **REAL-CODE** = real TypeScript code with fake writer · **DB-GITHUB** = real TEST PostgreSQL, run by owner on GitHub (owner-supplied, not re-observed by me) · **NOT RUN** = I did not execute it.
 
-> **No real PostgreSQL verification was done by me in this part.** The three DB statements below rest on Day 1 evidence (DB integration run #18) only.
+> **No real PostgreSQL verification was done by me in this part.** Real-DB evidence below is owner-supplied GitHub results (DB integration runs #18 and #19), not re-observed by me.
 
 ## 1. Pass / fail counts (my runs, this part)
 
@@ -26,6 +26,10 @@ Date: 2026-11-12 | Source: uploaded `blisscco-ad-network.zip` + Day 1 reports | 
 | Phase 6 Step 4 Part 2 migration on TEST | Applied; footer checks P2 C1–C7 PASS | Day 1 Part 2 report (LIVE in that session) |
 | TEST state | 0 reservations, 0 settled, budgets never exceeded, ledger OFF, 9000 bps | Day 1 Part 2 (LIVE in that session) |
 | Rollback tests (event/spend/hold roll back together) | PASS inside run #18 | DB-GITHUB |
+| **Update 2026-11-12, after pushing the Part 1 and Part 2 zips:** DB integration run **#19** ("DB integration (TEST database only)", manual run by owner, branch `preview-day-c`) | **Success (green), 6m 0s** | DB-GITHUB, owner screenshot of the Actions list |
+| **Update:** CI run **#126** (commit `f1bc25c`, branch `preview-day-c`) | **Success (green), 1m 55s** (earlier: CI #125, commit `c577dd4`, green, 1m 48s = Part 1) | DB-GITHUB, owner screenshot |
+
+**What the screenshot does NOT show:** the pass/skip counts of run #19, the commit SHA of run #19, and CI #126's test counts. So I do not claim "98 passed" for #19 and I do not claim that #19 ran on the same commit as #126. Green means the workflow's own rule held (it fails on any skipped test or zero passes, per the Day 1 report). Best next check (optional): open run #19 and confirm the counts and commit.
 
 ## 3. CPM matrix (price = CPM/1000, min $0.0001)
 
@@ -79,15 +83,15 @@ Date: 2026-11-12 | Source: uploaded `blisscco-ad-network.zip` + Day 1 reports | 
 No billing defect found. No code, SQL or CI changed. Day 1 restrictions kept (no re-run of `day-12-5-serve-ref-return.sql` or older lifecycle SQL; no Production; ledger OFF).
 
 1. **Not proven in real PostgreSQL by me:** the exact 24 h boundary (DB tests use 25 h; `now()` cannot be pinned exactly), a committed (non-rollback) billing run with ledger ON, and the bulk release of expired holds on a real DB. Suggested TEST-only DB tests (not added, because I cannot run them): (a) serve backdated to 23 h 59 m still bills; (b) `release_expired_budget_reservations()` releases an expired unused hold and leaves settled and live holds untouched. Run them only on TEST.
-2. **Token lifetime vs hold lifetime:** default `AD_TRACKING_TTL_SECONDS` is 1 h (max 24 h) while the hold lasts 24 h. An impression or click reported after the token lifetime is refused (no charge) and the hold is released unused. Not a defect, but publishers must report within the token lifetime. Decision for owner: keep 1 h or raise toward 24 h.
+2. **Token lifetime vs hold lifetime — DECIDED: keep 1 h, revisit after pilot.** Default `AD_TRACKING_TTL_SECONDS` is 1 h (max 24 h) while the hold lasts 24 h. An impression or click reported after the token lifetime is refused (no charge) and the hold is released unused. Not a defect. Owner decision (2026-11-12): keep 1 h. After the pilot, check how many late events were refused; raise the env value (up to 86400) only if real publishers need it. No code change; no Vercel env change now.
 3. **Bulk release has no caller:** `public.release_expired_budget_reservations()` is not called from app code, CI or scripts (STATIC grep). Budget is unaffected (expired holds already stop counting), but `status` stays `held` until the next serve of that campaign or a manual call. Low; bookkeeping only.
 4. **Pre-filter price mismatch (low, STATIC):** the TypeScript budget pre-filter uses one platform price per request, while the reservation uses the campaign's CPM or CPC rate. The database guard is authoritative, so no overspend; a lost fill is possible in edge cases (same class as the Part 1 reserved-budget item).
 5. **Existing Part 1 pending items** are unchanged (see `PHASE6-DAY2-PART1-PENDING-DECISIONS.md`).
-6. 10 environment-only failures in `tests/ads` (need `npm ci`); confirm green in CI.
+6. 10 environment-only failures in `tests/ads` (need `npm ci`) in my sandbox. **CI #125 and #126 are green on GitHub**, so these 10 pass in a real install (owner-supplied result).
 
 ## 8. Changed files
 
 | File | Change |
 |---|---|
 | `tests/ads/phase6-day2-part2-billing-lifecycle.test.ts` | New, 16 tests |
-| `PHASE6-DAY2-PART2-BILLING-LIFECYCLE-REPORT.md` | New |
+| `PHASE6-DAY2-PART2-BILLING-LIFECYCLE-REPORT.md` | New; updated with CI #126, DB integration #19 and the token-lifetime decision |
