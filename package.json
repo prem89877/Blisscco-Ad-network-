@@ -9,7 +9,7 @@
     "lint": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --require ./tests/register.cjs --test .test-build/tests/*/*.test.js",
     "lint:eslint": "next lint",
-    "test:integration": "tsc -p tsconfig.test.json && node --require ./tests/register.cjs --test .test-build/tests/integration/*.test.js"
+    "test:integration": "tsc -p tsconfig.test.json && node --require ./tests/register.cjs --test --test-concurrency=1 .test-build/tests/integration/*.test.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

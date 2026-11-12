@@ -38,7 +38,7 @@ describe("day 9 part 5: record_ad_serve on a real TEST database", { skip: skipRe
     const mod = (await import(moduleName)) as { default?: { Pool: new (o: object) => PgPool }; Pool?: new (o: object) => PgPool };
     const Pool = mod.Pool ?? mod.default?.Pool;
     if (!Pool) throw new Error("`pg` is not installed (npm i -D pg)");
-    return new Pool({ connectionString: guard.ok ? guard.url : "", max: 25 });
+    return new Pool({ connectionString: guard.ok ? guard.url : "", max: 10 });
   }
 
   /** Ek naya campaign + approved creative banata hai (sirf tagged). */
@@ -92,8 +92,19 @@ describe("day 9 part 5: record_ad_serve on a real TEST database", { skip: skipRe
     }
   }
 
+  // Phase 6 Step 4 Part 2: serve par sirf hold banta hai, charge impression par hota hai. "Committed" = spend + zinda holds.
   const spentMicro = async (campaignId: string) =>
-    Math.round(Number((await pool.query(`select coalesce(sum(spent), 0) as s from public.campaign_spend_daily where campaign_id = $1`, [campaignId])).rows[0].s) * 10_000);
+    Math.round(
+      Number(
+        (
+          await pool.query(
+            `select (select coalesce(sum(d.spent), 0) from public.campaign_spend_daily d where d.campaign_id = $1)
+                  + (select coalesce(sum(r.amount), 0) from public.ad_budget_reservations r where r.campaign_id = $1 and r.status = 'held' and r.expires_at > now()) as s`,
+            [campaignId],
+          )
+        ).rows[0].s,
+      ) * 10_000,
+    );
   const logRows = async (creativeId: string) => Number((await pool.query(`select count(*) as n from public.ad_serve_log where creative_id = $1`, [creativeId])).rows[0].n);
   const outcomes = (rs: Record<string, unknown>[]) => rs.map((r) => String(r.outcome));
   const count = (xs: string[], v: string) => xs.filter((x) => x === v).length;

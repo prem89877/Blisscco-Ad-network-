@@ -300,7 +300,7 @@ describe("day 18 part 4: signed click reference vs real lookup_serve_for_click o
 
   it("after an impression: first click is recorded, repeats are duplicate, the database-verified destination never changes", async () => {
     const s = await serve(cr1, campaigns[0]);
-    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "recorded" });
+    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "recorded", billed: true });
 
     const ref = mint(s, ids.pub1, cr1);
     const destBefore = (await lookupRaw(s.ref)).destination_url;
@@ -311,7 +311,7 @@ describe("day 18 part 4: signed click reference vs real lookup_serve_for_click o
     assert.equal(reasonOf(checked), "ok");
     assert.ok(checked.ok);
     const first = await click(checked.serveRef, checked.publisherId, checked.creativeId);
-    assert.deepEqual(first, { outcome: "recorded", destination_url: DEST });
+    assert.deepEqual(first, { outcome: "recorded", destination_url: DEST, billed: false });
 
     const rows = await eventRows(s.id, "click");
     assert.equal(rows.length, 1);
@@ -325,7 +325,7 @@ describe("day 18 part 4: signed click reference vs real lookup_serve_for_click o
       const again = await verify(ref, config, cr1);
       assert.equal(reasonOf(again), "ok");
       assert.ok(again.ok);
-      assert.deepEqual(await click(again.serveRef, again.publisherId, again.creativeId), { outcome: "duplicate", destination_url: DEST });
+      assert.deepEqual(await click(again.serveRef, again.publisherId, again.creativeId), { outcome: "duplicate", destination_url: DEST, billed: false });
     }
     assert.equal(await countOf(s.id, "click"), 1);
     assert.equal(await countOf(s.id, "impression"), 1);
@@ -338,7 +338,7 @@ describe("day 18 part 4: signed click reference vs real lookup_serve_for_click o
 
   it("click reference verification and click tracking never change serve billing, campaign spend or budget", async () => {
     const s = await serve(cr1, campaigns[0]); // serve ka charge yahin lagta hai (fixture)
-    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "recorded" });
+    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "recorded", billed: true });
     const before = await billingDigest(); // click se pehle (serve + impression ke BAAD) ki tasveer
 
     const ref = mint(s, ids.pub1, cr1);

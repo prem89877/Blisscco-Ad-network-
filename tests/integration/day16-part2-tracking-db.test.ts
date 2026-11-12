@@ -41,7 +41,7 @@ describe("day 16 part 2: impression and click tracking on a real TEST database",
     const mod = (await import(moduleName)) as { default?: { Pool: new (o: object) => PgPool }; Pool?: new (o: object) => PgPool };
     const Pool = mod.Pool ?? mod.default?.Pool;
     if (!Pool) throw new Error("`pg` is not installed (npm i -D pg)");
-    return new Pool({ connectionString: guard.ok ? guard.url : "", max: 15 });
+    return new Pool({ connectionString: guard.ok ? guard.url : "", max: 8 });
   }
 
   /** Function ek alag connection par, diye gaye role me, apni transaction me (asli app jaisa: service_role). */
@@ -176,7 +176,7 @@ describe("day 16 part 2: impression and click tracking on a real TEST database",
 
   it("first impression is recorded (one beacon event, ids attributed from the serve), a retry is duplicate and adds no row", async () => {
     const s = await serve(cr1, campaigns[0]);
-    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "recorded" });
+    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "recorded", billed: true }); // Phase 6 Step 4 Part 2: CPM impression ab settle hoti hai
     const rows = await eventRows(s.id, "impression");
     assert.equal(rows.length, 1);
     assert.equal(rows[0].source, "blisscco_beacon");
@@ -184,8 +184,8 @@ describe("day 16 part 2: impression and click tracking on a real TEST database",
     assert.equal(rows[0].creative_id, cr1);
     assert.equal(rows[0].campaign_id, campaigns[0]);
 
-    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "duplicate" });
-    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "duplicate" });
+    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "duplicate", billed: false });
+    assert.deepEqual(await impression(s.ref, ids.pub1), { outcome: "duplicate", billed: false });
     assert.equal(await countOf(s.id, "impression"), 1);
   });
 
@@ -246,14 +246,14 @@ describe("day 16 part 2: impression and click tracking on a real TEST database",
 
   it("click before any impression is not_counted (destination returned, no click row)", async () => {
     const s = await serve(cr1, campaigns[0]);
-    assert.deepEqual(await click(s.ref, ids.pub1, cr1), { outcome: "not_counted", destination_url: DEST });
+    assert.deepEqual(await click(s.ref, ids.pub1, cr1), { outcome: "not_counted", destination_url: DEST, billed: false });
     assert.equal(await countOf(s.id, "click"), 0);
   });
 
   it("first click after an impression is recorded, repeats are duplicate (destination always returned)", async () => {
     const s = await serve(cr1, campaigns[0]);
     await impression(s.ref, ids.pub1);
-    assert.deepEqual(await click(s.ref, ids.pub1, cr1), { outcome: "recorded", destination_url: DEST });
+    assert.deepEqual(await click(s.ref, ids.pub1, cr1), { outcome: "recorded", destination_url: DEST, billed: false });
     const rows = await eventRows(s.id, "click");
     assert.equal(rows.length, 1);
     assert.equal(rows[0].source, "blisscco_redirect");
@@ -261,7 +261,7 @@ describe("day 16 part 2: impression and click tracking on a real TEST database",
     assert.equal(rows[0].creative_id, cr1);
     assert.equal(rows[0].campaign_id, campaigns[0]);
 
-    assert.deepEqual(await click(s.ref, ids.pub1, cr1), { outcome: "duplicate", destination_url: DEST });
+    assert.deepEqual(await click(s.ref, ids.pub1, cr1), { outcome: "duplicate", destination_url: DEST, billed: false });
     assert.equal(await countOf(s.id, "click"), 1);
     assert.equal(await countOf(s.id, "impression"), 1);
   });
@@ -313,20 +313,31 @@ describe("day 16 part 2: impression and click tracking on a real TEST database",
 
   // ---------------- billing / spend untouched ----------------
 
-  it("impression and click tracking never change spend, budget or serve billing records", async () => {
-    const s = await serve(cr1, campaigns[0]); // serve ka charge yahin lagta hai (fixture); uske BAAD ki tasveer
+  it("tracking never changes serve records or campaigns; only the FIRST impression bills once (CPM), clicks and duplicates never bill", async () => {
+    const s = await serve(cr1, campaigns[0]); // serve par ab sirf hold banta hai; charge impression par lagta hai
+    const spentOf = async (): Promise<number> =>
+      Math.round(Number((await pool.query(`select coalesce(sum(spent), 0) as t from public.campaign_spend_daily where campaign_id = any($1::uuid[])`, [campaigns])).rows[0].t) * 10_000);
     const snapBefore = await billingSnapshot();
     assert.ok((snapBefore.serveLog as unknown[]).length >= 1, "snapshot must see serve records");
+    const spentBefore = await spentOf();
 
-    await impression(s.ref, ids.pub1);
+    await impression(s.ref, ids.pub1); // pehli impression: ek charge
+    const spentAfterFirst = await spentOf();
+    const unit = Number((await pool.query(`select round(coalesce((select cpm_usd from public.ad_platform_settings where id), 2) / 1000.0, 4) as u`)).rows[0].u);
+    assert.equal(spentAfterFirst - spentBefore, Math.round(unit * 10_000), "exactly one impression is billed");
+
     await impression(s.ref, ids.pub1); // duplicate
     await impression("xyz", ids.pub1); // rejected
     await click(s.ref, ids.pub1, cr1);
     await click(s.ref, ids.pub1, cr1); // duplicate
     await click(s.ref, ids.pub2, cr1); // rejected
+    assert.equal(await spentOf(), spentAfterFirst, "duplicates, clicks and rejected calls never bill (CPM)");
 
     const snapAfter = await billingSnapshot();
-    assert.deepEqual(snapAfter, snapBefore);
+    const { spend: _sb, ...beforeRest } = snapBefore as Record<string, unknown>;
+    const { spend: _sa, ...afterRest } = snapAfter as Record<string, unknown>;
+    void _sb; void _sa;
+    assert.deepEqual(afterRest, beforeRest);
     assert.ok(servedCount > 0);
   });
 });

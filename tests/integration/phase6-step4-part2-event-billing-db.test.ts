@@ -311,7 +311,7 @@ describe("phase 6 step 4 part 2: event-based billing on a real TEST database", {
   });
 
   it("expired holds stop counting against the budget, are released on the next serve, and free the budget", async () => {
-    const { campaignId, creativeId } = await makeCampaign("release", { total: "0.0040" }); // sirf 2 serves
+    const { campaignId, creativeId } = await makeCampaign("release", { total: "0.01", pricing: { model: "cpm", rate: "5.00" } }); // total_budget numeric(12,2): kam se kam 0.01; $0.0050/serve => sirf 2 serves
     // Hath se 2 purani (25h pehle ki) serves + unki expire ho chuki holds.
     for (let i = 0; i < 2; i += 1) {
       const sl = await pool.query(
@@ -320,14 +320,14 @@ describe("phase 6 step 4 part 2: event-based billing on a real TEST database", {
       );
       await pool.query(
         `insert into public.ad_budget_reservations (serve_id, campaign_id, publisher_id, pricing_model, amount, reserve_day, reserved_at, expires_at)
-         values ($1, $2, $3, 'cpm', 0.0020, ((now() - interval '25 hours') at time zone 'utc')::date, now() - interval '25 hours', now() - interval '1 hour')`,
+         values ($1, $2, $3, 'cpm', 0.0050, ((now() - interval '25 hours') at time zone 'utc')::date, now() - interval '25 hours', now() - interval '1 hour')`,
         [sl.rows[0].id, campaignId, ids.pub1],
       );
     }
     assert.equal(await held(campaignId), 0, "expired holds do not count");
     const a = await serve(campaignId, creativeId);
     await serve(campaignId, creativeId);
-    assert.equal((await rawServe(creativeId)).outcome, "rejected", "now 2 live holds fill the $0.0040 budget");
+    assert.equal((await rawServe(creativeId)).outcome, "rejected", "now 2 live holds fill the $0.01 budget");
     const left = await pool.query(`select count(*)::int as n from public.ad_budget_reservations where campaign_id = $1 and status = 'held' and expires_at <= now()`, [campaignId]);
     assert.equal(Number(left.rows[0].n), 0, "record_ad_serve released this campaign's expired holds");
     const rel = await callService<Json>(`select public.release_expired_budget_reservations(1000) as r`, []);
@@ -360,9 +360,8 @@ describe("phase 6 step 4 part 2: event-based billing on a real TEST database", {
   });
 
   it("daily budget: holds + spend of the same UTC day are limited by daily_budget", async () => {
-    const { campaignId, creativeId } = await makeCampaign("daily", { total: "5.00", daily: "0.0060" }); // 3 serves / din
+    const { campaignId, creativeId } = await makeCampaign("daily", { total: "5.00", daily: "0.01", pricing: { model: "cpm", rate: "5.00" } }); // daily_budget numeric(12,2): 0.01; $0.0050/serve => 2 serves / din
     const a = await serve(campaignId, creativeId);
-    await serve(campaignId, creativeId);
     await serve(campaignId, creativeId);
     assert.equal((await rawServe(creativeId)).outcome, "rejected");
     await impression(a.ref, a.publisherId); // hold -> spend: daily total same, phir bhi full
@@ -373,12 +372,13 @@ describe("phase 6 step 4 part 2: event-based billing on a real TEST database", {
   });
 
   it("lowering total_budget below spent + live holds is refused; exactly spent + holds is allowed", async () => {
-    const { campaignId, creativeId } = await makeCampaign("budget-edit", { total: "1.00" });
+    // total_budget numeric(12,2) hai, isliye bada rate (CPM 1000.00 => $1.0000 / serve) se spent + hold = $2.00 banta hai.
+    const { campaignId, creativeId } = await makeCampaign("budget-edit", { total: "5.00", pricing: { model: "cpm", rate: "1000.00" } });
     const a = await serve(campaignId, creativeId);
     await serve(campaignId, creativeId);
-    await impression(a.ref, a.publisherId); // spent 20 + held 20
-    await assert.rejects(pool.query(`update public.campaigns set total_budget = 0.0039 where id = $1`, [campaignId]), /pending reservations|budget/i);
-    await pool.query(`update public.campaigns set total_budget = 0.0040 where id = $1`, [campaignId]);
+    await impression(a.ref, a.publisherId); // spent 1.00 + held 1.00
+    await assert.rejects(pool.query(`update public.campaigns set total_budget = 1.99 where id = $1`, [campaignId]), /pending reservations|budget/i);
+    await pool.query(`update public.campaigns set total_budget = 2.00 where id = $1`, [campaignId]);
   });
 
   it("concurrency: the same impression sent 30 times at once records once and charges once", async () => {
