@@ -3,7 +3,7 @@
 -- ROLLBACK-ONLY: pilot limit boundary + update/reopen/advertiser-move checks
 -- TEST project ONLY (Denim Hub Bsl). Run by owner in SQL Editor. WRITTEN, NOT RUN BY AI.
 -- Ends with an INTENTIONAL exception => whole transaction rolls back. Copy the error text as evidence.
--- Does NOT touch ledger_settings. No daily caps. No permanent rows.
+-- Does NOT touch the ledger settings table. No daily caps. No permanent rows.
 -- =====================================================================
 create or replace function pg_temp.try_sql(q text) returns text language plpgsql as $f$
 declare h text;
