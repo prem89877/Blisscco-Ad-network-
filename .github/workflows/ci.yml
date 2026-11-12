@@ -51,9 +51,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run lint:eslint
 
-      - name: Production build (npm run build)
+      # next/font/google build ke waqt Google Fonts se fonts download karta hai. GitHub runner par woh fetch kabhi kabhi
+      # fail hota hai (loader.js "Cannot read properties of null"). Isliye build 3 baar tak dobara try hota hai; asli
+      # (code) errors teeno baar fail honge, isliye masking nahi hoti.
+      - name: Production build (npm run build, up to 3 attempts)
         if: ${{ !cancelled() }}
-        run: npm run build
+        run: |
+          for attempt in 1 2 3; do
+            echo "build attempt $attempt"
+            npm run build && exit 0
+            sleep $((attempt * 10))
+          done
+          exit 1
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_dummy
