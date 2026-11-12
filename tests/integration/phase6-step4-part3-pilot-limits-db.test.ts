@@ -28,11 +28,18 @@ describe("phase 6 step 4 part 3: pilot limits DB guard on real TEST database", {
       `insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, '{"role":"advertiser"}'::jsonb)`,
       [userAdv, `${TAG}@example.test`],
     );
-    const r = await pool.query(
-      `insert into public.advertisers (profile_id, company_name, status) values ($1, $2, 'active') returning id`,
-      [userAdv, `${TAG}-adv`],
-    );
-    advId = String(r.rows[0].id);
+    // handle_new_user (day-4-1) role=advertiser par advertiser row khud bana deta hai => pehle wahi dhoondo, warna insert.
+    const existing = await pool.query(`select id from public.advertisers where profile_id = $1`, [userAdv]);
+    if (existing.rows.length > 0) {
+      advId = String(existing.rows[0].id);
+      await pool.query(`update public.advertisers set company_name = $2, status = 'active' where id = $1`, [advId, `${TAG}-adv`]);
+    } else {
+      const r = await pool.query(
+        `insert into public.advertisers (profile_id, company_name, status) values ($1, $2, 'active') returning id`,
+        [userAdv, `${TAG}-adv`],
+      );
+      advId = String(r.rows[0].id);
+    }
   });
 
   after(async () => {

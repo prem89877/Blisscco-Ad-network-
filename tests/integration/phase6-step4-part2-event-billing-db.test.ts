@@ -422,22 +422,27 @@ describe("phase 6 step 4 part 2: event-based billing on a real TEST database", {
     const client = await pool.connect();
     try {
       await client.query("begin");
-      // Spend row ko bhar do taaki settlement ka "spent + amount" numeric(12,4) se overflow ho (22003) => function fail hoga.
+      // Settlement ko fail karwane ke liye is transaction ke andar ek temporary trigger (rollback par gayab).
+      // (Pehle spend row bhar kar overflow karwate the, par day-9-5 ka guard woh insert hi rok deta hai: "Spend would exceed".)
       await client.query(
-        `insert into public.campaign_spend_daily (campaign_id, day, spent) values ($1, (now() at time zone 'utc')::date, 99999999.9999)
-         on conflict (campaign_id, day) do update set spent = 99999999.9999`,
-        [campaignId],
+        `create function public.it_force_settle_failure() returns trigger language plpgsql as $f$
+         begin raise exception 'forced settlement failure' using errcode = 'P0001'; end $f$`,
+      );
+      await client.query(
+        `create trigger it_force_settle_failure before update on public.ad_budget_reservations for each row execute function public.it_force_settle_failure()`,
       );
       await client.query("savepoint attempt");
       await client.query("set local role service_role");
-      await assert.rejects(client.query(`select public.record_ad_impression($1::text, $2::uuid)`, [s.ref, s.publisherId]), /out of range|overflow|numeric/i);
+      await assert.rejects(client.query(`select public.record_ad_impression($1::text, $2::uuid)`, [s.ref, s.publisherId]), /forced settlement failure/);
       await client.query("rollback to savepoint attempt");
       const ev = await client.query(`select count(*)::int as n from public.ad_events where serve_id = $1`, [s.id]);
       assert.equal(Number(ev.rows[0].n), 0, "event insert rolled back together with the failed charge");
       const rs = await client.query(`select status from public.ad_budget_reservations where serve_id = $1`, [s.id]);
       assert.equal(rs.rows[0].status, "held");
     } finally {
-      await client.query("rollback").catch(() => undefined); // test ka bada spend row bhi gaya
+      await client.query("rollback").catch(() => undefined); // temporary trigger + function bhi gaye
+      await pool.query(`drop trigger if exists it_force_settle_failure on public.ad_budget_reservations`).catch(() => undefined); // safety net
+      await pool.query(`drop function if exists public.it_force_settle_failure()`).catch(() => undefined);
       client.release();
     }
     assert.equal(await spent(campaignId), 0);
