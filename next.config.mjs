@@ -1,4 +1,5 @@
 import { assertPublicEnvIsSafe } from "./config/public-env-guard.mjs";
+import { cspHeaders } from "./config/csp.mjs";
 
 // Day 14: build/dev start par check: koi secret NEXT_PUBLIC_ variable me ho toh build ruk jata hai.
 assertPublicEnvIsSafe(process.env);
@@ -28,6 +29,8 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // F1: CSP Report-Only, sirf Preview (Production par kuch nahi badla). Details: config/csp.mjs
+          ...cspHeaders(process.env),
         ],
       },
     ];

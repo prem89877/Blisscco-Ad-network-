@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createActionGuard, SLOW_ACTION_MS, type GuardDiagDetails, type GuardDiagEvent, type GuardState } from "@/lib/actions/guard";
 import { buildDiagLine, cleanDiagId, cleanDiagPath, cleanDiagText, isDiagEvent, isDiagVerbose, slowThresholdMs } from "@/lib/diagnostics/log";
-import { POST } from "@/app/api/diag/route";
+import { handleDiagPost, createDiagLimiter } from "@/lib/diagnostics/diag-handler";
 
 // Diagnostics: slow button / error screen / middleware ki report Vercel logs me "[diag]" line banke aati hai.
 // LIMIT: browser / Vercel yahan nahi chalta. Ye tests helper, guard ki reporting aur /api/diag route ka logic saabit karte hain.
@@ -118,8 +118,12 @@ describe("diagnostics | action guard reports slow / timeout / failed buttons", (
 });
 
 describe("diagnostics | /api/diag route", () => {
-  const post = (body: unknown, headers: Record<string, string> = {}) =>
-    POST(new Request("https://blisscco.test/api/diag", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers: { host: "blisscco.test", ...headers } }) as never);
+  // F2: route logic ab handleDiagPost me hai; login inject hota hai. Console capture purani tarah.
+  const post = (body: unknown, headers: Record<string, string> = {}, userId: string | null = "user-1") =>
+    handleDiagPost(
+      new Request("https://blisscco.test/api/diag", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers: { host: "blisscco.test", ...headers } }),
+      { getUserId: async () => userId, limiter: createDiagLimiter() },
+    );
 
   async function captured(run: () => Promise<Response>) {
     const lines: string[] = [];
@@ -169,8 +173,8 @@ describe("diagnostics | wiring", () => {
   });
   it("the route is not behind the middleware and is not an open relay (fixed event list, same-site only)", () => {
     assert.doesNotMatch(read("middleware.ts"), /\/api/);
-    assert.match(read("app/api/diag/route.ts"), /isDiagEvent\(/);
-    assert.match(read("app/api/diag/route.ts"), /sameSite\(request\)/);
+    assert.match(read("lib/diagnostics/diag-handler.ts"), /isDiagEvent\(/);
+    assert.match(read("lib/diagnostics/diag-handler.ts"), /sameSite\(request\)/);
   });
   it("middleware, dashboard layout and instrumentation log slow / failed requests", () => {
     assert.match(read("lib/supabase/middleware.ts"), /logIfSlow\("middleware_session_check"/);
@@ -178,7 +182,7 @@ describe("diagnostics | wiring", () => {
     assert.match(read("instrumentation.ts"), /export async function onRequestError/);
   });
   it("diagnostics never log secrets: no env values, cookies, authorization or form data", () => {
-    for (const f of ["lib/diagnostics/log.ts", "app/api/diag/route.ts", "instrumentation.ts"]) {
+    for (const f of ["lib/diagnostics/log.ts", "lib/diagnostics/diag-handler.ts", "app/api/diag/route.ts", "instrumentation.ts"]) {
       assert.doesNotMatch(read(f), /cookie|authorization|formData|SECRET|service_role/i, f);
     }
   });

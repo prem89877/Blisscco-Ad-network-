@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireSupabaseEnv } from "./env";
+import { hardenCookieOptions } from "./cookie-options";
 
 // Server components, route handlers aur server actions ke liye.
 export async function createClient() {
@@ -15,7 +16,7 @@ export async function createClient() {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, hardenCookieOptions(options))
           );
         } catch {
           // Server component se cookie set nahi hoti; Day 4 me auth ke saath handle hoga.

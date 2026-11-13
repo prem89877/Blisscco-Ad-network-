@@ -48,4 +48,4 @@ No `lib/`, SQL, CI, Vercel or deployment file changed. No AI matching added; no 
 ---
 ## UPDATE (2026-11-13)
 - The "10 failing tests" in section 3 were sandbox-only (`@types/node`/`next` missing). **CI #130 is green** on GitHub (owner-supplied; counts not seen). CI #129 had 1 unrelated static-guard failure (SQL comment), fixed in #130.
-- Pending decisions (`load_ad_candidates` live holds; all-regions rule) are **unchanged and still open**.
+- Pending decisions: **all-regions rule = CLOSED (Day 3, owner: keep existing behaviour)**. `load_ad_candidates` live holds: owner approval wording received, scope needs confirmation, **not implemented**. CI #131 green (owner-reported).

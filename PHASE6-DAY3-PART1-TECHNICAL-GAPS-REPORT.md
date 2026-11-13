@@ -36,19 +36,32 @@ Corrected: 2 route comments, `service.ts` (4 places: owner note, spendTracking n
 | New file alone | 18 pass, 0 fail, 0 skip |
 | The 1 fail (before AND after) | `day 28 part 1: publisher example files compile strictly` — needs real `next`/`react` types, absent in sandbox. Not caused by this change |
 | DB suites skipped | 8 suites (`TEST_DATABASE_URL` not set) |
-| `npm run lint` (`tsc --noEmit`) | NOT VALID here: ~5,562 errors from missing deps (`next`, `react`, `@types/node`). Errors in touched files are all missing-types only. Must be run in CI |
+| CI #131 (owner-reported, green) | `npm run lint`, `npm test`, `npm run lint:eslint`, `npm run build`: PASS as one green run; counts not seen. Replaces the sandbox "NOT RUN / NOT VALID" rows below for CI purposes; sandbox rows kept as history |
+| `npm run lint` (`tsc --noEmit`) | (sandbox) NOT VALID here: ~5,562 errors from missing deps (`next`, `react`, `@types/node`). Errors in touched files are all missing-types only. Must be run in CI |
 | `npm run lint:eslint` | NOT RUN (eslint/next not installed, no network) |
 | `npm run build` | NOT RUN (same) |
 
 ## 5. Implemented vs tested vs passed
 - Implemented: N1 guard, N2 comments, 18 tests.
+- **CI-OWNER (added after owner update):** CI workflow **#131**, branch `preview-day-c`, head_sha `2594671646ab821c239844d0947ca9df35583777`, reported by owner as **passed (green)**. The workflow runs `bash -n`, `npm run lint`, `npm test`, `npm run lint:eslint`, `npm run build` (read from `.github/workflows/ci.yml`), so a green run means all five steps passed. **Not seen by me:** pass/skip counts, run duration, and whether #131 contains exactly the Day 3 changes (the ZIP has no `.git`). Counts are therefore NOT claimed.
 - Tested + passed (sandbox): 18 new tests; full suite unchanged except +18.
 - NOT verified: lint, eslint, build, DB integration tests, Preview/Production behaviour.
 
-## 6. Unresolved / for owner
-1. Run `npm ci`, `npm test`, `npm run lint`, `npm run lint:eslint`, `npm run build` in CI/local and record results.
-2. Day 28 part 1 test failure is expected to pass with real deps; confirm in CI.
-3. Unsafe own ad is caught AFTER `record_ad_serve` (a 24 h hold exists, no charge, no token returned). Cleaner option: also reject at candidate stage (`isCompleteCreative`) so another ad can be served. Needs owner decision.
-4. Stale comment left (out of scope: not route/handler): `tests/ads/day14-part4-integration.test.ts` line 27 ("charge only on serve").
-5. Pending owner decisions untouched: reserved-budget (`load_ad_candidates` ignores live holds), all-regions rule.
-6. Commit SHA: not available (zip has no `.git`).
+## 6. Owner decisions received and status (updated)
+| # | Item | Owner decision | Status |
+|---|---|---|---|
+| 1 | Run lint / eslint / build / tests | CI #131 green (owner-reported) | **Closed (CI-OWNER, counts not seen)** |
+| 2 | Day 28 part 1 sandbox-only failure | Green CI #131 covers real deps | **Closed (CI-OWNER)** |
+| 3 | Unsafe own ad caught after `record_ad_serve` (24 h hold, no charge); optional reject at candidate stage | No decision given | **Still open (owner decision)**. No code change |
+| 4 | Stale comment `tests/ads/day14-part4-integration.test.ts` line 27 ("charge only on serve") | **Out of scope. Leave unchanged; do not edit in this part** | **Deliberately left unchanged** (verified: file not touched) |
+| 5a | Reserved-budget | Owner wrote: "Approved G-1 tightening ($1,000 limit); implement with regression and concurrency tests" | **NOT implemented in this part.** G-1 reopen guard ($1,000) is already written and verified on TEST (8/8, Part 3 13/13). The `load_ad_candidates` live-hold fix is a different item, so the approval scope needs one confirmation before any SQL/TS change. No SQL executed |
+| 5b | All-regions | Keep existing behaviour; no policy weakening | **Closed: no change** |
+| 5c | Ledger / payments / payouts | Keep OFF | **Unchanged (OFF)** |
+| 6 | Commit SHA | Do not init Git; ZIP unchanged; take SHA from GitHub | See section 7 |
+
+## 7. Commit SHA (owner-supplied from GitHub; not verifiable by me)
+| What | SHA |
+|---|---|
+| Latest commit, default branch | `573b6082ccf49c3b566467e64d63cdacd183736e` |
+| CI #131 head_sha, branch `preview-day-c` | `2594671646ab821c239844d0947ca9df35583777` |
+- The two SHAs are different commits on different branches. I cannot tell from the ZIP which one contains the Day 3 changes. Treat `2594671...` as the verified-by-CI commit only if the owner confirms the Day 3 files are in it.

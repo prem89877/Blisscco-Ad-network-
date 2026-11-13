@@ -24,6 +24,7 @@ Mocked, skipped or unavailable = never PASS.
 | CI #130 (`2b05b30`, after SQL comment fix) | not seen | green | — | — | CI-OWNER (screenshot: green, 1m59s) |
 | DB integration #21 (TEST DB only) | 98 | 98 | 0 | 0 | CI-OWNER (incl. event billing 21, pilot-limits guard 2) |
 | DB integration #22 (TEST DB only) | not seen | green | — | — | CI-OWNER (screenshot: green, 6m0s) |
+| CI #131 (`2594671`, branch `preview-day-c`, after Day 3 Part 1) | not seen | green | — | — | CI-OWNER (owner-reported green; lint, tests, eslint, build) |
 | `tests/publisher/*` (SANDBOX) | 315 | 313 | 1 | 1 | SANDBOX |
 | 11 `tests/ads` handler files (SANDBOX) | 448 | 448 | 0 | 0 | SANDBOX |
 
@@ -121,11 +122,11 @@ Nothing failed in a real environment after the fix.
 | 2 | **Critical** | Production prerequisites open: G2 backup/restore never rehearsed, G3 emergency stop on Production, G6 latency, G4/G8/G11/G12 | Dated owner evidence |
 | 3 | **High** | Real billing correctness unproven (no billing rows; ledger OFF) | Rollback-only real-flow billing run |
 | 4 | **High** | G-1 guard verified on TEST only, not on pilot/Production DB | Owner applies + checks, dated note |
-| 5 | **Medium** | N1: `destination_url` is a public match field; `toPublicAd` does not re-run `safeDestination` for own ads (provider path does). A publisher can ignore the click flow | Decide: re-check in `buildAdResponse` and/or mandatory-flow term | **Day 3 update (code-verified, sandbox):** gap CONFIRMED and fixed in code (match-handler re-checks with safeDestination rules, fail-closed no-fill). Not yet verified on Preview/Production. See `PHASE6-DAY3-PART1-TECHNICAL-GAPS-REPORT.md` |
+| 5 | **Medium** | N1: `destination_url` is a public match field; `toPublicAd` does not re-run `safeDestination` for own ads (provider path does). A publisher can ignore the click flow | Decide: re-check in `buildAdResponse` and/or mandatory-flow term | **Day 3 update (code-verified, sandbox):** gap CONFIRMED and fixed in code (match-handler re-checks with safeDestination rules, fail-closed no-fill). **CI #131 green (owner-reported, counts not seen).** Not yet verified on Preview/Production. See `PHASE6-DAY3-PART1-TECHNICAL-GAPS-REPORT.md` |
 | 6 | **Medium** | Per-IP cap 300/min on impression/click; shared-IP publisher server may get 429, example does not retry browser events | Accepted for pilot; revisit |
 | 7 | **Medium** | Token TTL 1 h vs 24 h hold; unset `AD_TRACKING_SECRET` → ads without tracking, events 503 | Owner: keep, review after pilot; set secret |
-| 8 | Low | N2: route/handler header comments say "charge at serve"; reports say CPM at impression, CPC at click. Likely stale comments, DB function not re-checked | Update comments or confirm | **Day 3 update (SQL read, not executed):** CONFIRMED stale; comments corrected (no logic change). DB behaviour verified by reading `phase6-step4-part2-event-billing.sql` only. See Day 3 Part 1 report |
-| 9 | Low | Part 1: `load_ad_candidates` ignores live holds; all-regions rule mismatch | Owner decisions pending |
+| 8 | Low | N2: route/handler header comments say "charge at serve"; reports say CPM at impression, CPC at click. Likely stale comments, DB function not re-checked | Update comments or confirm | **Day 3 update (SQL read, not executed):** CONFIRMED stale; comments corrected (no logic change); CI #131 green (owner-reported). Stale comment in `tests/ads/day14-part4-integration.test.ts` line 27 left unchanged by owner decision (out of scope). DB behaviour verified by reading `phase6-step4-part2-event-billing.sql` only. See Day 3 Part 1 report |
+| 9 | Low | Part 1: `load_ad_candidates` ignores live holds; all-regions rule mismatch | Owner decisions: all-regions = **keep existing behaviour (decided)**; reserved-budget = owner approval wording received ("G-1 tightening, $1,000"), scope needs confirmation, **not implemented** |
 | 10 | Low | `release_expired_budget_reservations()` has no caller | Optional cron |
 | 11 | Low | $0.5960 legacy spend (2 campaigns), owner accepted | None |
 | 12 | Low | Sandbox cannot run 11 tests without `npm ci` | CI green |
@@ -162,3 +163,9 @@ Report updates (no lib/, CI, Vercel or Production change): this report; `PHASE6-
 - Blocker #4 (High): TEST part **CLOSED**. Still open: the same SQL is **not applied to the pilot/Production DB** (no evidence; I changed nothing there).
 - Note (Low): the DB error text for any >$1,000 refusal now also says "Reduce the budget… before reopening". The app maps by hint (`pilot_campaign_limit`) to its own message, so users do not see this text. Archived campaigns not covered by G-1 (owner approved "rejected" only).
 - Remaining open (Day 2): Gates A–D (deferred), real billing proof, Production prerequisites G2–G4, G6, G8, G11, G12, shared-IP cap (accepted for pilot). **Production: NO-GO** (unchanged).
+
+## UPDATE 4 — Day 3 Part 1 close-out (2026-11-13)
+- N1 (destination_url re-check) and N2 (stale billing comments) implemented in Day 3 Part 1; **CI #131 green** on `preview-day-c`, head_sha `2594671646ab821c239844d0947ca9df35583777` (owner-reported; counts not seen). Latest default-branch commit (owner-supplied): `573b6082ccf49c3b566467e64d63cdacd183736e`. Not verified by me (no `.git`).
+- All-regions: **keep existing behaviour, no policy weakening** (owner). Ledger, payments, payouts: **OFF** (owner).
+- Reserved-budget: approval wording received; **not implemented** pending scope confirmation (G-1 itself is already done on TEST; the `load_ad_candidates` live-hold fix is separate).
+- Details: `PHASE6-DAY3-PART1-TECHNICAL-GAPS-REPORT.md`. Production: **NO-GO** (unchanged).

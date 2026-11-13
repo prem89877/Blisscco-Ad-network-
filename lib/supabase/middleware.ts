@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseEnv, requireSupabaseEnv } from "./env";
+import { hardenCookieOptions } from "./cookie-options";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { diagLog, isDiagVerbose, logIfSlow } from "@/lib/diagnostics/log";
 
@@ -63,7 +64,7 @@ export async function updateSession(request: NextRequest) {
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, hardenCookieOptions(options)));
       },
     },
   });
