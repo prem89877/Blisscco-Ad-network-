@@ -2,15 +2,17 @@
 
 Date: 2026-11-13. Source: uploaded ZIP (unchanged; no `.git`, **commit SHA: none** — owner commits). Scope: only the approved F1–F5 decisions.
 No SQL, no env change, no deploy, no Production/TEST access. Payments, payouts, ledger OFF (untouched). Razorpay/Payoneer not implemented or activated.
+> **Update 2026-11-13:** pending live items from this report are now resolved in `PHASE6-DAY3-PART2-SECURITY-FOLLOWUP-3-REPORT.md`.
+
 Labels: **LIVE** = real website/cookies · **CODE** = code/tests in sandbox. Anything not completed is NOT claimed as PASS.
 
 ## 1. Status per finding
 | # | Decision | What was done | CODE | LIVE |
 |---|---|---|---|---|
-| F1 | B: verify live headers, no config change | **No config change.** Sandbox has no network and no site URL, so headers could not be fetched | n/a | **NOT TESTED** (owner step below). CSP/HSTS present or missing: **UNKNOWN**. Code (`next.config.mjs`) sets neither (unchanged) |
-| F2 | A: secure `/api/diag` | Login required (verified JWT via `getClaims()`), per-user 30/min + per-instance 120/min in-memory limit, `Sec-Fetch-Site` cross-site refused, old quiet rules kept | **IMPLEMENTED, tested, passed** | **NOT TESTED** (needs deploy) |
+| F1 | B: verify live headers, no config change | **No config change.** Sandbox has no network and no site URL, so headers could not be fetched | n/a | **UPDATED 2026-11-13:** owner ran live check. CSP missing on Production and Preview, HSTS comes from Vercel (not code). See FOLLOWUP-3 report. (Was: NOT TESTED) |
+| F2 | A: secure `/api/diag` | Login required (verified JWT via `getClaims()`), per-user 30/min + per-instance 120/min in-memory limit, `Sec-Fetch-Site` cross-site refused, old quiet rules kept | **IMPLEMENTED, tested, passed** | **PASS (owner-live 2026-11-13):** logged-out POST on Preview returns 401. Logged-in 204 not tested live. (Was: NOT TESTED) |
 | F3 | A: keep Day 2 per-instance limiter | **Unchanged.** No Redis/shared storage (a test locks "no Redis import" for diag) | n/a | n/a |
-| F4 | A: verify live cookies, fix flags | Cookie flags forced in code: HttpOnly, Secure (production), SameSite Lax (None never kept), path `/`. Applied in `lib/supabase/server.ts` and `lib/supabase/middleware.ts` | **IMPLEMENTED, tested, passed** | **NOT TESTED**: live flags before/after not seen |
+| F4 | A: verify live cookies, fix flags | Cookie flags forced in code: HttpOnly, Secure (production), SameSite Lax (None never kept), path `/`. Applied in `lib/supabase/server.ts` and `lib/supabase/middleware.ts` | **IMPLEMENTED, tested, passed** | **PASS (owner-live 2026-11-13):** after re-login all `sb-` cookies HttpOnly + Secure + Lax. Earlier missing flags were old cookies. (Was: NOT TESTED) |
 | F5 | B: Cashfree code unchanged, inactive | **Unchanged.** No timestamp-window work. Risk below | n/a | n/a |
 
 ## 2. Code changes (CODE)
@@ -35,7 +37,7 @@ No script added, `.github/workflows/ci.yml` unchanged (not needed).
 | Security-related subset (same 28 files + new cookie/diag) | 694 | 694 | 0 | 0 |
 | Full `npm test` equivalent | 5621 | 5619 | **1** | 1 |
 - Before this change: 5601 / 5599 / 1 / 1. Now +20 new tests, all pass. The 1 fail is the same sandbox-only `day 28 part 1: publisher example files compile strictly` (needs real `next`/`react` types). The 1 skip is unchanged.
-- **Not run here:** `npm run lint`, `npm run lint:eslint`, `npm run build`, DB tests. Must be green in CI before this is called done. Status: **NOT VERIFIED**.
+- **Not run here:** `npm run lint`, `npm run lint:eslint`, `npm run build`, DB tests. UPDATED 2026-11-13: CI #134 (attempt 2), commit `c4dd47336dedf30cfd4a1dcd08bc96dd93eeb246`, branch `preview-day-c`: typecheck, tests (5628/5628), ESLint, production build all passed (OWNER-LIVE: logs + GitHub screenshot). Status: **PASS (CI)**. DB integration workflow not run this round: **NOT TESTED**.
 
 ## 4. Behaviour changes owner must know
 1. **F2:** a logged-out visitor's error-screen report (`app/error.tsx`, `app/global-error.tsx` on public pages) now gets 401 and is not logged. The old route comment allowed logged-out reports; the approved auth rule removes them. Dashboard buttons/errors (logged in) keep working. The sender is fire-and-forget, so no UI effect.
@@ -56,8 +58,8 @@ No script added, `.github/workflows/ci.yml` unchanged (not needed).
 5. Check `PAYMENT_PROVIDER` is unset on Vercel (F5).
 
 ## 7. Remaining risks / deferred
-- F1: CSP/HSTS status unknown until step 1; no header change made (decision B).
+- F1: UPDATED: CSP missing on Production and Preview (OPEN; Report-Only added on Preview only, see FOLLOWUP-3). HSTS present on both (Vercel).
 - F3: per-instance limits remain bypassable across instances (accepted Day 2); edge rule `ads-rate-limit` is the real cap.
 - F5: Cashfree code remains in repo; timestamp window deferred.
-- Not verified: lint/eslint/build, live Set-Cookie flags, live `/api/diag` 401/429.
-- Commit SHA: none.
+- Not verified: live `/api/diag` 429 and logged-in 204. Live Set-Cookie flags and logged-out 401 are now PASS (FOLLOWUP-3).
+- Commit SHA (CI-verified head): `c4dd47336dedf30cfd4a1dcd08bc96dd93eeb246`.
