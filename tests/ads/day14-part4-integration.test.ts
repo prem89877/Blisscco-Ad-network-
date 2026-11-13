@@ -730,7 +730,7 @@ describe("day 14 part 4 / 7: Day 12 impression route (POST /api/v1/ads/impressio
   it("invalid tokens (garbage, wrong prefix, tampered, expired, other secret, unknown serve, other publisher) are ALL the same 401 and record nothing", async () => {
     const { w, token, serve } = await served();
     const [head, payload, sig] = token.split(".");
-    const flip = (s: string) => s.slice(0, -2) + (s.endsWith("A") ? "B" : "A") + s.slice(-1);
+    const flip = (s: string) => s.slice(0, -2) + (s.charAt(s.length - 2) === "A" ? "B" : "A") + s.slice(-1);
     const twoHoursAgo = Date.now() - 2 * HOUR;
     const bad: Record<string, string> = {
       garbage: "not-a-token",
@@ -894,7 +894,7 @@ describe("day 14 part 4 / 8: Day 12 click route (GET /api/v1/ads/click?ref=...)"
     await impression(token);
     const good = refFor(serve);
     const [head, payload, sig] = good.split(".");
-    const flip = (s: string) => s.slice(0, -2) + (s.endsWith("A") ? "B" : "A") + s.slice(-1);
+    const flip = (s: string) => s.slice(0, -2) + (s.charAt(s.length - 2) === "A" ? "B" : "A") + s.slice(-1);
     const twoHoursAgo = Date.now() - 2 * HOUR;
     const other = w.db.addAd(w.advertiserId, {});
     const bad: Record<string, string> = {
