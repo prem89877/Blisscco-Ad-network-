@@ -44,7 +44,7 @@ describe("F2 /api/diag | authentication", () => {
     assert.ok(!(await res.text()).includes("secret-user-id-123"));
   });
   it("cross-site is refused quietly even when logged in (Origin and Sec-Fetch-Site)", async () => {
-    for (const h of [{ origin: "https://evil.com" }, { "sec-fetch-site": "cross-site" }]) {
+    for (const h of [{ origin: "https://evil.com" }, { "sec-fetch-site": "cross-site" }] as Record<string, string>[]) {
       const lines: string[] = [];
       const res = await handleDiagPost(req(GOOD, h), { getUserId: async () => "u1", log: (l) => lines.push(l), limiter: createDiagLimiter() });
       assert.equal(res.status, 204);
@@ -66,7 +66,7 @@ describe("F2 /api/diag | authentication", () => {
 
 describe("F2 /api/diag | 401 for every logged-out request (Preview 204 follow-up)", () => {
   it("logged out => 401 even with a foreign Origin, Sec-Fetch-Site cross-site, or a valid-looking body (never 204)", async () => {
-    for (const h of [{}, { origin: "https://evil.com" }, { "sec-fetch-site": "cross-site" }, { origin: "https://blisscco.test" }]) {
+    for (const h of [{}, { origin: "https://evil.com" }, { "sec-fetch-site": "cross-site" }, { origin: "https://blisscco.test" }] as Record<string, string>[]) {
       const lines: string[] = [];
       const res = await handleDiagPost(req(GOOD, h), { getUserId: async () => null, log: (l) => lines.push(l), limiter: createDiagLimiter() });
       assert.equal(res.status, 401);
