@@ -1,102 +1,149 @@
 # PHASE 6 — DAY 2 — FINAL VERIFICATION REPORT (Parts 1–4)
 
-Date: 2026-11-12 | Scope: TEST only. No Production change, deploy, live key, live traffic, payment or payout. No auth / rate-limit / tracking security weakened. Source: latest ZIP (same file as Parts 1–3; no `.git`).
+Date: 2026-11-13 · Branch: `preview-day-c` · Scope: TEST / Preview only. No Production change, no deploy, no live key, no real publisher contacted, no payments/payouts.
 
-**Evidence labels:** **REAL-CODE** = real TS handlers run by me with fake writers (not PostgreSQL) · **STATIC** = code/SQL read · **LIVE-TEST-DB** = owner ran on TEST DB, output seen by me · **CI-OWNER** = owner-supplied GitHub result, not fully seen by me · **MOCK** = mocked/model only · **NOT RUN** = I did not execute.
-
-## 1. TEST verification status / Production status
+## 1. Verdicts (two separate statuses)
 
 | | Status |
 |---|---|
-| **TEST verification (Day 2)** | **PASS WITH OPEN ITEMS.** Publisher API, tracking, limits, 90/10 math verified on TEST. Real billing correctness **UNPROVEN** |
-| **Production GO/NO-GO** | **NO-GO.** Not changed by this report. A green Day 2 does **not** authorize the 1 December 2026 pilot |
-| Real publisher keys | **NO-GO** (Gates A–D unconfirmed; G1–G12 open) |
-| Ledger / payments / payouts | OFF / disabled (live-verified twice in Part 3) |
+| **TEST verification (Day 2)** | **PASS WITH OPEN ITEMS.** Publisher API, tracking, limits, 90/10 math verified on TEST/Preview. Real billing correctness **UNPROVEN**; valid-ad response and live 503 **NOT TESTED** |
+| **Production GO/NO-GO** | **NO-GO.** A green Day 2 does **not** authorize the 1 December 2026 pilot |
+| Gates A–D | **NOT CONFIRMED** (deferred to publisher onboarding; no written publisher evidence) |
+| Real publisher keys | **NO-GO** |
+| Ledger / payments / payouts | OFF / disabled (live-checked in Part 3) |
 
-## 2. Part 4 — publisher end-to-end (my runs)
+## 2. Evidence labels
+**STATIC** = code/SQL read · **REAL-CODE** = real TypeScript, fake writer · **LIVE-TEST-DB** = owner-run SQL on TEST, output seen · **CI-OWNER** = GitHub run, owner-supplied · **LIVE-PREVIEW** = owner-run curl on Vercel Preview, output seen · **SANDBOX** = my offline run (no network).
+Mocked, skipped or unavailable = never PASS.
 
-Flow read (STATIC): `match` (stop check → key → JSON/size → body → idempotency → tracking opt-in → serve) → ad + `sponsored:true` + optional `tracking{token, click_ref}` → `impression` (token only, no key) → `click` (GET `ref` only; destination from DB creative row).
+## 3. Test runs
 
-| Task | Result | Evidence |
+| Run | Total | Pass | Fail | Skipped | Evidence |
+|---|---|---|---|---|---|
+| CI #129 (`b0aae56`) | 5,583 | 5,582 | **1** | 0 | CI-OWNER |
+| CI #130 (`2b05b30`, after SQL comment fix) | not seen | green | — | — | CI-OWNER (screenshot: green, 1m59s) |
+| DB integration #21 (TEST DB only) | 98 | 98 | 0 | 0 | CI-OWNER (incl. event billing 21, pilot-limits guard 2) |
+| DB integration #22 (TEST DB only) | not seen | green | — | — | CI-OWNER (screenshot: green, 6m0s) |
+| `tests/publisher/*` (SANDBOX) | 315 | 313 | 1 | 1 | SANDBOX |
+| 11 `tests/ads` handler files (SANDBOX) | 448 | 448 | 0 | 0 | SANDBOX |
+
+- CI #129 failure: static guard "no existing (non Day 13) SQL file mentions the new ledger service objects"; file `phase6-day2-part3-pilot-limits-boundary-rollback.sql`, **line 6 comment** contained `ledger_settings`. Comment-only fix; no SQL statement changed; #130 green.
+- SANDBOX 1 fail + 1 skip = `@types/node` / `next` / `@types/react` not installed (no network). Not counted as PASS; CI is the evidence.
+
+## 4. Implemented (verified present in code/SQL)
+
+| Item | Evidence |
+|---|---|
+| `POST /api/v1/ads/match`: Bearer auth, IP failure guard (20/min, app), 429 `Retry-After: 60`, 415/413/400, emergency stop (stopped = no-fill, read error = 503), crash → generic 503 | STATIC + REAL-CODE |
+| `POST /api/v1/ads/impression` (token only, strict body, duplicate → 200 `duplicate`) | STATIC + REAL-CODE |
+| `GET /api/v1/ads/click` (`ref` only, prefetch 204, 302 `no-referrer`, HEAD/POST 405) | STATIC + REAL-CODE |
+| Safe public response: 5 fields (+3 optional), `sponsored: true` literal, `no-store`, `Vary: Authorization`, no CORS | STATIC + contract tests |
+| Publisher example/SDK: impression only when on screen, click via `click_ref`, `safeHref` https only, bounded retry | STATIC + tests/publisher |
+| Matching, category, country/regional eligibility (flag-gated) | Part 1 |
+| Budget reservations; CPM at impression, CPC at click; 24 h hold | Part 2 |
+| `campaigns_guard_pilot_limits` ($1,000 / $2,000); G-1 reopen guard (TEST only) | Part 3 |
+| 90/10 split (`publisher_share_bps=9000`, truncate 4 dp, platform remainder) | Part 3 |
+| Vercel firewall rule `ads-rate-limit` (600 req / 60 s / IP, deny 429) | Update 2 (config read-only) |
+
+## 5. Tested
+
+| Area | Evidence |
+|---|---|
+| Part 1: matching/geo 19 new + 268 regions tests | REAL-CODE |
+| Part 2: billing lifecycle 16 new + 50 + 14; DB tests 21 | REAL-CODE; CI-OWNER #21 |
+| Part 3: offline 30/30; boundary rollback 13/13; G-1 rollback 8/8; `financial-tests.sql` no exception | REAL-CODE; LIVE-TEST-DB |
+| Part 4: `tests/ads/phase6-day2-part4-publisher-tracking.test.ts` + existing `tests/publisher` (10 files) + day10/day12/day17/day26 handler tests | REAL-CODE; CI-OWNER |
+| Part 4 live API calls (section 6) | LIVE-PREVIEW |
+
+## 6. Passed
+
+| Check | Result | Evidence |
 |---|---|---|
-| Valid key → ad / no-fill `{fill:false}` 200 | PASS | existing day10/day26 tests + full suite |
-| Invalid / missing key → identical 401 + `WWW-Authenticate`; repeated bad keys → IP 429 | PASS | existing (REAL-CODE) |
-| Malformed: bad JSON 400, extra fields 400, wrong content-type 415, >2048 B 413, bad Idempotency-Key / tracking header 400 | PASS | existing |
-| 429 (`Retry-After: 60`) vs 503 (`{fill:false,error:"unavailable"}`) vs no-fill 200 distinct; crash → generic 503, no leak | PASS | existing + new C1 |
-| Emergency stop: stopped → no-fill, read error → 503 (fail closed) | PASS (REAL-CODE/MOCK DB) | phase5-step4 tests |
-| Safe response: only 5 public fields (+3 optional rich), `sponsored:true` literal, no-store, `Vary: Authorization`, no CORS | PASS | contract tests |
-| Sponsored label + safe link in publisher examples | PASS (REAL-CODE, example code) | tests/publisher (Sponsored kept, `safeHref` https only) |
-| Impression only after on-screen: hidden tab / not yet visible / scrolled out / unmounted send nothing; once per ad | PASS (example code, jsdom-style fakes) | tests/publisher day21-part3 |
-| Click: no direct `<a>`/href in markup; press reports `click_ref` then opens validated https; no destination from query/URL/cookies | PASS (example code) | tests/publisher day21-part4 |
-| Click endpoint: only `ref`; extra params 400 (new B1); 302 `no-referrer` + `no-store`; prefetch 204 not counted; HEAD/POST 405; bad ref ≡ unavailable 404 (new B2) | PASS | existing + **new** |
-| Duplicate impression/click: `duplicate`, no 2nd write; 30-parallel on real DB | PASS | REAL-CODE + CI-OWNER run #20 (98/0 skipped) |
-| Token expiry: default 1 h, max 24 h, valid at +1 h−1 ms, dead at +1 h; tamper / wrong secret / cross-use refused | PASS | Part 2 + existing (REAL-CODE) |
-| SDK retry: Retry-After honoured, 503/network retried, bounded (≤3 calls), same Idempotency-Key, 4xx not retried, key never leaked | PASS | tests/publisher day20/day21 |
-| `AD_TRACKING_SECRET` unset (Gate B finding, written) | Fail-safe: `readTrackingConfig`→null; ad served **without** `tracking`; events return 503 `unavailable`; **no charge**, hold released unused. Consequence: no impressions are ever recorded | STATIC + Part 2 REAL-CODE |
+| Key missing → 401 `{"error":"unauthorized"}` | PASS | LIVE-PREVIEW |
+| Invalid key → 401 (same body) | PASS | LIVE-PREVIEW |
+| `Basic` scheme → 401 | PASS | LIVE-PREVIEW |
+| Valid key accepted (200, not 401); no eligible ad → `{"fill":false}` | PASS | LIVE-PREVIEW |
+| Malformed JSON → 400 `invalid_request / invalid_json` | PASS | LIVE-PREVIEW |
+| Wrong content-type → 415 `unsupported_media_type` | PASS | LIVE-PREVIEW |
+| Body > 2048 B → 413 `payload_too_large` | PASS | LIVE-PREVIEW |
+| Unknown topic `xyz` → 200 no-fill (reason not revealed) | PASS | LIVE-PREVIEW |
+| Repeated bad keys → **429** `{"error":"rate_limited"}`, `retry-after: 60`, `cache-control: no-store`, `x-blisscco-api-version: 1`; first 29 = 401, 30th = 429; no stack trace, no key echoed | PASS | LIVE-PREVIEW |
+| 429 vs 503 vs no-fill distinct; crash → generic 503, no leak | PASS | REAL-CODE |
+| Safe response fields, `sponsored: true`, no CORS | PASS | contract tests |
+| Sponsored label + safe link in publisher example | PASS | tests/publisher |
+| Impression only after on-screen (hidden/not visible/unmounted send nothing); once per ad | PASS | tests/publisher |
+| Click: no direct href; `click_ref` only; destination from DB; extra params 400; bad ref ≡ unavailable 404 | PASS | REAL-CODE |
+| Duplicate impression/click → `duplicate`, no 2nd write; 30-parallel on real DB | PASS | CI-OWNER |
+| Token expiry (1 h default, max 24 h, +1 h dead), tamper/wrong secret/cross-use refused | PASS | REAL-CODE |
+| SDK retry: `Retry-After` honoured, 503/network retried (≤3), same Idempotency-Key, 4xx not retried | PASS | tests/publisher |
+| Pilot limits: 1000.00 ok / 1000.01 refused / 2000.00 ok / 2000.01 refused; update, reopen, advertiser move refused | PASS 13/13 | LIVE-TEST-DB |
+| G-1 reopen guard on TEST | PASS 8/8; Part 3 re-run 13/13 | LIVE-TEST-DB |
+| Ledger OFF after rollback tests | PASS | LIVE-TEST-DB |
+| Offline CI after fix (#130) and DB integration #22 | PASS (green; counts not seen) | CI-OWNER |
 
-**New file (gap tests only):** `tests/ads/phase6-day2-part4-publisher-tracking.test.ts` — 5 tests, 5 pass. Real handlers with the **real default 300/min per-IP guards** (existing tests inject tiny guards). Documents, does not change limits.
+## 7. Failed
 
-## 3. Test counts (my sandbox)
+| Item | Where | Status |
+|---|---|---|
+| Static guard on SQL comment (CI #129, 1 test) | CI | **FIXED** (comment-only), #130 green |
+| 1 publisher-example compile test | SANDBOX only (`@types/node` missing) | Not a real-environment failure; CI is green |
 
-| Run | Tests | Pass | Fail | Skipped |
-|---|---|---|---|---|
-| Full offline suite (`tests/*/*.test.js`, concurrency 4) incl. new file | 5,583 | 5,569 | **13** | 1 suite-level (DB tests: `TEST_DATABASE_URL` not set) |
-| Cause of the 13 | | | 11 = `@types/node` not installed in sandbox (publisher-example/guide compile tests; same class as Part 1/2 "10"); 2 = timeout tests under parallel load, **pass serially** (adapter 17/17, fallback-routing 26/26) | |
-| CI on GitHub (owner-supplied) | 5,578 (+98 DB) | all | 0 | 0 |
+Nothing failed in a real environment after the fix.
 
-My 13 failures are **not** marked PASS; they are explained and re-verified only where noted. CI numbers are owner-supplied (run #20 and CI #127 seen green in screenshot; counts/SHA not visible).
+## 8. Not tested
 
-## 4. Consolidated Day 2 (Parts 1–3 + 4)
+| Item | Why |
+|---|---|
+| Valid **ad-filled** response from a live call (`sponsored:true`, public fields) | Preview returned no-fill; needs an active test campaign matching the topic. Covered only by REAL-CODE/contract tests |
+| Live **503** (DB down) | Not induced on Preview. REAL-CODE only |
+| Exact 429 threshold | App guard is 20/min per instance memory; live 429 came at request 30 (Vercel instances differ). Best-effort by design |
+| Whether the Preview deployment points to the TEST DB | Not confirmed in this review |
+| Real billing with real rows | 0 charges / 0 settled / 0 reservations; ledger OFF by design |
+| Exact 24 h hold boundary; bulk hold release on real PostgreSQL | Not testable with `now()` |
+| Behaviour of a real publisher server (any Gate) | No publisher contacted |
+| Edge 600/min rule under load | Config seen, not load-tested |
+| Pass/skip counts of CI #130 and DB #22 | Screenshot shows green only |
+| G-1 SQL on pilot/Production DB | Verified on TEST only |
 
-**Implemented (existing, verified):** matching/category/selection; country & regional eligibility (flag-gated); budget reservations + valid-event billing (CPM impression, CPC click, 24 h hold); `campaigns_guard_pilot_limits` ($1,000/$2,000); 90/10 split rule (`publisher_share_bps=9000`, truncate 4 dp, platform remainder); reconciliation module; publisher API v1, tracking token, click redirect, SDK/examples.
+## 9. Blocked
 
-**Tested and PASSED**
-- Part 1: matching/geo 19 new + 268 regions tests (REAL-CODE).
-- Part 2: billing lifecycle 16 new + 50 + 14; DB tests via CI-OWNER.
-- Part 3: offline 30/30; **LIVE-TEST-DB boundary rollback 13/13** (1000.00 ok, 1000.01 refused, 2000.00 ok, 2000.01 refused, update/reopen/advertiser-move refused); `financial-tests.sql` ran with no exception; `ledger_enabled=false` after rollback.
-- Part 4: table in section 2.
+| Item | Blocked by |
+|---|---|
+| Gates A–D, G9 | Real publisher written confirmation (deferred) |
+| Pilot terms G10 | Owner legal review |
+| G2 backup/restore, G3 emergency stop on Production, G4, G6 latency, G8, G11, G12 | Owner-only evidence (dated) |
 
-**Failed:** nothing failed in a real environment. Sandbox-only: 13 (section 3).
-
-**Not tested / unproven**
-- Real billing with real rows: **0 charges, 0 settled, 0 reservations** on TEST; no committed billing run with ledger ON (by design).
-- Reconciliation checks are vacuous for billing; Q5 hides "spend without ledger".
-- Exact 24 h boundary and bulk hold release on real PostgreSQL.
-- 503 on a real Preview; behaviour of a real publisher server (any Gate).
-- Distributed rate limiting: guards are per-instance memory; Vercel Firewall rules not evidenced (Custom Rules = 0 on 2026-11-08).
-- Production DB state of any Day 2 SQL (guard trigger verified on **TEST only**).
-
-**Blocked:** real publisher confirmation (Gates A–D, G9); pilot terms (G10); owner-only items G2–G5, G8, G11, G12.
-
-## 5. Severity-ranked blockers
+## 10. Severity-ranked blockers
 
 | # | Sev | Blocker | Needs |
 |---|---|---|---|
-| 1 | **Critical** | Gates A–D **not publisher-confirmed** (no publisher contacted; Gate D NOT CONFIRMED). Examples/tests are our side only; a publisher can skip the Sponsored label, impression gating, or click flow | Written publisher evidence, or owner's written acceptance (G9). Not claimed here |
-| 2 | **Critical** | Production prerequisites open per Step 5: G2 backup/restore never rehearsed, G3 emergency stop not applied/practised on Production, G5 no edge rate limit, G4 security checks, G6 latency 790 ms avg / 2,413 ms max over limits | Owner evidence; none re-verified or changed by me |
-| 3 | **High** | Real billing correctness unproven (no billing rows; ledger OFF). Publisher earnings/payouts cannot be promised | Rollback-only run showing real flow output; keep ledger OFF until approved |
-| 4 | **High** | G7 on the **pilot** DB: guard verified on TEST only. G-1 tightening approved but **not implemented** (legacy >$1,000 rejected campaign can reopen at unchanged budget). 2 legacy campaigns > $1,000 and 2 advertisers > $2,000 exist on TEST | Implement G-1 as forward-only SQL + tests, owner-run on TEST; then apply path for pilot DB |
-| 5 | **Medium** | Impression/click per-IP cap 300/min (new A1/A2). A busy publisher server proxying all events from one IP gets 429; example does not retry → lost impressions (under-billing, no overbilling). Memory-based, per instance | Decide: publisher-keyed limit or higher cap + edge rule; or accept for pilot volume |
-| 6 | **Medium** | Trust boundary: server cannot verify real display or human click; `destination_url` (approved, https-validated) reaches publisher browser, so a publisher can skip or forge reports. Mitigated by signed tokens, once-per-serve dedupe, CPC click needs prior impression | Gate B written confirmation; fraud monitoring is not assessed here |
-| 7 | **Medium** | Token TTL 1 h vs 24 h hold: late events refused (owner decided: keep, review after pilot). Unset `AD_TRACKING_SECRET` silently yields no impressions | Pilot checklist: confirm secret set; review refused-late-event count |
-| 8 | Low | Part 1: `load_ad_candidates` ignores live holds → possible lost fill (owner: not now) | Revisit after Day 2 |
-| 9 | Low | All-regions rule vs code mismatch (stricter, safe) — owner confirmation pending | Decision |
-| 10 | Low | `release_expired_budget_reservations()` has no caller; status stays `held` until next serve | Optional cron/manual |
-| 11 | Low | $0.5960 legacy spend (2 campaigns) with no reservation/ledger — **owner accepted**, no adjustment | None |
-| 12 | Low | Sandbox: 11 tests need `npm ci`; 2 timing tests flaky under high parallelism | CI is green (owner-supplied) |
+| 1 | **Critical** | Gates A–D not publisher-confirmed (a publisher can skip click/impression flow; we only control our side) | Written acknowledgement + recorded terms acceptance, no key/host |
+| 2 | **Critical** | Production prerequisites open: G2 backup/restore never rehearsed, G3 emergency stop on Production, G6 latency, G4/G8/G11/G12 | Dated owner evidence |
+| 3 | **High** | Real billing correctness unproven (no billing rows; ledger OFF) | Rollback-only real-flow billing run |
+| 4 | **High** | G-1 guard verified on TEST only, not on pilot/Production DB | Owner applies + checks, dated note |
+| 5 | **Medium** | N1: `destination_url` is a public match field; `toPublicAd` does not re-run `safeDestination` for own ads (provider path does). A publisher can ignore the click flow | Decide: re-check in `buildAdResponse` and/or mandatory-flow term | **Day 3 update (code-verified, sandbox):** gap CONFIRMED and fixed in code (match-handler re-checks with safeDestination rules, fail-closed no-fill). Not yet verified on Preview/Production. See `PHASE6-DAY3-PART1-TECHNICAL-GAPS-REPORT.md` |
+| 6 | **Medium** | Per-IP cap 300/min on impression/click; shared-IP publisher server may get 429, example does not retry browser events | Accepted for pilot; revisit |
+| 7 | **Medium** | Token TTL 1 h vs 24 h hold; unset `AD_TRACKING_SECRET` → ads without tracking, events 503 | Owner: keep, review after pilot; set secret |
+| 8 | Low | N2: route/handler header comments say "charge at serve"; reports say CPM at impression, CPC at click. Likely stale comments, DB function not re-checked | Update comments or confirm | **Day 3 update (SQL read, not executed):** CONFIRMED stale; comments corrected (no logic change). DB behaviour verified by reading `phase6-step4-part2-event-billing.sql` only. See Day 3 Part 1 report |
+| 9 | Low | Part 1: `load_ad_candidates` ignores live holds; all-regions rule mismatch | Owner decisions pending |
+| 10 | Low | `release_expired_budget_reservations()` has no caller | Optional cron |
+| 11 | Low | $0.5960 legacy spend (2 campaigns), owner accepted | None |
+| 12 | Low | Sandbox cannot run 11 tests without `npm ci` | CI green |
 
-## 6. Next actions (in order)
-1. Owner: send publisher the guide and obtain **written** Gates A–D confirmation (or written acceptance of the gap) — until then Gates stay "not confirmed".
-2. Implement G-1 tightening (separate SQL part) and run on TEST.
-3. Decide #5 (shared-IP cap) and add the Vercel Firewall rule (G5).
-4. Close G2–G4, G6, G8, G11, G12 with dated evidence; re-run CI on the exact commit.
-5. Plan one rollback-only real-flow billing run (ledger stays OFF) to replace vacuous reconciliation.
-6. Re-decide GO/NO-GO only after 1–5, by 25 November 2026 per Step 5 milestone.
+## 11. Next actions (in order)
+1. Owner: close G2, G3, G6 (and G4, G8, G11, G12) with dated evidence.
+2. Owner: obtain **written** Gates A–D confirmation at publisher onboarding. Until then "NOT CONFIRMED".
+3. Create one active TEST campaign, then re-run the valid-ad curl and record the filled response; optionally force a 503 on Preview.
+4. Decide N1 and fix N2 comments (separate, tested change).
+5. Apply and verify G-1 on the pilot DB; plan one rollback-only real-flow billing run (ledger OFF).
+6. Re-decide GO/NO-GO only after 1–5 (Step 5 milestone: 25 November 2026).
 
-## 7. Files
-Created: this report, `tests/ads/phase6-day2-part4-publisher-tracking.test.ts` (copy in outputs). Modified: none. No lib/, SQL, CI, Vercel or Production file changed.
+## 12. Files changed in this review
+Report updates (no lib/, CI, Vercel or Production change): this report; `PHASE6-DAY2-PART1-MATCHING-GEO-REPORT.md`, `PHASE6-DAY2-PART1-PENDING-DECISIONS.md`, `PHASE6-DAY2-PART2-BILLING-LIFECYCLE-REPORT.md`, `PHASE6-DAY2-PART3-FINANCIAL-RECONCILIATION-REPORT.md` (now based on the newest `(2)` variant; stale "pending" rows closed). Code/SQL: `supabase/sql/phase6-day2-part3-pilot-limits-boundary-rollback.sql` (line 6 comment only).
+`PHASE6-STEP5-FINAL-PILOT-READINESS-REPORT.md` not edited: its remaining "pending" items (G2–G4, G6, G8–G12, publisher confirmation) are still genuinely open.
 
 ---
+## Annex — earlier updates (kept as history)
 ## UPDATE (owner decision, 2026-11-12)
 - **CI #128**, commit `c170e82`, green (1m40s, screenshot): includes `tests/ads/phase6-day2-part4-publisher-tracking.test.ts`. Counts not visible. DB integration #20 was before this commit; not re-run.
 - **Gates A–D: DEFERRED to publisher onboarding.** No publisher is being onboarded now, so no written confirmation is requested yet. Status stays **NOT CONFIRMED** (not "publisher-confirmed", not "owner-accepted"). Blocker #1 (Critical) stays open for **real key issuance and pilot start**; it does not block TEST verification.

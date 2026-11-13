@@ -1,6 +1,6 @@
 # PHASE 6 — DAY 2 — PART 1: Pending Decisions (decide later)
 
-Status: **PENDING** (owner decision). Nothing below is applied. Related report: `PHASE6-DAY2-PART1-MATCHING-GEO-REPORT.md`. CI #125 was green on 2026-11-12.
+Status: **PENDING** (owner decision). Nothing below is applied. Related report: `PHASE6-DAY2-PART1-MATCHING-GEO-REPORT.md`. CI #125 green on 2026-11-12; CI #130 green on 2026-11-13. Both decisions below remain PENDING.
 
 ## 1. Reserved-budget SQL fix (load_ad_candidates)
 

@@ -23,12 +23,12 @@ import { authorizePublisher, findIdempotentServe, recordServe } from "./serve-db
 import { mintTrackingToken, readTrackingConfig, trackingSecretStatus, type TrackingConfig } from "./tracking-token";
 import type { MatchRequest } from "./types";
 // NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
-// Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
+// Billing (Phase 6 Step 4 Part 2): serve par sirf budget HOLD; charge CPM = serve ka PEHLA valid impression, CPC = PEHLA valid click par (DB settle_event_billing). Serve ginti ko billing/payout ke liye use mat karna.
 
 // Production wiring: asli database + asli clock. Route sirf yahi function chalata hai.
 //
-// spendTracking = "reliable" (Day 7): record_ad_serve (day-7-1 SQL) har serve ki keemat campaign_spend_daily me likhta hai
-// aur budget paar hone par serve rok deta hai. Charge abhi "serve" par lagta hai (impression tracking alag feature hai).
+// spendTracking = "reliable" (Day 7): record_ad_serve budget RESERVE karta hai (spent + live holds <= budget) aur paar hone par serve rok deta hai.
+// Serve par paisa NAHI katta (campaign_spend_daily nahi badalti): charge CPM = pehle valid impression, CPC = pehle valid click par (Phase 6 Step 4 Part 2).
 // NOTE: day-7-1-budget-keys-retention.sql chalaye bina is code ko deploy mat karna: purani SQL budget nahi likhti.
 // Day 9-3: `Idempotency-Key` header (optional) ke liye day-9-5-atomic-spend-idempotency.sql bhi pehle chalao. Header na ho toh
 // purana 3-arg record_ad_serve hi chalta hai; header ho aur 9-5 na chali ho toh request 503 deti hai (charge nahi hota).
@@ -115,7 +115,7 @@ export async function serveMatchForPublisher(keyHash: string, request: MatchRequ
 }
 
 // Day 12 Part 4: impression. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Token + serve ka milan + atomic write
-// (day-12-7 SQL: record_ad_impression). Serve ki charge/spend ka isse koi lena-dena nahi: impression par doosri baar charge nahi hota.
+// (day-12-7 SQL: record_ad_impression). CPM campaign ka charge yahin (serve ke PEHLE valid impression par, DB record_ad_impression) hota hai; duplicate impression par dobara kabhi nahi. CPC campaign me impression par charge nahi.
 export function acceptImpressionForToken(token: unknown, event: unknown): Promise<ImpressionResult> {
   return acceptImpression(token, event, {
     config: trackingConfig(),
@@ -126,7 +126,7 @@ export function acceptImpressionForToken(token: unknown, event: unknown): Promis
 }
 
 // Day 12 Prompt 5 Part 3: click redirect. Wahi trackingConfig() (secret ek hi jagah se padhta hai: yahi file). Ref + serve + creative + destination
-// (day-12-10 SQL: lookup_serve_for_click, record_ad_click). Charge/spend ka isse koi lena-dena nahi.
+// (day-12-10 SQL: lookup_serve_for_click, record_ad_click). CPC campaign ka charge yahin (serve ke PEHLE valid click par, DB record_ad_click) hota hai; duplicate/not_counted click par nahi. CPM campaign me click par charge nahi.
 export function acceptClickForRef(ref: unknown): Promise<ClickResult> {
   return acceptClick(ref, {
     config: trackingConfig(),

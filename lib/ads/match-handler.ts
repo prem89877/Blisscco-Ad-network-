@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { hashApiKey, readBearerKey } from "@/lib/ads/api-key";
-import { buildAdResponse, buildRichFields, type MatchResponseBody } from "@/lib/ads/contract";
+import { buildAdResponse, buildRichFields, hasSafeDestination, type MatchResponseBody } from "@/lib/ads/contract";
 import { assetBaseFromRequest } from "@/lib/ads/rich-assets";
 import type { StopState } from "@/lib/ads/emergency-stop";
 import { clientIpFromHeaders, createIpGuard, type IpGuard } from "@/lib/ads/ip-guard";
@@ -208,6 +208,8 @@ async function processMatch(request: Request, options: MatchHandlerOptions, trac
     case "unavailable":
       return json({ fill: false, error: "unavailable" }, 503);
     case "ad":
+      // Phase 6 Day 3 (N1): destination ko response se PEHLE safeDestination rules se dobara jaanchte hain (click redirect jaisa). Fail => saaf no-fill (200), koi ad/tracking nahi.
+      if (!hasSafeDestination(result.ad)) return json({ fill: false }, 200);
       // Step 3B: rich fields sirf tab jab serve ne rich data diya (flag ON + advertiser ne logo/image/brand diya). Warna purane 5 fields.
       return json(buildAdResponse(result.ad, result.tracking, buildRichFields(result.ad.id, result.rich, assetBaseFromRequest(request))), 200);
     case "provider_ad":

@@ -149,6 +149,20 @@ export function toPublicAd(ad: MatchedAd): PublicAd {
   };
 }
 
+/**
+ * Phase 6 Day 3 (N1): advertiser ki apni destination ko bhi wahi safeDestination rules se dobara jaanchta hai (provider path jaisa).
+ * Fail-closed: https only, no userinfo, no IP/localhost/single-label host, no whitespace, <= 2048. Galat/ajeeb input => false (kabhi throw nahi).
+ * Sirf check: URL badalta nahi (public `destination_url` jaisa tha waisa hi jata hai). match-handler ise buildAdResponse se PEHLE chalata hai.
+ */
+export function hasSafeDestination(ad: MatchedAd): boolean {
+  try {
+    const raw: unknown = ad === null || typeof ad !== "object" ? undefined : ad.destinationUrl;
+    return typeof raw === "string" && raw === raw.trim() && safeDestination(raw) !== null;
+  } catch {
+    return false;
+  }
+}
+
 /** Har ad response yahin se banta hai, isliye `sponsored: true` kabhi chhoot nahi sakta. */
 export function buildAdResponse(ad: MatchedAd, tracking?: TrackingGrant, rich?: PublicRichFields): MatchSuccessResponse {
   // Explicit whitelist: rich ke sirf 3 optional keys (aur sirf string values) ad me jaati hain.

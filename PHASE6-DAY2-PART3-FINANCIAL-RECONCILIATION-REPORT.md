@@ -1,5 +1,7 @@
 # PHASE 6 — DAY 2 — PART 3 — FINANCIAL RECONCILIATION REPORT
 
+**FINAL STATUS (2026-11-12): VERIFIED with 2 carried-forward items — see section "FINAL VERIFIED UPDATE" at the end.**
+
 Date: 2026-11-12 | Scope: TEST only | Source: latest ZIP + Day 1 evidence (Day 1 Final report, Part 2 migration report, Day 2 Part 2 report)
 Not repeated: Day 1 / Day 2 Part 1–2 checks. No code, rule, rounding, cap or DB state changed by me.
 
@@ -7,8 +9,8 @@ Not repeated: Day 1 / Day 2 Part 1–2 checks. No code, rule, rounding, cap or D
 | Item | Status |
 |---|---|
 | 4 offline test files (run by me, ZIP code) | **PASS 30/30** |
-| DB integration test (`...pilot-limits-db.test.ts`) | **NOT RUN by me** (no network / no TEST DB secret). Needs CI run on TEST |
-| Rollback financial SQL (`financial-tests.sql`) | Day 1: **INFERRED** only (assertion NOTICE never seen) |
+| DB integration test (`...pilot-limits-db.test.ts`) | **PASS (CI-OWNER, 2026-11-12/13):** DB integration #21 = 98 pass / 0 fail / 0 skipped; #22 green (counts not seen). Not run by me |
+| Rollback financial SQL (`financial-tests.sql`) | **RAN on TEST, no exception (owner-run, output seen)** — see UPDATE below |
 | Real billing rows in TEST | **None** (see §4) — reconciliation is vacuous |
 
 ## 1. Offline test evidence (run by me)
@@ -69,11 +71,11 @@ Script for 2/global state: `phase6-day2-part3-reconciliation-evidence-readonly.s
 `ledger_enabled=false` — last live evidence: Day 1 Part 2 and Day 1 final (false / 9000 / "ledger remains off"). **Not re-verified live today** (no DB access). Re-check = E1 in the read-only script. I did not enable the ledger.
 
 ## 6. Unresolved blockers
-1. DB tests not executed by me → run CI (manual dispatch) on TEST; send pass/skip counts.
-2. Boundary rollback SQL — owner run needed.
-3. `financial-tests.sql` — owner must run and send the NOTICE/result.
+1. ~~DB tests not executed by me~~ — **CLOSED**: DB integration #21 (98/0/0) and #22 green (owner-supplied).
+2. ~~Boundary rollback SQL — owner run needed~~ — **CLOSED**: 13/13 PASS (LIVE-TEST-DB), re-run after G-1 13/13.
+3. ~~`financial-tests.sql`~~ — **CLOSED**: ran with no exception (owner-run).
 4. Read-only evidence SQL — owner run (confirms ledger OFF now, adjustment effect, real billing rows = 0).
-5. Owner decision on G-1 (legacy oversized reopen).
+5. ~~Owner decision on G-1~~ — **DECIDED and implemented on TEST** (guard + 8/8 rollback test). Not applied to pilot/Production DB.
 6. Real billing correctness remains **UNPROVEN** until a rollback test with real flow output is seen.
 
 ## 7. Files
@@ -105,3 +107,42 @@ No error raised (every assertion is `raise exception`); post-rollback row: `ledg
 ### D. Status now
 Closed: guard boundaries, ledger OFF (live, 2 checks), 5.0000 adjustment impact, financial rollback test.
 **Still unproven:** real billing correctness (0 charges, 0 settled) — **no PASS claimed**. Open: CI integration run (concurrency), owner decision G-1, owner classification of the 0.5960 legacy spend (accept as legacy / no action), and which legacy over-limit campaigns are active.
+
+---
+## FINAL VERIFIED UPDATE — CI evidence and owner decisions
+
+### E. CI / DB integration evidence
+| Item | Seen in screenshot (by me) | Owner-supplied (not seen by me) |
+|---|---|---|
+| DB integration (TEST database only) **#20** | Green, manual run by prem89877, 6m17s, branch preview-day-c, finished after CI #127 | 98 passed / 0 skipped / 0 failed |
+| CI **#127** ("update") | Green, commit `58d3e96`, 1m22s | 5,578 passed / 0 skipped / 0 failed |
+| Commit SHA | `58d3e96` visible on CI #127 only | Full `58d3e962a0448b6077fe6cb5ec958d74681cdd7d`, claimed for both runs |
+| Combined | | 5,676 pass, 0 skip, 0 fail |
+
+Caveats (not claimed beyond evidence):
+- The screenshot does **not** show pass/skip counts, nor the commit SHA of DB run #20. Counts and "#20 ran on 58d3e96" are owner-supplied.
+- The long numbers quoted by owner (43153730524, 43153523048) do not match run numbers #20 / #127; treated as GitHub run/job IDs, not verified.
+- ZIP has no `.git`; I cannot prove the ZIP equals commit 58d3e96.
+- With 0 skipped, the 30-parallel insert test (and the direct-insert test) ran on the TEST DB → concurrency item accepted as **PASS (owner-supplied CI)**. That test only asserts total <= $2,000.
+
+### F. Owner decisions (recorded, not implemented by me)
+1. **G-1 = TIGHTEN.** A rejected campaign above $1,000 must not reopen without a budget change and re-approval. **Not implemented** (needs a new forward-only SQL guard + tests + owner-run on TEST; outside this verify-only part). **Owner confirmed (2026-11-12):** rule = rejected campaign above $1,000 must have budget **reduced to <= $1,000.00** and be re-approved before reopening.
+2. **$0.5960 legacy spend = accepted legacy spend.** No adjustment, no reversal, no backfill. Campaigns 38d54e0b… (0.5720) and 3657dd65… (0.0240). Recorded as a known, accepted reconciliation difference, not billing proof.
+
+### G. Final Part 3 verdict
+| Task | Result |
+|---|---|
+| 1. Limits verified (code + SQL) | PASS |
+| 2. $1,000 / $2,000 boundaries, insert/update/reopen/move, concurrency | PASS (LIVE rollback 13/13; CI owner-supplied) |
+| 3. 90/10 split, 4-decimal truncation, remainder | PASS (offline 16/16 + live rollback test) |
+| 4. Reconciliation | Difference 0.5960 **accepted legacy**; adjustment 5.0000 no effect; **real billing correctness UNPROVEN (0 charges, 0 settled)** |
+| 5. ledger_enabled=false | PASS (LIVE, 2 checks + CI run); ledger never turned on; Day 1 SQL gaps listed in section 4 |
+
+Carried forward: (a) implement G-1 tightening; (b) a real billing run with rollback-only test output on real flow remains the only way to prove billing correctness — no payments/payouts/ledger enabling.
+
+---
+## UPDATE (2026-11-13) — stale "pending" items closed
+- **CI #129** (commit `b0aae56`): 5,582 pass / **1 FAILED** / 0 skipped (owner-supplied). Failure = static guard `no existing (non Day 13) SQL file mentions the new ledger service objects`, flagged `phase6-day2-part3-pilot-limits-boundary-rollback.sql` because its **line 6 comment** contained the word `ledger_settings`. No SQL logic was involved.
+- **Fix:** comment-only edit on line 6 (`ledger_settings` → `the ledger settings table`); no statement changed.
+- **CI #130** (commit `2b05b30`, "update phase6-day2-part3-pilot-limits-boundary-rollback.sql"): **green** (1m59s, screenshot). **DB integration #22** (TEST database only): **green** (6m0s, screenshot). Pass/skip counts of #130 and #22 not seen; **#21 = 98/0/0** is the last count seen (owner-supplied).
+- Still open (unchanged): real billing correctness UNPROVEN (0 charges / 0 settled); G-1 SQL not applied to pilot/Production DB.

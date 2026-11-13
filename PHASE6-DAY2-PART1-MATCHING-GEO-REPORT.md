@@ -44,3 +44,8 @@ Run method: `tsc -p tsconfig.test.json` then `node --require ./tests/register.cj
 | `PHASE6-DAY2-PART1-MATCHING-GEO-REPORT.md` | New |
 
 No `lib/`, SQL, CI, Vercel or deployment file changed. No AI matching added; no raw chatbot prompt stored.
+
+---
+## UPDATE (2026-11-13)
+- The "10 failing tests" in section 3 were sandbox-only (`@types/node`/`next` missing). **CI #130 is green** on GitHub (owner-supplied; counts not seen). CI #129 had 1 unrelated static-guard failure (SQL comment), fixed in #130.
+- Pending decisions (`load_ad_candidates` live holds; all-regions rule) are **unchanged and still open**.

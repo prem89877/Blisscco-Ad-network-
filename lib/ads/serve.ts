@@ -6,7 +6,7 @@ import type { TrackingGrant } from "./tracking-token";
 import type { RichAdFields } from "./rich-assets";
 import { isRegionId, type RegionId } from "../regions/country-region";
 // NOTE (owner): Deployment se pehle impressions aur clicks ki ginti (tracking) aur baaki related cheezein (etc.) ka kaam/review kiya jayega.
-// Tab tak "serve" hi charge ka aadhar hai (billing/payout ke liye use mat karna).
+// Billing (Phase 6 Step 4 Part 2): serve par sirf budget HOLD; charge CPM = serve ka PEHLA valid impression, CPC = PEHLA valid click par (DB settle_event_billing). Serve ginti ko billing/payout ke liye use mat karna.
 
 // Serve orchestrator (PURA: koi database/env/server-only nahi; saari cheezein `deps` se aati hain, isliye bina database ke test hota hai).
 //

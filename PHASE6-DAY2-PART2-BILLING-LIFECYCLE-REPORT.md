@@ -12,7 +12,7 @@ Date: 2026-11-12 | Source: uploaded `blisscco-ad-network.zip` + Day 1 reports | 
 |---|---|---|---|---|
 | `tests/ads/phase6-step4-part2-event-billing.test.ts` | 50 | 50 | 0 | STATIC + MODEL |
 | `tests/ledger/phase6-step4-part2-event-ledger.test.ts` | 14 | 14 | 0 | STATIC + MODEL |
-| `tests/integration/phase6-step4-part2-event-billing-db.test.ts` | 21 (static count) | — | — | **NOT RUN** (skipped: `TEST_DATABASE_URL` not set) |
+| `tests/integration/phase6-step4-part2-event-billing-db.test.ts` | 21 | 21 | 0 | 0 | **PASS (DB-GITHUB, owner-supplied)**: DB integration #21 = 98/0/0 incl. these 21; #22 green. Not run by me |
 | **New** `tests/ads/phase6-day2-part2-billing-lifecycle.test.ts` | 16 | 16 | 0 | REAL-CODE + MODEL |
 | All `tests/ads` | 3521 | 3511 | 10 | 10 = environment only (`@types/node`, `next` missing); same 10 as Part 1 |
 | All `tests/ledger` | 177 | 177 | 0 | |
@@ -95,3 +95,8 @@ No billing defect found. No code, SQL or CI changed. Day 1 restrictions kept (no
 |---|---|
 | `tests/ads/phase6-day2-part2-billing-lifecycle.test.ts` | New, 16 tests |
 | `PHASE6-DAY2-PART2-BILLING-LIFECYCLE-REPORT.md` | New; updated with CI #126, DB integration #19 and the token-lifetime decision |
+
+---
+## UPDATE (2026-11-13)
+- The DB test row in section 1 was "NOT RUN (skipped)" in my sandbox only. On GitHub: **DB integration #21 = 98 pass / 0 fail / 0 skipped**, event-based billing 21/21 (owner-supplied). **#22 green** (screenshot, counts not seen). CI **#130** green.
+- Limits unchanged: exact 24 h boundary, committed billing run with ledger ON, and bulk hold release remain **NOT TESTED**. Real billing correctness stays UNPROVEN.
