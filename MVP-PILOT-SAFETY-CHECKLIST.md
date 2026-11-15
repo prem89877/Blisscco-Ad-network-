@@ -431,3 +431,14 @@ A row is filled only by a person, with a dated result. Nothing was run to write 
 ## 16. Phase 4 Step 1: pointer to the gate record (2026-11-06)
 
 Added in Phase 4 Step 1. The dated item-by-item record for Gates A to D, with the source of each result and the evidence still required, is kept in `PHASE4-STEP1-GATE-CLOSURE-REPORT.md`, section 4. Where that report and the sign-off rows in section 7 differ, the report is newer. The section 7 rows are not edited here because existing document tests lock them. No box in this file is ticked, and no environment value, SQL or deployment was changed. This section does not approve a pilot, does not start one and does not declare the publisher API ready for production use.
+
+
+---
+
+## Update — Phase 6 Day 3 Part 3 (2026-11-13/14, Preview only)
+Source: owner-run terminal output seen in chat (key not recorded), plus owner screenshots. Production not touched. See `PHASE6-DAY3-PART3-VERCEL-REPORT.md`.
+- API failure behaviour (earlier "Pending"): no key, invalid key, Basic scheme, wrong content-type without key all returned 401 `{"error":"unauthorized"}` with security headers. OBSERVED. 400/415/413/429/503 not re-run.
+- Valid TEST key + topic `travel`: 200 with `fill:true`, `sponsored:true` and the public ad fields. OBSERVED (single fill). Topic `travels` is unsupported and returned `{"fill":false}`.
+- API latency (earlier "Pending, not measured"): phone end-to-end samples only, fill path warm 0.570 to 0.739 s, first request 1.512 s. Not server time; G6 stays OPEN.
+- Still Pending: ad rendering in a browser, sponsored label on screen, impression response, click redirect, spend/ledger effect of these match calls (not read).
+- Firewall `ads-rate-limit` re-read as active on 2026-11-13.

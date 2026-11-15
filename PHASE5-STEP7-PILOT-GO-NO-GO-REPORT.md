@@ -319,3 +319,11 @@ Awaited from the owner: `CI` (type check, `npm test`, ESLint, build) on the Step
 - Modified: none. No application code, migration, workflow, configuration or historical report was changed.
 
 Step 8 is not started and waits for the owner's explicit confirmation.
+
+
+---
+
+## Update after Phase 6 Day 3 Part 3 (2026-11-14)
+- **C10 (Firewall):** now one custom rule `ads-rate-limit` is active (live read 2026-11-13); other paths still uncovered. Gap reduced, not closed.
+- **O5 (project references):** TEST = `ficwuieqjdhrrxbvuqot`, Production = `mfliodvkaszqywajbshu` (owner, 2026-11-14); Vercel UI shows the matching URL prefixes for Preview and Production. CONFIRMED by owner; Production value not decrypted.
+- Verdict unchanged: Production **NO-GO**. See `PHASE6-DAY3-PART3-VERCEL-REPORT.md`.

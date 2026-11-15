@@ -20,11 +20,11 @@ Related documents (not repeated here): `PHASE5-PRODUCTION-READINESS-REPORT.md` (
 
 | # | Requirement | Tag | Status |
 | --- | --- | --- | --- |
-| 1.1 | `CI` workflow (type check, `npm test`, ESLint, `npm run build`) is green on the exact commit to deploy | [AUTO] | PENDING OWNER (result awaited, Step 6 changed code) |
+| 1.1 | `CI` workflow (type check, `npm test`, ESLint, `npm run build`) is green on the exact commit to deploy | [AUTO] | PENDING OWNER (result awaited, Step 6 changed code). **UPDATE 2026-11-14 (Day 3 Part 3):** CI green on the Preview head (CI #135 `fd595f3`, #134 `c4dd473`, owner screenshots). Still PENDING for the exact Production release commit |
 | 1.2 | `DB integration` workflow (TEST database only) green on the same or the previous commit; no skipped test | [AUTO] | Owner-stated green earlier (Phase 5 Step 2); re-run only if SQL changed |
-| 1.3 | A red `CI` cannot be deployed to Production: GitHub branch protection or Vercel Deployment Checks is on. (The Vercel build ignores ESLint by design, `next.config.mjs`, so a deploy can succeed while ESLint is red.) | [MANUAL] | PENDING OWNER CONFIRMATION |
+| 1.3 | A red `CI` cannot be deployed to Production: GitHub branch protection or Vercel Deployment Checks is on. (The Vercel build ignores ESLint by design, `next.config.mjs`, so a deploy can succeed while ESLint is red.) | [MANUAL] | **FAIL / OPEN (VERIFIED 2026-11-14, Day 3 Part 3):** no classic branch protection, no Rulesets, Vercel Deployment Checks "No checks configured" (owner screenshots). Red CI #132 `960ae7f` and #133 `6b84594` were deployed READY on Preview |
 | 1.4 | Production Supabase project has a backup that has actually been restored once to a scratch project (section 4) | [MANUAL] [OWNER] | **BLOCKED** (Free plan, no backups, Seen 2026-11-08) |
-| 1.5 | The owner has written down which project is TEST and which is Production, by project reference (not by name or by the "PRODUCTION" branch tag, which Supabase puts on every main branch) | [OWNER] | PENDING OWNER CONFIRMATION (name confusion open since Phase 5 Step 3) |
+| 1.5 | The owner has written down which project is TEST and which is Production, by project reference (not by name or by the "PRODUCTION" branch tag, which Supabase puts on every main branch) | [OWNER] | **CONFIRMED 2026-11-14 (owner + Vercel UI):** TEST = `ficwuieqjdhrrxbvuqot`, Production = `mfliodvkaszqywajbshu`. Vercel env screenshot: Preview URL starts `ficwuieqj…`, Production URL starts `mfliodvka…` (prefix only; Production value not decrypted) |
 | 1.6 | Read-only inventory of Production schema done (section 3, step 0) so the migration list is based on what exists, not on memory | [MANUAL] | PENDING |
 | 1.7 | Every security blocker in `PHASE5-PRODUCTION-READINESS-REPORT.md` section 5 is closed or accepted in writing by the owner | [OWNER] | OPEN |
 | 1.8 | Owner decisions D1 to D12 in the readiness report section 7 are answered | [OWNER] | OPEN |
@@ -93,14 +93,14 @@ Required before real data or real money:
 | --- | --- | --- | --- |
 | 5.1 | Restored webhook route file matches the owner's repository copy (it was missing from the uploaded ZIP) | [MANUAL] | PENDING OWNER CONFIRMATION |
 | 5.2 | Exposure search: repository, `.next/static`, browser network tab, Vercel and GitHub logs contain no key, secret or token pattern (`MVP-PILOT-SAFETY-CHECKLIST.md` section 6) | [MANUAL] | Code-read part done; the rest PENDING |
-| 5.3 | Vercel Firewall: a rate-limit rule for `/api/v1/ads/match`, `/api/ads/match`, impression, click and `/api/payments/webhook` (Seen 2026-11-08: Custom Rules 0) | [MANUAL] [OWNER] | **OPEN** |
+| 5.3 | Vercel Firewall: a rate-limit rule for `/api/v1/ads/match`, `/api/ads/match`, impression, click and `/api/payments/webhook` (Seen 2026-11-08: Custom Rules 0) | [MANUAL] [OWNER] | **PARTIAL (VERIFIED 2026-11-13, read-only connector):** custom rule `ads-rate-limit` active (600 req/60 s/IP, path starts `/api/v1/ads/`, 429). It is the only custom rule, so `/api/ads/match`, impression, click and `/api/payments/webhook` have **no Firewall rule** |
 | 5.4 | Response headers on the real domain checked with a header viewer or `curl -I`: `x-content-type-options`, `x-frame-options`, `referrer-policy`, `permissions-policy`, `strict-transport-security`, no `x-powered-by` | [MANUAL] | PENDING (needs the real domain) |
 | 5.5 | Content-Security-Policy: decision made (trial report-only on Preview, or accept the gap in writing) | [OWNER] | OPEN |
 | 5.6 | Supabase Auth: Site URL and redirect allow-list contain only the real domain (and Preview if wanted); Google OAuth redirect URIs correct (`DAY3-GOOGLE-DOMAIN-SETUP.md`); email confirmation on | [MANUAL] | PENDING OWNER CONFIRMATION |
 | 5.7 | Dependency scan: `npm audit --omit=dev` (or Dependabot) reviewed. `.npmrc` disables audit on install and there is no Dependabot file | [MANUAL] [OWNER] | PENDING |
-| 5.8 | `SUPABASE_SERVICE_ROLE_KEY` removed or explained | [OWNER] | PENDING |
+| 5.8 | `SUPABASE_SERVICE_ROLE_KEY` removed or explained | [OWNER] | PENDING. **UPDATE 2026-11-13:** variable exists on Production only (Sensitive); app code does not read it (grep). Removal is still an owner decision |
 | 5.9 | Admin accounts: list of admin users reviewed, each with a strong login; no shared admin login | [MANUAL] [OWNER] | PENDING |
-| 5.10 | Production publisher keys: none exist from the TEST period; every TEST key revoked (revoke dates recorded) | [MANUAL] | PENDING (revoke-practice date not recorded) |
+| 5.10 | Production publisher keys: none exist from the TEST period; every TEST key revoked (revoke dates recorded) | [MANUAL] | PENDING (revoke-practice date not recorded). **UPDATE 2026-11-14:** owner reported revoking the Day 3 Part 3 TEST key (owner-reported, not seen by me). Production keys not checked |
 
 ## 6. Deployment order
 

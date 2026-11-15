@@ -52,3 +52,8 @@ Preview host: `blisscco-ads-git-preview-day-c-…vercel.app`.
 - The sandbox-only failure (`day 28 part 1`) does not occur in CI (0 failed).
 - **NOT TESTED:** DB integration workflow this round (last green: #22, Nov 12, before these changes; no SQL changed here).
 - CI does not prove the live items in section 1; those stay as listed.
+
+
+## Update after Day 3 Part 3 (2026-11-14)
+- Preview headers re-observed (owner terminal, `/` and `/api/v1/ads/match`): HSTS, nosniff, X-Frame DENY, Referrer, Permissions and CSP Report-Only present.
+- F1a, F1e (Production CSP), F2b, F2c are **unchanged**. Production headers were not re-checked in Part 3.

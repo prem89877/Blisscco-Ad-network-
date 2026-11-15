@@ -251,3 +251,11 @@ Status change in section 7: **Cashfree BLOCKED. Razorpay: adapter written (test 
 Extra facts from the owner's Razorpay dashboard screenshots (Seen, not verified by Razorpay): the account is Individual with Business Name = legal name (cannot be changed), Brand Name "Kissaan Saathi"; an edit request replacing `kissaan-saathi.vercel.app` with `blisscco.online` was under review (it would replace, not add, the old site); International Cards enabled; 50,000 INR transaction size; settlement T+7; MoneySaver USD accounts not activated. A live API key id was visible in one screenshot (key id only; the secret was not shown). **Decision D6 now also covers:** whether the Razorpay account type and business identity may be used for Blisscco, and what happens to Kissaan Saathi payments when the website is replaced.
 
 Files changed by this addendum: `lib/payments/razorpay.ts` (new), `lib/payments/provider.ts`, `tests/payments/phase5-step6-razorpay.test.ts` (new), `tests/payments/phase5-step5-payments.test.ts`, `.env.example`, `COMMERCIAL-PAYMENTS-GUIDE.md`, this report. CI is awaited from the owner for all of it.
+
+
+---
+
+## Update after Phase 6 Day 3 Part 3 (2026-11-14)
+- **S-03:** a custom Firewall rule now exists (`ads-rate-limit`, `/api/v1/ads/` only). The webhook route still has no edge rate limit.
+- **Build / deploy gating (section on Build):** still **missing**. Verified 2026-11-14: no branch protection, no Rulesets, no Vercel Deployment Checks; red CI commits were deployed on Preview.
+- See `PHASE6-DAY3-PART3-VERCEL-REPORT.md`.

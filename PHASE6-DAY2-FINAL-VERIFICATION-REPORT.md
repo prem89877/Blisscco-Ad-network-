@@ -169,3 +169,9 @@ Report updates (no lib/, CI, Vercel or Production change): this report; `PHASE6-
 - All-regions: **keep existing behaviour, no policy weakening** (owner). Ledger, payments, payouts: **OFF** (owner).
 - Reserved-budget: approval wording received; **not implemented** pending scope confirmation (G-1 itself is already done on TEST; the `load_ad_candidates` live-hold fix is separate).
 - Details: `PHASE6-DAY3-PART1-TECHNICAL-GAPS-REPORT.md`. Production: **NO-GO** (unchanged).
+
+
+## Update after Day 3 Part 3 (2026-11-14)
+- "valid-ad response NOT TESTED" is now **observed once on Preview** (topic `travel`, TEST key, 200 `fill:true`); live 503 is still **NOT TESTED** (not induced by rule).
+- G5 `ads-rate-limit` re-read live: still active, same config (v1, 600/60 s/IP, `/api/v1/ads/`).
+- Details: `PHASE6-DAY3-PART3-VERCEL-REPORT.md`. Production: **NO-GO** unchanged.

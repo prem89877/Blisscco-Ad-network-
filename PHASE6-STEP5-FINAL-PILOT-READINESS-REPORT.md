@@ -329,3 +329,13 @@ Evidence labels used in these updates: **VERIFIED** = proof exists (pasted query
 - Ledger is OFF on TEST (VERIFIED). The test orphan adjustment of 5.0000 is CONFIRMED BY USER as test data.
 - New finding: TEST was missing the `day-12-5` retry pieces; restored with a TEST-only script (see Part 2 update). **Production status of this gap: OPEN.**
 - Still **OPEN**: Production read-only verification, DB password rotation after it was pasted in chat, decision on Denim being a shared project (finding P-1), pass counts of the final integration run, owner sign-off.
+
+
+---
+
+## Update after Phase 6 Day 3 Part 3 (2026-11-14)
+- **G5 (edge rate limit): PARTIAL.** Custom rule `ads-rate-limit` (600 req/60 s/IP, `/api/v1/ads/`, 429) re-read live and active on 2026-11-13 (read-only Vercel connector). It is the only custom rule: `/api/payments/webhook`, impression and click paths have no Firewall rule. The earlier note "Custom Rules = 0" is outdated.
+- **Sensitive environment variables: VERIFIED** for `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `AD_TRACKING_SECRET` (all Sensitive; values not read). `AD_TRACKING_SECRET` is one shared value for Production and Preview.
+- **Deploy gating: NOT in place.** No GitHub branch protection, no Rulesets, Vercel Deployment Checks empty (owner screenshots). Red CI #132/#133 were deployed READY on Preview.
+- G2, G3 (emergency stop is not enforced on Production), G6, G8 to G12 and Gates A-D: unchanged, still open. Production: **NO-GO**.
+- Details: `PHASE6-DAY3-PART3-VERCEL-REPORT.md`.

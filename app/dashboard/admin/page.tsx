@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Panel from "@/components/dashboard/Panel";
 import AdminDecisionButton from "@/components/admin/AdminDecisionButton";
@@ -196,6 +197,11 @@ export default async function AdminPage() {
           Some lists could not be loaded. Please refresh the page.
         </p>
       )}
+      <p className="mb-2 text-sm">
+        <Link href="/dashboard/admin/security" className="text-aqua hover:underline">
+          Security: two-factor authentication
+        </Link>
+      </p>
       <p className="mb-6 text-sm text-mist/70">
         Waiting: {pendingAccounts} account(s), {data.creatives.length} ad(s), {data.campaigns.length} campaign(s)
         {pendingCountries === null ? "" : `, ${pendingCountries} publisher country review(s)`}.
