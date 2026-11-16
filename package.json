@@ -1,5 +1,6 @@
 {
   "name": "blisscco-ad-network",
+  "description": "Agent2 test",
   "version": "0.1.0",
   "private": true,
   "scripts": {
