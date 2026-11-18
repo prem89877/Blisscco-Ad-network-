@@ -14,8 +14,10 @@ function run(env: Record<string, string>): { key: string; value: string }[] {
 }
 
 describe("F1 CSP | Report-Only on Preview only", () => {
-  it("Production, development and unset env => no CSP header (Production unchanged)", () => {
-    assert.deepEqual(run({ VERCEL_ENV: "production" }), []);
+  it("Production with Supabase URL => Report-Only header, development and unset env => no CSP header", () => {
+    const h = run({ VERCEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: "https://abcd.supabase.co" });
+    assert.equal(h.length, 1);
+    assert.equal(h[0].key, "Content-Security-Policy-Report-Only");
     assert.deepEqual(run({ VERCEL_ENV: "development" }), []);
     assert.deepEqual(run({}), []);
   });
