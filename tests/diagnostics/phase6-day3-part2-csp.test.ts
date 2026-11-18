@@ -14,8 +14,10 @@ function run(env: Record<string, string>): { key: string; value: string }[] {
 }
 
 describe("F1 CSP | Report-Only on Preview only", () => {
-  it("Production, development and unset env => no CSP header (Production unchanged)", () => {
-    assert.deepEqual(run({ VERCEL_ENV: "production" }), []);
+  it("Report-Only on Preview and Production", () => {
+    const prodHeaders = run({ VERCEL_ENV: "production" });
+    assert.equal(prodHeaders.length, 1);
+    assert.equal(prodHeaders[0].key, "Content-Security-Policy-Report-Only");
     assert.deepEqual(run({ VERCEL_ENV: "development" }), []);
     assert.deepEqual(run({}), []);
   });
